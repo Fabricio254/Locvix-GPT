@@ -214,11 +214,11 @@ def create_sidebar(qa_data):
         if os.path.exists(logo_path):
             col_logo, col_txt = st.columns([1, 2])
             with col_logo:
-                st.image(logo_path, width=70)
+                st.image(logo_path, width=110)
             with col_txt:
                 st.markdown(f"""
-                <div style="padding-top:10px; color:{COLORS['secondary']}; font-weight:bold; font-size:1em; line-height:1.2;">
-                LOCVIX<br><span style="font-size:0.7em; font-weight:normal; color:#888;">Guindastes e Serviços</span>
+                <div style="padding-top:14px; color:{COLORS['secondary']}; font-weight:bold; font-size:1.1em; line-height:1.3;">
+                LOCVIX<br><span style="font-size:0.72em; font-weight:normal; color:#888;">Guindastes e Serviços</span>
                 </div>""", unsafe_allow_html=True)
             st.divider()
         st.markdown(f"## 🎯 Sugestões de Perguntas")
@@ -274,6 +274,15 @@ def create_sidebar(qa_data):
         <strong>💡 Dica</strong><br>
         <small>Use as sugestões acima para explorar <strong>{qa_data.get('total_questions', 0)}</strong>
         perguntas pré-organizadas. É mais rápido! 🚀</small>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div style="margin-top: 24px; padding: 10px 12px; border-top: 1px solid #ddd;
+                    text-align: center; color: #aaa; font-size: 0.72em; line-height: 1.6;">
+            Desenvolvido por<br>
+            <strong style="color: {COLORS['secondary']};">Fabrício Zamprogno</strong><br>
+            📱 27-996076278
         </div>
         """, unsafe_allow_html=True)
 
