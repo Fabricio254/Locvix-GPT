@@ -212,7 +212,14 @@ def create_sidebar(qa_data):
         # Logo LOCVIX no topo da sidebar
         logo_path = "logo locvix.jfif"
         if os.path.exists(logo_path):
-            st.image(logo_path, use_container_width=True)
+            col_logo, col_txt = st.columns([1, 2])
+            with col_logo:
+                st.image(logo_path, width=70)
+            with col_txt:
+                st.markdown(f"""
+                <div style="padding-top:10px; color:{COLORS['secondary']}; font-weight:bold; font-size:1em; line-height:1.2;">
+                LOCVIX<br><span style="font-size:0.7em; font-weight:normal; color:#888;">Guindastes e Serviços</span>
+                </div>""", unsafe_allow_html=True)
             st.divider()
         st.markdown(f"## 🎯 Sugestões de Perguntas")
 
