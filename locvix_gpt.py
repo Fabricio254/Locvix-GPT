@@ -255,9 +255,56 @@ def create_sidebar(qa_data):
         </div>
         """, unsafe_allow_html=True)
 
+def check_password():
+    """Tela de login com usuário e senha"""
+    if st.session_state.get("authenticated"):
+        return True
+
+    st.markdown(f"""
+    <style>
+    [data-testid="stSidebar"] {{ display: none !important; }}
+    .login-box {{
+        max-width: 380px;
+        margin: 80px auto;
+        padding: 36px 32px;
+        border-radius: 14px;
+        border: 2px solid {COLORS['primary']};
+        background: white;
+        text-align: center;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    }}
+    .login-title {{ color: {COLORS['secondary']}; font-size: 1.6em; font-weight: 800; margin-bottom: 4px; }}
+    .login-sub {{ color: #888; font-size: 0.95em; margin-bottom: 20px; }}
+    </style>
+    <div class="login-box">
+        <div class="login-title">🏗️ LOCVIX GPT</div>
+        <div class="login-sub">Digite suas credenciais para acessar</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.form("login_form"):
+        usuario = st.text_input("Usuário", placeholder="Digite o usuário")
+        senha = st.text_input("Senha", type="password", placeholder="Digite a senha")
+        entrar = st.form_submit_button("🔐 Entrar", use_container_width=True)
+
+    if entrar:
+        correct_user = st.secrets.get("auth", {}).get("username", "locvix")
+        correct_pass = st.secrets.get("auth", {}).get("password", "zampa254")
+        if usuario == correct_user and senha == correct_pass:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("❌ Usuário ou senha incorretos!")
+
+    return False
+
+
 def main():
     """Função principal"""
     setup_page()
+
+    if not check_password():
+        return
 
     qa_data = load_qa_data()
 
