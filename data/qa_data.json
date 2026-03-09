@@ -1,0 +1,161 @@
+{
+  "company": "LOCVIX Guindastes e Serviços",
+  "total_questions": 22,
+  "last_updated": "2026-03-09",
+  "topics": {
+    "🏢 Quem Somos": {
+      "questions": [
+        {
+          "id": 1,
+          "question": "O que é a LOCVIX?",
+          "answer": "A LOCVIX GUINDASTES E SERVIÇOS busca oferecer serviços de excelência em içamento e movimentação de cargas por meio de guindastes, GUINDAUTOS/MUNCK, retroescavadeiras, basculante, transportes pesados, especiais e remoção industrial."
+        },
+        {
+          "id": 2,
+          "question": "Quais são os principais clientes da LOCVIX?",
+          "answer": "Em nosso background de clientes estão grandes nomes da economia nacional e mundial, como: Arcelor Mittal, Vale, Fibria, Petrobras, Fortes Engenharia, Paul Wurth, Imetame, entre outros."
+        },
+        {
+          "id": 3,
+          "question": "Qual é o diferencial da LOCVIX?",
+          "answer": "Nosso setor de engenharia é formado por profissionais capacitados, altamente treinados e qualificados para atender as necessidades dos nossos clientes. Oferecemos qualidade e agilidade nos serviços de içamento e movimentação de cargas."
+        },
+        {
+          "id": 4,
+          "question": "A LOCVIX atende grandes indústrias?",
+          "answer": "Sim! A LOCVIX já atendeu e atende grandes nomes como Arcelor Mittal, Vale, Fibria, Petrobras, entre outros. Nossos profissionais possuem todas as documentações exigidas pelas grandes indústrias."
+        },
+        {
+          "id": 5,
+          "question": "Qual é a missão da LOCVIX?",
+          "answer": "A missão da LOCVIX é oferecer serviços de excelência em içamento e movimentação de cargas, garantindo qualidade, agilidade e segurança. Seja qual for sua necessidade, você pode contar com a LOCVIX."
+        }
+      ]
+    },
+    "👥 Equipe": {
+      "questions": [
+        {
+          "id": 6,
+          "question": "Como é a equipe da LOCVIX?",
+          "answer": "A LOCVIX possui consultores comerciais altamente qualificados e experientes, além de operadores treinados e capacitados com toda documentação necessária que as grandes indústrias solicitam."
+        },
+        {
+          "id": 7,
+          "question": "Os operadores da LOCVIX são capacitados?",
+          "answer": "Sim! Os operadores da LOCVIX são treinados e capacitados, possuindo toda a documentação necessária exigida pelas grandes indústrias. Nossa equipe é formada por profissionais altamente qualificados."
+        },
+        {
+          "id": 8,
+          "question": "A LOCVIX tem consultores comerciais?",
+          "answer": "Sim, a LOCVIX possui consultores comerciais altamente qualificados e experientes para atender e orientar nossos clientes da melhor forma possível."
+        }
+      ]
+    },
+    "💳 Forma de Pagamento": {
+      "questions": [
+        {
+          "id": 9,
+          "question": "Quais são as formas de pagamento aceitas?",
+          "answer": "A LOCVIX aceita pagamento por Boleto Bancário ou à Vista."
+        },
+        {
+          "id": 10,
+          "question": "A LOCVIX aceita boleto?",
+          "answer": "Sim, a LOCVIX aceita pagamento via Boleto Bancário."
+        },
+        {
+          "id": 11,
+          "question": "Posso pagar à vista?",
+          "answer": "Sim! A LOCVIX aceita pagamento à vista."
+        }
+      ]
+    },
+    "🏗️ Equipamentos": {
+      "questions": [
+        {
+          "id": 12,
+          "question": "Quais equipamentos a LOCVIX possui?",
+          "answer": "A LOCVIX possui equipamentos próprios: Guindastes, Caminhão Munck com joystick, Empilhadeiras, Retroescavadeira, Mini Retro e Pá, Carretas Simples e Prancha, além de serviços de Remoção Industrial."
+        },
+        {
+          "id": 13,
+          "question": "A LOCVIX tem guindastes?",
+          "answer": "Sim! A LOCVIX possui guindastes próprios para içamento e movimentação de cargas com total segurança e eficiência."
+        },
+        {
+          "id": 14,
+          "question": "A LOCVIX tem caminhão Munck?",
+          "answer": "Sim, a LOCVIX possui Caminhão Munck com joystick, ideal para içamento e movimentação de cargas com precisão e controle."
+        },
+        {
+          "id": 15,
+          "question": "A LOCVIX tem empilhadeira?",
+          "answer": "Sim, a LOCVIX possui empilhadeiras disponíveis para locação e serviços de movimentação de carga."
+        },
+        {
+          "id": 16,
+          "question": "A LOCVIX tem retroescavadeira?",
+          "answer": "Sim, a LOCVIX possui Retroescavadeira e Mini Retro e Pá para serviços de escavação e movimentação de terra."
+        },
+        {
+          "id": 17,
+          "question": "A LOCVIX tem carreta prancha?",
+          "answer": "Sim, a LOCVIX possui Carretas Simples e Prancha para transporte de cargas pesadas e especiais."
+        },
+        {
+          "id": 18,
+          "question": "A LOCVIX faz remoção industrial?",
+          "answer": "Sim! A LOCVIX oferece serviços completos de Remoção Industrial com equipamentos e equipe especializada."
+        }
+      ]
+    },
+    "📅 Atendimento": {
+      "questions": [
+        {
+          "id": 19,
+          "question": "Como funciona o atendimento da LOCVIX?",
+          "answer": "Os atendimentos são agendados a partir da assinatura da proposta comercial, com os equipamentos sendo deslocados para o local do cliente."
+        },
+        {
+          "id": 20,
+          "question": "Como agendar um serviço com a LOCVIX?",
+          "answer": "Para agendar, é necessário assinar a proposta comercial. Após a assinatura, os equipamentos e equipe são deslocados até o local do cliente."
+        },
+        {
+          "id": 21,
+          "question": "Como solicitar uma proposta comercial?",
+          "answer": "Entre em contato com nossos consultores comerciais para solicitar uma proposta. Após a aprovação e assinatura, o serviço é agendado e os equipamentos deslocados ao seu local."
+        },
+        {
+          "id": 22,
+          "question": "A LOCVIX se desloca até o cliente?",
+          "answer": "Sim! Após a assinatura da proposta comercial, os equipamentos e a equipe da LOCVIX são deslocados até o local do cliente para a execução do serviço."
+        }
+      ]
+    }
+  },
+  "questions": [
+    {"id": 1, "question": "O que é a LOCVIX?", "answer": "A LOCVIX GUINDASTES E SERVIÇOS busca oferecer serviços de excelência em içamento e movimentação de cargas por meio de guindastes, GUINDAUTOS/MUNCK, retroescavadeiras, basculante, transportes pesados, especiais e remoção industrial.", "topic": "🏢 Quem Somos"},
+    {"id": 2, "question": "Quais são os principais clientes da LOCVIX?", "answer": "Em nosso background de clientes estão grandes nomes da economia nacional e mundial, como: Arcelor Mittal, Vale, Fibria, Petrobras, Fortes Engenharia, Paul Wurth, Imetame, entre outros.", "topic": "🏢 Quem Somos"},
+    {"id": 3, "question": "Qual é o diferencial da LOCVIX?", "answer": "Nosso setor de engenharia é formado por profissionais capacitados, altamente treinados e qualificados para atender as necessidades dos nossos clientes. Oferecemos qualidade e agilidade nos serviços de içamento e movimentação de cargas.", "topic": "🏢 Quem Somos"},
+    {"id": 4, "question": "A LOCVIX atende grandes indústrias?", "answer": "Sim! A LOCVIX já atendeu e atende grandes nomes como Arcelor Mittal, Vale, Fibria, Petrobras, entre outros. Nossos profissionais possuem todas as documentações exigidas pelas grandes indústrias.", "topic": "🏢 Quem Somos"},
+    {"id": 5, "question": "Qual é a missão da LOCVIX?", "answer": "A missão da LOCVIX é oferecer serviços de excelência em içamento e movimentação de cargas, garantindo qualidade, agilidade e segurança.", "topic": "🏢 Quem Somos"},
+    {"id": 6, "question": "Como é a equipe da LOCVIX?", "answer": "A LOCVIX possui consultores comerciais altamente qualificados e experientes, além de operadores treinados e capacitados com toda documentação necessária que as grandes indústrias solicitam.", "topic": "👥 Equipe"},
+    {"id": 7, "question": "Os operadores da LOCVIX são capacitados?", "answer": "Sim! Os operadores da LOCVIX são treinados e capacitados, possuindo toda a documentação necessária exigida pelas grandes indústrias.", "topic": "👥 Equipe"},
+    {"id": 8, "question": "A LOCVIX tem consultores comerciais?", "answer": "Sim, a LOCVIX possui consultores comerciais altamente qualificados e experientes para atender e orientar nossos clientes.", "topic": "👥 Equipe"},
+    {"id": 9, "question": "Quais são as formas de pagamento aceitas?", "answer": "A LOCVIX aceita pagamento por Boleto Bancário ou à Vista.", "topic": "💳 Forma de Pagamento"},
+    {"id": 10, "question": "A LOCVIX aceita boleto?", "answer": "Sim, a LOCVIX aceita pagamento via Boleto Bancário.", "topic": "💳 Forma de Pagamento"},
+    {"id": 11, "question": "Posso pagar à vista?", "answer": "Sim! A LOCVIX aceita pagamento à vista.", "topic": "💳 Forma de Pagamento"},
+    {"id": 12, "question": "Quais equipamentos a LOCVIX possui?", "answer": "A LOCVIX possui equipamentos próprios: Guindastes, Caminhão Munck com joystick, Empilhadeiras, Retroescavadeira, Mini Retro e Pá, Carretas Simples e Prancha, e serviços de Remoção Industrial.", "topic": "🏗️ Equipamentos"},
+    {"id": 13, "question": "A LOCVIX tem guindastes?", "answer": "Sim! A LOCVIX possui guindastes próprios para içamento e movimentação de cargas com total segurança e eficiência.", "topic": "🏗️ Equipamentos"},
+    {"id": 14, "question": "A LOCVIX tem caminhão Munck?", "answer": "Sim, a LOCVIX possui Caminhão Munck com joystick, ideal para içamento e movimentação de cargas com precisão e controle.", "topic": "🏗️ Equipamentos"},
+    {"id": 15, "question": "A LOCVIX tem empilhadeira?", "answer": "Sim, a LOCVIX possui empilhadeiras disponíveis para locação e serviços de movimentação de carga.", "topic": "🏗️ Equipamentos"},
+    {"id": 16, "question": "A LOCVIX tem retroescavadeira?", "answer": "Sim, a LOCVIX possui Retroescavadeira e Mini Retro e Pá para serviços de escavação e movimentação de terra.", "topic": "🏗️ Equipamentos"},
+    {"id": 17, "question": "A LOCVIX tem carreta prancha?", "answer": "Sim, a LOCVIX possui Carretas Simples e Prancha para transporte de cargas pesadas e especiais.", "topic": "🏗️ Equipamentos"},
+    {"id": 18, "question": "A LOCVIX faz remoção industrial?", "answer": "Sim! A LOCVIX oferece serviços completos de Remoção Industrial com equipamentos e equipe especializada.", "topic": "🏗️ Equipamentos"},
+    {"id": 19, "question": "Como funciona o atendimento da LOCVIX?", "answer": "Os atendimentos são agendados a partir da assinatura da proposta comercial, com os equipamentos sendo deslocados para o local do cliente.", "topic": "📅 Atendimento"},
+    {"id": 20, "question": "Como agendar um serviço com a LOCVIX?", "answer": "Para agendar, é necessário assinar a proposta comercial. Após a assinatura, os equipamentos e equipe são deslocados até o local do cliente.", "topic": "📅 Atendimento"},
+    {"id": 21, "question": "Como solicitar uma proposta comercial?", "answer": "Entre em contato com nossos consultores comerciais para solicitar uma proposta. Após a aprovação e assinatura, o serviço é agendado e os equipamentos deslocados ao seu local.", "topic": "📅 Atendimento"},
+    {"id": 22, "question": "A LOCVIX se desloca até o cliente?", "answer": "Sim! Após a assinatura da proposta comercial, os equipamentos e a equipe da LOCVIX são deslocados até o local do cliente para a execução do serviço.", "topic": "📅 Atendimento"}
+  ]
+}
