@@ -10,6 +10,7 @@ import json
 import unicodedata
 import os
 from datetime import datetime
+import base64
 
 # Cores da LOCVIX
 COLORS = {
@@ -22,6 +23,15 @@ COLORS = {
     "success": "#00A86B",
     "error": "#FF6B6B"
 }
+
+def get_logo_base64():
+    """Retorna a logo LOCVIX em base64 para embed em HTML"""
+    logo_path = "logo locvix.jfif"
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        return f"data:image/jpeg;base64,{data}"
+    return None
 
 def normalize_text(text):
     """Normaliza texto removendo acentos, til, cedilha, etc."""
@@ -199,6 +209,11 @@ def setup_page():
 def create_sidebar(qa_data):
     """Cria sidebar com sugestões"""
     with st.sidebar:
+        # Logo LOCVIX no topo da sidebar
+        logo_path = "logo locvix.jfif"
+        if os.path.exists(logo_path):
+            st.image(logo_path, use_container_width=True)
+            st.divider()
         st.markdown(f"## 🎯 Sugestões de Perguntas")
 
         search_text = st.text_input(
@@ -260,12 +275,15 @@ def check_password():
     if st.session_state.get("authenticated"):
         return True
 
+    logo_b64 = get_logo_base64()
+    logo_html = f'<img src="{logo_b64}" style="max-width:200px; margin-bottom:12px;" />' if logo_b64 else ""
+
     st.markdown(f"""
     <style>
     [data-testid="stSidebar"] {{ display: none !important; }}
     .login-box {{
-        max-width: 380px;
-        margin: 80px auto;
+        max-width: 400px;
+        margin: 60px auto;
         padding: 36px 32px;
         border-radius: 14px;
         border: 2px solid {COLORS['primary']};
@@ -273,11 +291,12 @@ def check_password():
         text-align: center;
         box-shadow: 0 4px 24px rgba(0,0,0,0.10);
     }}
-    .login-title {{ color: {COLORS['secondary']}; font-size: 1.6em; font-weight: 800; margin-bottom: 4px; }}
+    .login-title {{ color: {COLORS['secondary']}; font-size: 1.4em; font-weight: 800; margin-top: 8px; margin-bottom: 4px; }}
     .login-sub {{ color: #888; font-size: 0.95em; margin-bottom: 20px; }}
     </style>
     <div class="login-box">
-        <div class="login-title">🏗️ LOCVIX GPT</div>
+        {logo_html}
+        <div class="login-title">LOCVIX GPT</div>
         <div class="login-sub">Digite suas credenciais para acessar</div>
     </div>
     """, unsafe_allow_html=True)
@@ -316,11 +335,14 @@ def main():
     create_sidebar(qa_data)
 
     # Header
+    logo_b64 = get_logo_base64()
+    logo_img_html = f'<img src="{logo_b64}" style="height:38px; object-fit:contain; vertical-align:middle; margin-right:10px;" />' if logo_b64 else ""
     st.markdown(f"""
     <div style="background: linear-gradient(90deg, {COLORS['secondary']} 0%, {COLORS['primary']} 100%);
                 padding: 8px 16px; border-radius: 6px; margin-bottom: 12px;
                 display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-        <span style="color: white; font-size: 1.1em; font-weight: bold; white-space: nowrap;">🏗️ LOCVIX GPT</span>
+        {logo_img_html}
+        <span style="color: white; font-size: 1.1em; font-weight: bold; white-space: nowrap;">LOCVIX GPT</span>
         <span class="header-subtitle" style="color: rgba(255,255,255,0.80); font-size: 0.8em;">
             | Sistema de Perguntas e Respostas - LOCVIX Guindastes e Serviços
         </span>
