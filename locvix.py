@@ -1298,26 +1298,6 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
     </table>
   </div>
 
-  <!-- ── TABELA OS ── -->
-  <div class="section-title">🔧 Ordens de Serviço</div>
-  <div class="table-card">
-    <h3>Últimas 30 OS no período</h3>
-    <table class="data-tbl">
-      <thead>
-        <tr>
-          <th>Nº</th>
-          <th>Data</th>
-          <th>Cliente</th>
-          <th>Técnico</th>
-          <th>Descrição</th>
-          <th>Status</th>
-          <th class="num">Valor</th>
-        </tr>
-      </thead>
-      <tbody id="tblOsCorpo"></tbody>
-    </table>
-  </div>
-
 </div>
 
 <div class="footer">
