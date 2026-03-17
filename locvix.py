@@ -1679,7 +1679,7 @@ function toggleTheme() {{
   const isDark = body.getAttribute('data-theme') === 'dark';
   const next = isDark ? 'light' : 'dark';
   body.setAttribute('data-theme', next);
-  document.getElementById('btn-theme').textContent = isDark ? '\ud83c\udf19' : '\u2600\ufe0f';
+  document.getElementById('btn-theme').textContent = isDark ? String.fromCodePoint(0x1F319) : String.fromCodePoint(0x2600);
   try {{ localStorage.setItem('locvix-theme', next); }} catch(e){{}}
   const gc = isDark ? '#e2e8f0' : '#e2e8f0';
   const lc = isDark ? '#94a3b8' : '#4a5568';
