@@ -355,10 +355,9 @@ def buscar_financeiro(data_ini: str, data_fim: str) -> dict:
 
     params = {"data_inicio": br_to_iso(data_ini), "data_fim": br_to_iso(data_fim)}
 
-    # Mapeamento real de endpoints disponíveis neste plano
+    # Apenas Contas a Pagar (recebimentos sem dados neste plano)
     endpoints_map = [
-        ("receber", "recebimentos"),
-        ("pagar",   "pagamentos"),
+        ("pagar", "pagamentos"),
     ]
 
     for tipo, endpoint in endpoints_map:
@@ -1165,14 +1164,6 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
   <!-- ── KPIs FINANCEIRO ── -->
   <div class="section-title">🏦 Financeiro — Resumo</div>
   <div class="kpi-grid col4">
-    <div class="kpi-card green">
-      <div class="kpi-label">A Receber (Total)</div>
-      <div class="kpi-value small" id="kRecTotal">—</div>
-    </div>
-    <div class="kpi-card teal">
-      <div class="kpi-label">A Receber (Recebido)</div>
-      <div class="kpi-value small" id="kRecPago">—</div>
-    </div>
     <div class="kpi-card red">
       <div class="kpi-label">A Pagar (Total)</div>
       <div class="kpi-value small" id="kPagTotal">—</div>
@@ -1231,11 +1222,7 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
   <div class="section-title">💳 Financeiro</div>
   <div class="chart-row col2">
     <div class="chart-card">
-      <h3>📥 Contas a Receber por Categoria</h3>
-      <canvas id="chartReceber" height="130"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>📤 Contas a Pagar por Categoria</h3>
+      <h3> Contas a Pagar por Categoria</h3>
       <canvas id="chartPagar" height="130"></canvas>
     </div>
   </div>
@@ -1282,26 +1269,6 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
       </thead>
       <tbody id="tblCliCorpo"></tbody>
       <tfoot><tr id="tblCliTotal"></tr></tfoot>
-    </table>
-  </div>
-
-  <!-- ── TABELA CONTAS A RECEBER ── -->
-  <div class="section-title">📥 Contas a Receber</div>
-  <div class="table-card">
-    <h3>Últimas 30 contas mais relevantes</h3>
-    <table class="data-tbl">
-      <thead>
-        <tr>
-          <th>Descrição</th>
-          <th>Pessoa</th>
-          <th class="num">Valor</th>
-          <th class="num">Recebido</th>
-          <th class="num">Saldo</th>
-          <th>Vencimento</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="tblRecCorpo"></tbody>
     </table>
   </div>
 
@@ -1520,12 +1487,8 @@ function atualizarKPIVendas(rows) {{
 }}
 
 function atualizarKPIFinanceiro() {{
-  const recTot  = RECEBER.reduce((s,r)=>s+r.valor,0);
-  const recPago = RECEBER.reduce((s,r)=>s+r.pago,0);
   const pagTot  = PAGAR.reduce((s,r)=>s+r.valor,0);
   const pagPago = PAGAR.reduce((s,r)=>s+r.pago,0);
-  document.getElementById('kRecTotal').textContent = BRL(recTot);
-  document.getElementById('kRecPago').textContent  = BRL(recPago);
   document.getElementById('kPagTotal').textContent = BRL(pagTot);
   document.getElementById('kPagPago').textContent  = BRL(pagPago);
 }}
@@ -1654,12 +1617,6 @@ function renderTblOS() {{
 //  GRÁFICOS FINANCEIROS
 // ═══════════════════════════════════════════════
 function mkFinanceiro() {{
-  // Contas a receber por categoria
-  const mRec = {{}};
-  RECEBER.forEach(r => {{ mRec[r.cat||'OUTROS'] = (mRec[r.cat||'OUTROS']||0)+r.valor; }});
-  const recEntries = Object.entries(mRec).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  mkDonut('chartReceber', recEntries);
-
   // Contas a pagar por categoria
   const mPag = {{}};
   PAGAR.forEach(r => {{ mPag[r.cat||'OUTROS'] = (mPag[r.cat||'OUTROS']||0)+r.valor; }});
@@ -1693,7 +1650,6 @@ function atualizar() {{
   // Tabelas
   renderTblProdutos(rows);
   renderTblClientes(rows);
-  renderTblReceber();
   renderTblOS();
   mkFinanceiro();
 }}
