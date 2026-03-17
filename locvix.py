@@ -1207,24 +1207,32 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
 
   <!-- ── GRÁFICOS DE VENDAS ── -->
   <div class="section-title">📈 Análise de Vendas</div>
-  <div class="chart-row col2">
+  <div class="chart-row col2" style="align-items:start;">
     <div class="chart-card">
       <h3>📅 Faturamento Líquido por Mês</h3>
-      <canvas id="chartMensal" height="140"></canvas>
+      <div style="position:relative;height:260px;">
+        <canvas id="chartMensal"></canvas>
+      </div>
     </div>
     <div class="chart-card">
       <h3>🍩 Participação por Categoria</h3>
-      <canvas id="chartCategoria" height="140"></canvas>
+      <div style="position:relative;height:260px;">
+        <canvas id="chartCategoria"></canvas>
+      </div>
     </div>
   </div>
-  <div class="chart-row col2">
+  <div class="chart-row col2" style="align-items:start;">
     <div class="chart-card">
       <h3>🏆 Top 10 Produtos — Fat. Líquido</h3>
-      <canvas id="chartProdutos" height="150"></canvas>
+      <div style="position:relative;height:260px;">
+        <canvas id="chartProdutos"></canvas>
+      </div>
     </div>
     <div class="chart-card">
       <h3>👥 Top 10 Clientes — Fat. Líquido</h3>
-      <canvas id="chartClientes" height="150"></canvas>
+      <div style="position:relative;height:260px;">
+        <canvas id="chartClientes"></canvas>
+      </div>
     </div>
   </div>
 
@@ -1398,6 +1406,8 @@ function mkMensal(rows) {{
       }}]
     }},
     options: {{
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: {{legend:{{display:false}},
         tooltip:{{callbacks:{{label:c=>BRL(c.raw)}}}}}},
       scales: {{
@@ -1421,6 +1431,8 @@ function mkCategoria(rows) {{
         backgroundColor: CORES, borderWidth: 2, borderColor: '#fff', hoverOffset: 10 }}]
     }},
     options: {{
+      responsive: true,
+      maintainAspectRatio: false,
       cutout: '55%',
       plugins: {{
         legend: {{position:'right',labels:{{font:{{size:11}},boxWidth:14,color:'#cbd5e1'}}}},
@@ -1440,6 +1452,8 @@ function mkHorizBar(id, entries) {{
         backgroundColor: CORES, borderRadius: 4, borderSkipped: false }}]
     }},
     options: {{
+      responsive: true,
+      maintainAspectRatio: false,
       indexAxis: 'y',
       plugins: {{legend:{{display:false}},
         tooltip:{{callbacks:{{label:c=>BRL(c.raw)}}}}}},
