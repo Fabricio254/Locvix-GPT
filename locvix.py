@@ -1440,7 +1440,7 @@ function mkHorizBar(id, entries) {{
   }});
 }}
 
-function mkDonut(id, entries) {{
+function mkDonut(id, entries, centerLabel) {{
   destroyChart(id);
   const canvas = document.getElementById(id);
   if (!canvas) return;
@@ -1457,6 +1457,25 @@ function mkDonut(id, entries) {{
     return;
   }}
   canvas.style.display = '';
+  const centerPlugin = centerLabel ? [{{
+    id: 'centerText_' + id,
+    beforeDraw(chart) {{
+      const {{width, height, ctx}} = chart;
+      const cx = chart.chartArea ? (chart.chartArea.left + chart.chartArea.right) / 2 : width / 2;
+      const cy = chart.chartArea ? (chart.chartArea.top + chart.chartArea.bottom) / 2 : height / 2;
+      ctx.save();
+      const isDark = document.body.getAttribute('data-theme') !== 'light';
+      ctx.fillStyle = isDark ? '#cbd5e1' : '#1e293b';
+      ctx.font = 'bold 11px Inter,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('TOTAL', cx, cy - 10);
+      ctx.font = 'bold 13px Inter,sans-serif';
+      ctx.fillStyle = isDark ? '#38bdf8' : '#0284c7';
+      ctx.fillText(centerLabel, cx, cy + 8);
+      ctx.restore();
+    }}
+  }}] : [];
   charts[id] = new Chart(canvas, {{
     type: 'doughnut',
     data: {{
@@ -1470,7 +1489,8 @@ function mkDonut(id, entries) {{
         legend: {{position:'right',labels:{{font:{{size:11}},boxWidth:14,color:'#cbd5e1'}}}},
         tooltip: {{callbacks:{{label:c=>c.label+': '+BRL(c.raw)}}}}
       }}
-    }}
+    }},
+    plugins: centerPlugin
   }});
 }}
 
@@ -1627,7 +1647,8 @@ function mkFinanceiro() {{
   const mPag = {{}};
   PAGAR.forEach(r => {{ mPag[r.cat||'OUTROS'] = (mPag[r.cat||'OUTROS']||0)+r.valor; }});
   const pagEntries = Object.entries(mPag).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  mkDonut('chartPagar', pagEntries);
+  const totalPagar = PAGAR.reduce((s,r)=>s+r.valor, 0);
+  mkDonut('chartPagar', pagEntries, BRL(totalPagar));
 }}
 
 // ═══════════════════════════════════════════════
