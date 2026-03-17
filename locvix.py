@@ -1215,7 +1215,7 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
       </div>
     </div>
     <div class="chart-card">
-      <h3>🍩 Participação por Categoria</h3>
+      <h3>🍩 Faturamento por Categoria</h3>
       <div style="position:relative;height:260px;">
         <canvas id="chartCategoria"></canvas>
       </div>
