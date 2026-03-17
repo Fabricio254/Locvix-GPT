@@ -16,6 +16,7 @@ from datetime import datetime, date, timezone, timedelta
 
 _BRT = timezone(timedelta(hours=-3))
 
+import base64
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -62,9 +63,15 @@ if not st.session_state.get("_autenticado"):
     with col_c:
         st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
         if _lp:
-            st.image(_lp, width=200)
+            with open(_lp, "rb") as _f:
+                _b64 = base64.b64encode(_f.read()).decode()
+            _ext = _lp.rsplit(".", 1)[-1].lower().replace("jfif", "jpeg")
+            st.markdown(
+                f"<div style='text-align:center'><img src='data:image/{_ext};base64,{_b64}' width='180' style='border-radius:12px'/></div>",
+                unsafe_allow_html=True,
+            )
         st.markdown(
-            "<h2 style='text-align:center;margin-top:12px'>🔒 Área Restrita — LOCVIX</h2>",
+            "<h2 style='text-align:center;margin-top:16px'>🔒 Área Restrita — LOCVIX</h2>",
             unsafe_allow_html=True,
         )
         with st.form("_login_form"):
