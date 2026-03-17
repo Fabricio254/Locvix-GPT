@@ -921,6 +921,7 @@ def gerar_dashboard_html(
     raw_vendas = prep_vendas()
     raw_rec    = prep_financeiro(receber, "receber")
     raw_pag    = prep_financeiro(pagar, "pagar")
+    raw_pag_all = prep_financeiro(pagar_all, "pagar")
     raw_os     = prep_os()
     raw_contr  = [{
         "id":     c.get("Número",""),
@@ -1326,6 +1327,7 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
 const VENDAS    = {jv(raw_vendas)};
 const RECEBER   = {jv(raw_rec)};
 const PAGAR     = {jv(raw_pag)};
+const PAGAR_ALL = {jv(raw_pag_all)};
 const OS_LIST   = {jv(raw_os)};
 const CONTRATOS = {jv(raw_contr)};
 
@@ -1672,7 +1674,7 @@ function mkPagarMensal() {{
   const vencido = {{}};
   const hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
   meses.forEach(m => {{ pago[m.key]=0; aVencer[m.key]=0; vencido[m.key]=0; }});
-  PAGAR.forEach(r => {{
+  PAGAR_ALL.forEach(r => {{
     if (!r.venc) return;
     const mk = r.venc.slice(0,7);
     if (!Object.prototype.hasOwnProperty.call(pago, mk)) return;
@@ -1870,6 +1872,14 @@ def main(
     # ── Coleta de dados ────────────────────────────────────────────
     vendas    = buscar_vendas(d_ini, d_fim)
     financ    = buscar_financeiro(d_ini, d_fim)
+
+    # Busca pagamentos em janela fixa 2 anos atras / 2 anos a frente
+    # para o grafico de vencimentos por mes (independente do filtro)
+    _hoje_d   = datetime.now(_BRT if '_BRT' in dir() else timezone(timedelta(hours=-3))).date()
+    _ini_all  = (_hoje_d - timedelta(days=730)).strftime("%d/%m/%Y")
+    _fim_all  = (_hoje_d + timedelta(days=730)).strftime("%d/%m/%Y")
+    financ_all = buscar_financeiro(_ini_all, _fim_all)
+    pagar_all  = financ_all.get("pagar", [])
     clientes  = buscar_clientes()
     produtos  = buscar_produtos()
     contratos = buscar_contratos()
