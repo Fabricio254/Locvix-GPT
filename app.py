@@ -62,7 +62,7 @@ if not st.session_state.get("_autenticado"):
     with col_c:
         st.markdown("<div style='margin-top:60px'></div>", unsafe_allow_html=True)
         if _lp:
-            st.image(_lp, use_container_width=True)
+            st.image(_lp, width=200)
         st.markdown(
             "<h2 style='text-align:center;margin-top:12px'>🔒 Área Restrita — LOCVIX</h2>",
             unsafe_allow_html=True,
