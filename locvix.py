@@ -1233,6 +1233,10 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
       <h3> Contas a Pagar por Categoria</h3>
       <canvas id="chartPagar" height="130"></canvas>
     </div>
+    <div class="chart-card">
+      <h3>📅 Vencimentos por Mês (±12 meses)</h3>
+      <canvas id="chartPagarMensal" height="130"></canvas>
+    </div>
   </div>
 
   <!-- ── TABELA TOP PRODUTOS ── -->
@@ -1649,6 +1653,63 @@ function mkFinanceiro() {{
   const pagEntries = Object.entries(mPag).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const totalPagar = PAGAR.reduce((s,r)=>s+r.valor, 0);
   mkDonut('chartPagar', pagEntries, BRL(totalPagar));
+  mkPagarMensal();
+}}
+
+function mkPagarMensal() {{
+  destroyChart('chartPagarMensal');
+  const canvas = document.getElementById('chartPagarMensal');
+  if (!canvas) return;
+  const hoje = new Date();
+  const meses = [];
+  for (let i = -12; i <= 12; i++) {{
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+    meses.push({{ key: d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'),
+                  label: d.toLocaleDateString('pt-BR',{{month:'short',year:'2-digit'}}) }});
+  }}
+  const pago    = {{}};
+  const aVencer = {{}};
+  const vencido = {{}};
+  const hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+  meses.forEach(m => {{ pago[m.key]=0; aVencer[m.key]=0; vencido[m.key]=0; }});
+  PAGAR.forEach(r => {{
+    if (!r.venc) return;
+    const mk = r.venc.slice(0,7);
+    if (!Object.prototype.hasOwnProperty.call(pago, mk)) return;
+    if (r.status === 'PAGO') {{
+      pago[mk] += r.valor;
+    }} else if (mk < hojeStr) {{
+      vencido[mk] += r.valor;
+    }} else {{
+      aVencer[mk] += r.valor;
+    }}
+  }});
+  const labels  = meses.map(m=>m.label);
+  const isDark  = document.body.getAttribute('data-theme') !== 'light';
+  const gridClr = isDark ? '#334155' : '#e2e8f0';
+  const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
+  charts['chartPagarMensal'] = new Chart(canvas, {{
+    type: 'bar',
+    data: {{
+      labels,
+      datasets: [
+        {{ label: 'Pago',     data: meses.map(m=>pago[m.key]),    backgroundColor: '#22c55e', stack:'s' }},
+        {{ label: 'Vencido',  data: meses.map(m=>vencido[m.key]), backgroundColor: '#ef4444', stack:'s' }},
+        {{ label: 'A Vencer', data: meses.map(m=>aVencer[m.key]), backgroundColor: '#38bdf8', stack:'s' }}
+      ]
+    }},
+    options: {{
+      responsive: true,
+      plugins: {{
+        legend: {{ labels: {{ color: txtClr, font: {{size:11}}, boxWidth:12 }} }},
+        tooltip: {{ callbacks: {{ label: c => c.dataset.label+': '+BRL(c.raw) }} }}
+      }},
+      scales: {{
+        x: {{ stacked:true, grid:{{color:gridClr}}, ticks:{{color:txtClr, maxRotation:45, font:{{size:9}}}} }},
+        y: {{ stacked:true, grid:{{color:gridClr}}, ticks:{{color:txtClr, callback:v=>v>=1000?'R$'+(v/1000).toFixed(0)+'k':'R$'+v}} }}
+      }}
+    }}
+  }});
 }}
 
 // ═══════════════════════════════════════════════
