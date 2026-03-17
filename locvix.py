@@ -1388,7 +1388,15 @@ function mkMensal(rows) {{
     options: {{
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {{legend:{{display:false}},
+      plugins: {{
+        legend:{{display:false}},
+        subtitle:{{
+          display:true,
+          text:'Total: '+BRL(entries.reduce((s,e)=>s+e[1],0)),
+          color:'#38bdf8',
+          font:{{size:13,weight:'bold'}},
+          padding:{{bottom:8}}
+        }},
         tooltip:{{callbacks:{{label:c=>BRL(c.raw)}}}}}},
       scales: {{
         y: {{ticks:{{callback:v=>'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v),color:'#cbd5e1'}},grid:{{color:'#334155'}}}},
@@ -1402,8 +1410,29 @@ function mkCategoria(rows) {{
   const m = {{}};
   rows.forEach(r => {{ m[r.categoria||'SEM CATEGORIA'] = (m[r.categoria||'SEM CATEGORIA']||0)+r.liq; }});
   const entries = Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const total = entries.reduce((s,e)=>s+e[1],0);
   destroyChart('chartCategoria');
-  charts['chartCategoria'] = new Chart(document.getElementById('chartCategoria'), {{
+  const canvasCat = document.getElementById('chartCategoria');
+  const isDarkCat = document.body.getAttribute('data-theme') !== 'light';
+  const centerPluginCat = [{{
+    id: 'centerTextCat',
+    beforeDraw(chart) {{
+      const {{ctx}} = chart;
+      const cx = chart.chartArea ? (chart.chartArea.left+chart.chartArea.right)/2 : chart.width/2;
+      const cy = chart.chartArea ? (chart.chartArea.top+chart.chartArea.bottom)/2 : chart.height/2;
+      const dark = document.body.getAttribute('data-theme') !== 'light';
+      ctx.save();
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle = dark ? '#cbd5e1' : '#1e293b';
+      ctx.font='bold 11px Inter,sans-serif';
+      ctx.fillText('TOTAL', cx, cy-10);
+      ctx.font='bold 13px Inter,sans-serif';
+      ctx.fillStyle = dark ? '#38bdf8' : '#0284c7';
+      ctx.fillText(BRL(total), cx, cy+8);
+      ctx.restore();
+    }}
+  }}];
+  charts['chartCategoria'] = new Chart(canvasCat, {{
     type: 'doughnut',
     data: {{
       labels: entries.map(e=>e[0]),
@@ -1418,7 +1447,8 @@ function mkCategoria(rows) {{
         legend: {{position:'right',labels:{{font:{{size:11}},boxWidth:14,color:'#cbd5e1'}}}},
         tooltip: {{callbacks:{{label:c=>c.label+': '+BRL(c.raw)}}}}
       }}
-    }}
+    }},
+    plugins: centerPluginCat
   }});
 }}
 
