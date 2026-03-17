@@ -290,8 +290,9 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         )
     st.success("✅ Dashboard gerado com sucesso!")
 
+    _html_safe = st.session_state[HTML_KEY].encode("utf-8", errors="replace").decode("utf-8")
     components.html(
-        st.session_state[HTML_KEY],
+        _html_safe,
         height=980,
         scrolling=True,
     )
