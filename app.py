@@ -54,7 +54,7 @@ def _logo_path():
     return None
 
 # ─── Tela de login ────────────────────────────────────────────────
-_SENHA_CORRETA = "locvix12345@"
+_SENHA_CORRETA = "zampa254"
 
 if not st.session_state.get("_autenticado"):
     _lp = _logo_path()
