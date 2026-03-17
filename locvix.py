@@ -1296,10 +1296,8 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
 
 <div class="footer">
   <div class="footer-dev">
-    {logo_alfa_tag}
     <div>
       <div>Desenvolvido por <strong>Fabrício Zamprogno</strong></div>
-      <div>em parceria com <strong>Alfa Soluções Consultoria</strong></div>
     </div>
   </div>
   <div class="footer-sep"></div>
