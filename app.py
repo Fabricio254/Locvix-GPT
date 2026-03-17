@@ -292,7 +292,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         _periodo_label = st.session_state.get(PERIOD_KEY, "dashboard").replace("_", "_a_").replace("/", "-")
         st.download_button(
             label="💾 Salvar HTML",
-            data=st.session_state[HTML_KEY].encode("utf-8"),
+            data=st.session_state[HTML_KEY].encode("utf-8", errors="xmlcharrefreplace"),
             file_name=f"dashboard_locvix_{_periodo_label}.html",
             mime="text/html",
             use_container_width=True,
