@@ -288,6 +288,15 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
             f"🕐 Gerado em: {st.session_state.get(TIME_KEY, '')}  |  "
             f"📅 Período: {st.session_state.get(PERIOD_KEY,'').replace('_',' a ')}"
         )
+    with col2:
+        _periodo_label = st.session_state.get(PERIOD_KEY, "dashboard").replace("_", "_a_").replace("/", "-")
+        st.download_button(
+            label="💾 Salvar HTML",
+            data=st.session_state[HTML_KEY].encode("utf-8"),
+            file_name=f"dashboard_locvix_{_periodo_label}.html",
+            mime="text/html",
+            use_container_width=True,
+        )
     st.success("✅ Dashboard gerado com sucesso!")
 
     _html_safe = st.session_state[HTML_KEY].encode("utf-8", errors="replace").decode("utf-8")
