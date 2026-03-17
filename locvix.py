@@ -362,7 +362,7 @@ def buscar_financeiro(data_ini: str, data_fim: str) -> dict:
     ]
 
     for tipo, endpoint in endpoints_map:
-        chave  = f"{tipo}|{data_ini}|{data_fim}"
+        chave  = f"{endpoint}|{data_ini}|{data_fim}"
         cached = _cache_load(chave, _TTL_VENDAS)
         if cached is not None:
             resultado[tipo] = cached
