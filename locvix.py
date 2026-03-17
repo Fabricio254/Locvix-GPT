@@ -1742,7 +1742,6 @@ function atualizar() {{
   // Tabelas
   renderTblProdutos(rows);
   renderTblClientes(rows);
-  renderTblOS();
   mkFinanceiro();
 }}
 
