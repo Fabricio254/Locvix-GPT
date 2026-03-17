@@ -1007,12 +1007,11 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1e293b;f
 .kpi-value.small{{font-size:15px;}}
 
 /* ── CHARTS ── */
-.chart-row{{display:grid;gap:16px;margin-bottom:16px;align-items:stretch;}}
+.chart-row{{display:grid;gap:16px;margin-bottom:16px;}}
 .chart-row.col2{{grid-template-columns:1fr 1fr;}}
 .chart-row.col3{{grid-template-columns:1fr 1fr 1fr;}}
 @media(max-width:900px){{.chart-row.col2,.chart-row.col3{{grid-template-columns:1fr;}}}}
-.chart-card{{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;flex-direction:column;}}
-.chart-card canvas{{flex:1;min-height:0;}}
+.chart-card{{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.1);}}
 .chart-card h3{{font-size:13px;font-weight:700;color:#4a5568;margin-bottom:14px;
   text-transform:uppercase;letter-spacing:.4px;}}
 
@@ -1238,7 +1237,9 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
     </div>
     <div class="chart-card">
       <h3>📅 Vencimentos por Mês (±12 meses)</h3>
-      <canvas id="chartPagarMensal" height="200"></canvas>
+      <div style="position:relative;height:260px;">
+        <canvas id="chartPagarMensal"></canvas>
+      </div>
     </div>
   </div>
 
