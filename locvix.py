@@ -1063,44 +1063,11 @@ body[data-theme="dark"] .footer-dev{{color:#64748b;}}
 body[data-theme="dark"] .footer-sep{{background:#334155;}}
 body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
 
-/* ── SENHA (Password Gate) ── */
-#pg-overlay{{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;
-  justify-content:center;background:linear-gradient(135deg,#0f2027 0%,#203a43 100%);}}
-#pg-box{{background:#fff;border-radius:18px;padding:42px 48px;
-  box-shadow:0 12px 60px rgba(0,0,0,.6);text-align:center;width:90%;max-width:380px;}}
-#pg-box .pg-logo{{height:54px;margin-bottom:18px;border-radius:6px;object-fit:contain;}}
-#pg-box h2{{font-size:20px;font-weight:800;color:#1e293b;margin-bottom:6px;}}
-#pg-box .pg-sub{{font-size:13px;color:#64748b;margin-bottom:22px;line-height:1.55;}}
-#pg-inp{{width:100%;padding:13px 16px;border:2px solid #e2e8f0;border-radius:10px;
-  font-size:17px;text-align:center;letter-spacing:4px;outline:none;font-weight:600;
-  transition:border-color .2s;}}
-#pg-inp:focus{{border-color:#1a3a4a;}}
-#pg-inp.err-shake{{border-color:#dc2626;animation:shake .35s ease;}}
-@keyframes shake{{0%,100%{{transform:translateX(0)}}25%{{transform:translateX(-6px)}}75%{{transform:translateX(6px)}}}}
-#pg-btn{{width:100%;margin-top:14px;padding:13px;border:none;border-radius:10px;
-  background:#1a3a4a;color:#fff;font-size:15px;font-weight:700;cursor:pointer;
-  transition:background .2s;letter-spacing:.5px;}}
-#pg-btn:hover{{background:#0f2027;}}
-#pg-err{{color:#dc2626;font-size:13px;margin-top:10px;min-height:18px;font-weight:600;}}
-body.pg-locked{{overflow:hidden;}}
 </style>
 </head>
-<body class="pg-locked">
+<body>
 
 <button id="btn-theme" onclick="toggleTheme()" title="Alternar modo claro/escuro">🌙</button>
-
-<!-- PASSWORD GATE -->
-<div id="pg-overlay">
-  <div id="pg-box">
-    {(f'<img class="pg-logo" src="data:image/png;base64,{_logo_b64}"/>') if _logo_b64 else '<div style="font-size:36px;margin-bottom:16px">🔒</div>'}
-    <h2>&#128274; Dashboard Protegido</h2>
-    <p class="pg-sub">Insira a senha para acessar<br/>o painel da <strong>Locvix</strong></p>
-    <input id="pg-inp" type="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"
-      autocomplete="off" onkeydown="if(event.key==='Enter')pgEntrar()"/>
-    <button id="pg-btn" onclick="pgEntrar()">&#128275; Entrar</button>
-    <div id="pg-err"></div>
-  </div>
-</div>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -1377,36 +1344,6 @@ const PCT = (a,b) => b > 0 ? (a/b*100).toFixed(1)+'%' : '—';
 const CORES = ['#1a3a4a','#0891b2','#059669','#d97706','#7c3aed',
                '#2563eb','#dc2626','#0d9488','#65a30d','#ea580c',
                '#db2777','#6366f1','#78716c','#0369a1','#15803d'];
-
-// ═══════════════════════════════════════════════
-//  SENHA (SHA-256)
-//  Padrão: "locvix2026" — altere o hash para mudar a senha
-// ═══════════════════════════════════════════════
-const _PG = 'd7e7e89803ee3dae7236276af4188e5a3a0c3b95107f17bd4bcd47a272c33d0b';
-// ↑ hash de "locvix2026" — substitua pelo hash SHA-256 da sua senha
-
-async function pgEntrar() {{
-  const inp = document.getElementById('pg-inp');
-  const err = document.getElementById('pg-err');
-  err.textContent = '';
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(inp.value));
-  const hex = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  if (hex === _PG) {{
-    const ov = document.getElementById('pg-overlay');
-    ov.style.transition = 'opacity .4s';
-    ov.style.opacity = '0';
-    setTimeout(()=>{{ov.remove();document.body.classList.remove('pg-locked');}}, 420);
-  }} else {{
-    err.textContent = '\u274c Senha incorreta.';
-    inp.value = '';
-    inp.classList.add('err-shake');
-    setTimeout(()=>inp.classList.remove('err-shake'), 400);
-    inp.focus();
-  }}
-}}
-document.addEventListener('DOMContentLoaded', ()=>{{
-  const i = document.getElementById('pg-inp'); if(i) i.focus();
-}});
 
 // ═══════════════════════════════════════════════
 //  ESTADO DE FILTROS
