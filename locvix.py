@@ -1877,7 +1877,7 @@ def main(
 
     # Busca pagamentos em janela fixa 2 anos atras / 2 anos a frente
     # para o grafico de vencimentos por mes (independente do filtro)
-    _hoje_d   = datetime.now(_BRT if '_BRT' in dir() else timezone(timedelta(hours=-3))).date()
+    _hoje_d   = datetime.now(_BRT).date()
     _ini_all  = (_hoje_d - timedelta(days=730)).strftime("%d/%m/%Y")
     _fim_all  = (_hoje_d + timedelta(days=730)).strftime("%d/%m/%Y")
     financ_all = buscar_financeiro(_ini_all, _fim_all)
