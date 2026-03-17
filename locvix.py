@@ -800,6 +800,7 @@ def gerar_dashboard_html(
     df_vendas: pd.DataFrame,
     receber:   list,
     pagar:     list,
+    pagar_all: list,
     os_list:   list,
     contratos: list,
     caminho:   str,
@@ -1912,7 +1913,7 @@ def main(
 
     _prog(0.93, "Gerando Dashboard HTML...")
     html_content = gerar_dashboard_html(
-        df_vendas=df, receber=receber, pagar=pagar,
+        df_vendas=df, receber=receber, pagar=pagar, pagar_all=pagar_all,
         os_list=os_list, contratos=contratos,
         caminho=h_path, data_ini=d_ini, data_fim=d_fim,
     )
