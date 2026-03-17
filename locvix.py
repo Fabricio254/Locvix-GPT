@@ -355,7 +355,13 @@ def buscar_financeiro(data_ini: str, data_fim: str) -> dict:
 
     params = {"data_inicio": br_to_iso(data_ini), "data_fim": br_to_iso(data_fim)}
 
-    for tipo, endpoint in [("receber", "contas_receber"), ("pagar", "contas_pagar")]:
+    # Mapeamento real de endpoints disponíveis neste plano
+    endpoints_map = [
+        ("receber", "recebimentos"),
+        ("pagar",   "pagamentos"),
+    ]
+
+    for tipo, endpoint in endpoints_map:
         chave  = f"{tipo}|{data_ini}|{data_fim}"
         cached = _cache_load(chave, _TTL_VENDAS)
         if cached is not None:
@@ -366,27 +372,37 @@ def buscar_financeiro(data_ini: str, data_fim: str) -> dict:
         raw = _gck().paginar(endpoint, params)
         normalizado = []
         for c in raw:
-            def _float(k):
-                try:    return float(c.get(k) or 0)
+            def _float(k, _c=c):
+                try:    return float(_c.get(k) or 0)
                 except: return 0.0
-            def _data(k):
-                v = c.get(k, "")
+            def _data(k, _c=c):
+                v = _c.get(k, "")
                 try:    return datetime.strptime(str(v)[:10], "%Y-%m-%d")
                 except: return None
+
+            # /pagamentos usa campos diferentes de /contas_pagar
+            pessoa = (c.get("nome_fornecedor") or c.get("nome_cliente")
+                      or c.get("nome_transportadora") or c.get("nome_funcionario")
+                      or c.get("cliente_nome") or c.get("fornecedor_nome") or "")
+            categoria = (c.get("nome_plano_conta") or c.get("categoria")
+                         or c.get("plano_conta") or "OUTROS")
+            liquidado = str(c.get("liquidado", "0")) == "1"
+            status = "PAGO" if liquidado else "A PAGAR"
+            valor = _float("valor_total") or _float("valor")
+            pago  = valor if liquidado else 0.0
 
             normalizado.append({
                 "ID":           str(c.get("id") or ""),
                 "Descrição":    c.get("descricao") or c.get("historico") or "",
-                "Pessoa":       (c.get("cliente_nome") or c.get("fornecedor_nome")
-                                 or c.get("nome") or ""),
-                "Valor":        _float("valor"),
-                "Valor Pago":   _float("valor_pago") or _float("valor_recebido"),
-                "Saldo":        _float("saldo") or _float("valor") - _float("valor_pago"),
+                "Pessoa":       pessoa,
+                "Valor":        valor,
+                "Valor Pago":   pago,
+                "Saldo":        0.0 if liquidado else valor,
                 "Vencimento":   _data("data_vencimento"),
-                "Pagamento":    _data("data_pagamento") or _data("data_recebimento"),
-                "Status":       (c.get("status") or c.get("situacao") or "").upper(),
-                "Categoria":    (c.get("categoria") or c.get("plano_conta") or "OUTROS").upper(),
-                "Centro Custo": (c.get("centro_custo") or "").upper(),
+                "Pagamento":    _data("data_liquidacao") or _data("data_pagamento"),
+                "Status":       status,
+                "Categoria":    categoria.upper(),
+                "Centro Custo": (c.get("nome_centro_custo") or c.get("centro_custo") or "").upper(),
             })
 
         _cache_save(chave, [
@@ -1453,7 +1469,22 @@ function mkHorizBar(id, entries) {{
 
 function mkDonut(id, entries) {{
   destroyChart(id);
-  charts[id] = new Chart(document.getElementById(id), {{
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  // Remove mensagem de "sem dados" anterior, se houver
+  const prev = document.getElementById(id + '-nodata');
+  if (prev) prev.remove();
+  if (!entries || entries.length === 0) {{
+    canvas.style.display = 'none';
+    const msg = document.createElement('div');
+    msg.id = id + '-nodata';
+    msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:120px;color:#94a3b8;font-size:13px;text-align:center;';
+    msg.innerHTML = '⚠️ Módulo financeiro não disponível<br/>no plano atual da API';
+    canvas.parentNode.insertBefore(msg, canvas.nextSibling);
+    return;
+  }}
+  canvas.style.display = '';
+  charts[id] = new Chart(canvas, {{
     type: 'doughnut',
     data: {{
       labels: entries.map(e=>e[0]),
