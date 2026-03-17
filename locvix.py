@@ -1246,7 +1246,7 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
       </div>
     </div>
     <div class="chart-card">
-      <h3>📅 Vencimentos por Mês (±12 meses)</h3>
+      <h3>📅 Contas a Pagar — Vencimentos por Mês (±12 meses)</h3>
       <div style="position:relative;height:260px;">
         <canvas id="chartPagarMensal"></canvas>
       </div>
