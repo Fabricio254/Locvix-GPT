@@ -1102,7 +1102,8 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
   </div>
   <div class="periodo">
     Período: <strong>{periodo}</strong><br/>
-    <span style="color:#94a3b8;font-size:11px;">Gerado em {agora_str}</span>
+    <span style="color:#94a3b8;font-size:11px;">Gerado em {agora_str}</span><br/>
+    <span style="color:#64748b;font-size:10px;">Desenvolvido por <strong style="color:#94a3b8">Fabrício Zamprogno</strong></span>
   </div>
 </div>
 
