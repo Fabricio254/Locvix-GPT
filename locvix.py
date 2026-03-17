@@ -1230,10 +1230,12 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
 
   <!-- ── GRÁFICOS FINANCEIROS ── -->
   <div class="section-title">💳 Financeiro</div>
-  <div class="chart-row col2">
+  <div class="chart-row col2" style="align-items:start;">
     <div class="chart-card">
       <h3> Contas a Pagar por Categoria</h3>
-      <canvas id="chartPagar" height="130"></canvas>
+      <div style="position:relative;height:260px;">
+        <canvas id="chartPagar"></canvas>
+      </div>
     </div>
     <div class="chart-card">
       <h3>📅 Vencimentos por Mês (±12 meses)</h3>
@@ -1493,6 +1495,8 @@ function mkDonut(id, entries, centerLabel) {{
         backgroundColor: CORES, borderWidth: 2, borderColor: '#fff' }}]
     }},
     options: {{
+      responsive: true,
+      maintainAspectRatio: false,
       cutout: '55%',
       plugins: {{
         legend: {{position:'right',labels:{{font:{{size:11}},boxWidth:14,color:'#cbd5e1'}}}},
