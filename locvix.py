@@ -1050,6 +1050,12 @@ table.data-tbl tfoot td.num{{text-align:right;}}
   box-shadow:0 4px 18px rgba(0,0,0,.35);background:#1a3a4a;color:#f1f5f9;
   transition:all .2s;display:flex;align-items:center;justify-content:center;line-height:1;}}
 #btn-theme:hover{{transform:scale(1.12);}}
+#btn-fullscreen{{position:fixed;bottom:24px;right:80px;z-index:10000;width:48px;height:48px;
+  border-radius:50%;border:2px solid rgba(255,255,255,.18);cursor:pointer;font-size:18px;
+  box-shadow:0 4px 18px rgba(0,0,0,.35);background:#1a3a4a;color:#f1f5f9;
+  transition:all .2s;display:flex;align-items:center;justify-content:center;line-height:1;}}
+#btn-fullscreen:hover{{transform:scale(1.12);}}
+body[data-theme="dark"] #btn-fullscreen{{background:#e2e8f0;color:#1e293b;}}
 
 /* ── DARK MODE ── */
 body[data-theme="dark"]{{background:#0f172a;color:#e2e8f0;}}
@@ -1083,6 +1089,7 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
 <body>
 
 <button id="btn-theme" onclick="toggleTheme()" title="Alternar modo claro/escuro">🌙</button>
+<button id="btn-fullscreen" onclick="abrirTelaCheia()" title="Abrir em tela cheia">&#x26F6;</button>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -1686,6 +1693,17 @@ function toggleTheme() {{
     if (ch.options.plugins?.legend) ch.options.plugins.legend.labels.color = isDark ? '#94a3b8' : '#4a5568';
     ch.update();
   }});
+}}
+
+function abrirTelaCheia() {{
+  try {{
+    const html = document.documentElement.outerHTML;
+    const blob = new Blob([html], {{type: 'text/html;charset=utf-8'}});
+    const url  = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }} catch(e) {{
+    alert('Não foi possível abrir em tela cheia: ' + e.message);
+  }}
 }}
 
 document.addEventListener('DOMContentLoaded', () => {{
