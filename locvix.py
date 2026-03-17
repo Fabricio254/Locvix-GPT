@@ -1389,8 +1389,8 @@ function mkMensal(rows) {{
       plugins: {{legend:{{display:false}},
         tooltip:{{callbacks:{{label:c=>BRL(c.raw)}}}}}},
       scales: {{
-        y: {{ticks:{{callback:v=>'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v)}},grid:{{color:'#e2e8f0'}}}},
-        x: {{grid:{{display:false}}}}
+        y: {{ticks:{{callback:v=>'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v),color:'#cbd5e1'}},grid:{{color:'#334155'}}}},
+        x: {{ticks:{{color:'#cbd5e1'}},grid:{{display:false}}}}
       }}
     }}
   }});
@@ -1411,7 +1411,7 @@ function mkCategoria(rows) {{
     options: {{
       cutout: '55%',
       plugins: {{
-        legend: {{position:'right',labels:{{font:{{size:11}},boxWidth:14}}}},
+        legend: {{position:'right',labels:{{font:{{size:11}},boxWidth:14,color:'#cbd5e1'}}}},
         tooltip: {{callbacks:{{label:c=>c.label+': '+BRL(c.raw)}}}}
       }}
     }}
@@ -1432,8 +1432,8 @@ function mkHorizBar(id, entries) {{
       plugins: {{legend:{{display:false}},
         tooltip:{{callbacks:{{label:c=>BRL(c.raw)}}}}}},
       scales: {{
-        x: {{ticks:{{callback:v=>'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v)}},grid:{{color:'#e2e8f0'}}}},
-        y: {{grid:{{display:false}}}}
+        x: {{ticks:{{callback:v=>'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v),color:'#cbd5e1'}},grid:{{color:'#334155'}}}},
+        y: {{ticks:{{color:'#cbd5e1'}},grid:{{display:false}}}}
       }}
     }}
   }});
@@ -1466,7 +1466,7 @@ function mkDonut(id, entries) {{
     options: {{
       cutout: '55%',
       plugins: {{
-        legend: {{position:'right',labels:{{font:{{size:11}},boxWidth:14}}}},
+        legend: {{position:'right',labels:{{font:{{size:11}},boxWidth:14,color:'#cbd5e1'}}}},
         tooltip: {{callbacks:{{label:c=>c.label+': '+BRL(c.raw)}}}}
       }}
     }}
@@ -1682,15 +1682,15 @@ function toggleTheme() {{
   try {{ localStorage.setItem('locvix-theme', next); }} catch(e){{}}
   const gc = isDark ? '#e2e8f0' : '#e2e8f0';
   const lc = isDark ? '#94a3b8' : '#4a5568';
-  Chart.defaults.color = isDark ? '#94a3b8' : '#4a5568';
+  Chart.defaults.color = isDark ? '#cbd5e1' : '#1e293b';
   Object.values(Chart.instances).forEach(ch => {{
     if (ch.options.scales) {{
       Object.values(ch.options.scales).forEach(sc => {{
         if (sc.grid) sc.grid.color = isDark ? '#334155' : '#e2e8f0';
-        if (sc.ticks) sc.ticks.color = isDark ? '#94a3b8' : '#4a5568';
+        if (sc.ticks) sc.ticks.color = isDark ? '#cbd5e1' : '#1e293b';
       }});
     }}
-    if (ch.options.plugins?.legend) ch.options.plugins.legend.labels.color = isDark ? '#94a3b8' : '#4a5568';
+    if (ch.options.plugins?.legend) ch.options.plugins.legend.labels.color = isDark ? '#cbd5e1' : '#1e293b';
     ch.update();
   }});
 }}
@@ -1721,6 +1721,7 @@ document.addEventListener('DOMContentLoaded', () => {{
 // ─── Init ───────────────────────────────────────
 Chart.defaults.font.family = "'Segoe UI', Arial, sans-serif";
 Chart.defaults.font.size   = 12;
+Chart.defaults.color       = '#cbd5e1';
 dadosFilt = VENDAS;
 atualizar();
 </script>
