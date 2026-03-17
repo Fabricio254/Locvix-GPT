@@ -1683,15 +1683,16 @@ function toggleTheme() {{
   try {{ localStorage.setItem('locvix-theme', next); }} catch(e){{}}
   const gc = isDark ? '#e2e8f0' : '#e2e8f0';
   const lc = isDark ? '#94a3b8' : '#4a5568';
-  Chart.defaults.color = isDark ? '#cbd5e1' : '#1e293b';
+  const toDark = next === 'dark';
+  Chart.defaults.color = toDark ? '#cbd5e1' : '#1e293b';
   Object.values(Chart.instances).forEach(ch => {{
     if (ch.options.scales) {{
       Object.values(ch.options.scales).forEach(sc => {{
-        if (sc.grid) sc.grid.color = isDark ? '#334155' : '#e2e8f0';
-        if (sc.ticks) sc.ticks.color = isDark ? '#cbd5e1' : '#1e293b';
+        if (sc.grid) sc.grid.color = toDark ? '#334155' : '#e2e8f0';
+        if (sc.ticks) sc.ticks.color = toDark ? '#cbd5e1' : '#1e293b';
       }});
     }}
-    if (ch.options.plugins?.legend) ch.options.plugins.legend.labels.color = isDark ? '#cbd5e1' : '#1e293b';
+    if (ch.options.plugins?.legend) ch.options.plugins.legend.labels.color = toDark ? '#cbd5e1' : '#1e293b';
     ch.update();
   }});
 }}
