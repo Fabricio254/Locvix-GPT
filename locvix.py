@@ -41,12 +41,13 @@ GCK_ACCESS_TOKEN  = os.getenv("GCK_ACCESS_TOKEN",  "SEU_ACCESS_TOKEN_AQUI")
 GCK_SECRET_TOKEN  = os.getenv("GCK_SECRET_TOKEN",  "SEU_SECRET_TOKEN_AQUI")
 
 # URL base da API GestãoClick
-GCK_BASE_URL = "https://api.beteltecnologia.net/api/integracao_api"
+GCK_BASE_URL = "https://api.beteltecnologia.net/api"
 
-# Período padrão (ano corrente)
-_ano_atual  = datetime.now().year
-DATA_INI    = os.getenv("GCK_DATA_INI", f"01/01/{_ano_atual}")
-DATA_FIM    = os.getenv("GCK_DATA_FIM", datetime.now().strftime("%d/%m/%Y"))
+# Período padrão (últimos 12 meses)
+_hoje       = datetime.now()
+_12m_atras  = _hoje.replace(year=_hoje.year - 1) if _hoje.month > 0 else _hoje
+DATA_INI    = os.getenv("GCK_DATA_INI", (_hoje - __import__("datetime").timedelta(days=365)).strftime("%d/%m/%Y"))
+DATA_FIM    = os.getenv("GCK_DATA_FIM", _hoje.strftime("%d/%m/%Y"))
 
 # Pastas de saída
 _agora       = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -125,6 +126,9 @@ class GCKClient:
                 if e.response.status_code in (401, 403):
                     print("  ⚠ Credenciais inválidas ou sem permissão de API.")
                     return None
+                if e.response.status_code == 404:
+                    print(f"  [INFO] Endpoint '{endpoint}' não disponível neste plano (404).")
+                    return None
                 time.sleep(2 * (t + 1))
             except Exception as e:
                 print(f"  [AVISO] {endpoint} tentativa {t+1}: {e}")
@@ -152,8 +156,8 @@ class GCKClient:
             if isinstance(items, list):
                 todos.extend(items)
             meta = resp.get("meta", {})
-            tot_pags = meta.get("last_page", meta.get("ultima_pagina", 1))
-            total    = meta.get("total", "?")
+            tot_pags = meta.get("last_page", meta.get("ultima_pagina", meta.get("total_paginas", 1)))
+            total    = meta.get("total", meta.get("total_registros", "?"))
             if pag == 1:
                 print(f"  {endpoint}: {total} registros ({tot_pags} pág.)")
             pag += 1
@@ -246,27 +250,32 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
         except Exception:
             data_dt = None
 
-        cliente   = (v.get("cliente_nome") or v.get("nome_cliente") or v.get("cliente") or "")
-        status    = (v.get("status") or v.get("situacao") or "").upper()
-        vendedor  = (v.get("vendedor_nome") or v.get("vendedor") or "Sem Vendedor")
-        cat       = (v.get("categoria") or v.get("grupo") or "SEM CATEGORIA").upper()
+        cliente   = (v.get("nome_cliente") or v.get("cliente_nome") or v.get("cliente") or "")
+        status    = (v.get("nome_situacao") or v.get("status") or v.get("situacao") or "").upper()
+        vendedor  = (v.get("nome_vendedor") or v.get("vendedor_nome") or v.get("vendedor") or "Sem Vendedor")
+        cat       = (v.get("nome_centro_custo") or v.get("categoria") or v.get("grupo") or "SEM CATEGORIA").upper()
         nf        = str(v.get("numero_nf") or v.get("numero") or v.get("id") or "")
         id_venda  = str(v.get("id") or "")
 
-        # Itens da venda
-        itens = v.get("itens") or v.get("produtos") or []
-        if itens:
-            for it in itens:
-                cod   = str(it.get("codigo") or it.get("produto_codigo") or "")
-                desc  = str(it.get("descricao") or it.get("produto_nome") or it.get("nome") or "")
-                unid  = str(it.get("unidade") or "UN")
-                try:    qtd    = float(it.get("quantidade") or it.get("qtd") or 0)
-                except: qtd    = 0.0
-                try:    v_unit = float(it.get("valor_unitario") or it.get("preco") or 0)
+        # Itens da venda — GestãoClick retorna produtos e serviços em listas separadas
+        # Formato: produtos=[{"produto": {...}}], servicos=[{"servico": {...}}]
+        itens_raw = []
+        for it in (v.get("produtos") or v.get("itens") or []):
+            itens_raw.append(it.get("produto", it))
+        for it in (v.get("servicos") or []):
+            itens_raw.append(it.get("servico", it))
+        if itens_raw:
+            for it in itens_raw:
+                cod   = str(it.get("produto_id") or it.get("servico_id") or it.get("codigo") or "")
+                desc  = str(it.get("nome_produto") or it.get("nome_servico") or it.get("descricao") or it.get("nome") or "")
+                unid  = str(it.get("sigla_unidade") or it.get("unidade") or "UN")
+                try:    qtd    = float(it.get("quantidade") or 1)
+                except: qtd    = 1.0
+                try:    v_unit = float(it.get("valor_venda") or it.get("valor_unitario") or it.get("preco") or 0)
                 except: v_unit = 0.0
-                try:    v_bruto= float(it.get("valor_total") or it.get("total") or qtd * v_unit)
+                try:    v_bruto= float(it.get("valor_total") or qtd * v_unit)
                 except: v_bruto= qtd * v_unit
-                try:    v_desc = float(it.get("desconto") or it.get("valor_desconto") or 0)
+                try:    v_desc = float(it.get("desconto_valor") or it.get("desconto") or 0)
                 except: v_desc = 0.0
                 registros.append({
                     "ID":           id_venda,
@@ -406,15 +415,17 @@ def buscar_clientes() -> list[dict]:
     raw = _gck().paginar("clientes")
     normalizado = []
     for c in raw:
+        enderecos = c.get("enderecos") or []
+        end0 = enderecos[0].get("endereco", {}) if enderecos and isinstance(enderecos[0], dict) else {}
         normalizado.append({
             "ID":      str(c.get("id") or ""),
             "Nome":    c.get("nome") or c.get("razao_social") or "",
-            "Cidade":  c.get("cidade") or "",
-            "UF":      c.get("uf") or c.get("estado") or "",
-            "CNPJ":    c.get("cpf_cnpj") or "",
-            "Tipo":    (c.get("tipo") or "PF").upper(),
+            "Cidade":  end0.get("nome_cidade") or c.get("cidade") or "",
+            "UF":      end0.get("estado") or c.get("uf") or "",
+            "CNPJ":    c.get("cnpj") or c.get("cpf") or c.get("cpf_cnpj") or "",
+            "Tipo":    (c.get("tipo_pessoa") or c.get("tipo") or "PF").upper(),
             "Grupo":   (c.get("grupo") or c.get("categoria") or "").upper(),
-            "Ativo":   c.get("ativo", True),
+            "Ativo":   bool(c.get("ativo", True)),
         })
     _cache_save(chave, normalizado)
     print(f"  ✔ {len(normalizado)} clientes")
@@ -440,15 +451,15 @@ def buscar_produtos() -> list[dict]:
             try:    return float(p.get(k) or 0)
             except: return 0.0
         normalizado.append({
-            "Código":     str(p.get("codigo") or p.get("id") or ""),
-            "Descrição":  p.get("descricao") or p.get("nome") or "",
-            "Categoria":  (p.get("categoria") or p.get("grupo") or "SEM CATEGORIA").upper(),
+            "Código":     str(p.get("codigo_interno") or p.get("codigo") or p.get("id") or ""),
+            "Descrição":  p.get("nome") or p.get("descricao") or "",
+            "Categoria":  (p.get("nome_grupo") or p.get("categoria") or p.get("grupo") or "SEM CATEGORIA").upper(),
             "Marca":      (p.get("marca") or "").upper(),
             "Unidade":    p.get("unidade") or "UN",
             "Estoque":    _float("estoque") or _float("quantidade_estoque"),
-            "Preco Venda":_float("preco_venda") or _float("valor_venda"),
-            "Preco Custo":_float("preco_custo") or _float("valor_custo"),
-            "Ativo":      p.get("ativo", True),
+            "Preco Venda":_float("valor_venda") or _float("preco_venda"),
+            "Preco Custo":_float("valor_custo") or _float("preco_custo"),
+            "Ativo":      bool(p.get("ativo", True)),
         })
     _cache_save(chave, normalizado)
     print(f"  ✔ {len(normalizado)} produtos")
