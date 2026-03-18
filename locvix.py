@@ -1527,8 +1527,8 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
     <div class="kpi-card orange"><div class="kpi-label">Sem Registro Hoje</div><div class="kpi-value" id="kPontoAus">—</div></div>
   </div>
   <div class="chart-row col2" style="align-items:start;">
-    <div class="chart-card"><h3>📅 Batidas por Dia</h3><div style="position:relative;height:260px;"><canvas id="chartPontoDia"></canvas></div></div>
-    <div class="chart-card"><h3>👤 Marcações por Funcionário</h3><div style="position:relative;height:260px;"><canvas id="chartPontoFunc"></canvas></div></div>
+    <div class="chart-card"><h3>⚠️ Ausências por Funcionário — Faltas e Saídas Antecipadas (horas)</h3><div style="position:relative;height:280px;"><canvas id="chartPontoAus"></canvas></div></div>
+    <div class="chart-card"><h3>👤 Marcações por Funcionário</h3><div style="position:relative;height:280px;"><canvas id="chartPontoFunc"></canvas></div></div>
   </div>
   <div class="chart-row col2" style="align-items:start;">
     <div class="chart-card"><h3>⏱ Horas Trabalhadas Estimadas</h3><div style="position:relative;height:260px;"><canvas id="chartPontoHoras"></canvas></div></div>
@@ -2010,32 +2010,73 @@ function mkPagarMensal() {{
 // ═══════════════════════════════════════════════
 //  MÓDULO PONTO COLABORADOR
 // ═══════════════════════════════════════════════
-function mkPontoDia() {{
-  destroyChart('chartPontoDia');
-  const m = {{}};
-  PONTO_MARC.forEach(r => {{ m[r.data] = (m[r.data]||0)+1; }});
-  const entries = Object.entries(m).sort((a,b)=>a[0]>b[0]?1:-1);
-  if (!entries.length) return;
-  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  const labels = entries.map(([d]) => {{
-    const [,mo,dd] = d.split('-');
-    return dd+'/'+meses[parseInt(mo)-1];
+function mkPontoAusencias() {{
+  destroyChart('chartPontoAus');
+  const canvas = document.getElementById('chartPontoAus');
+  if (!canvas) return;
+
+  // Dias com pelo menos uma marcação = dias úteis do período
+  const dias = [...new Set(PONTO_MARC.map(r => r.data))].sort();
+  if (!dias.length || !PONTO_FUNC.length) return;
+
+  const JORNADA = 8; // horas esperadas por dia
+
+  // Agrupa pontos por funcionario_id + data
+  const byFD = {{}};
+  PONTO_MARC.forEach(r => {{
+    const k = r.funcionario_id + '|' + r.data;
+    if (!byFD[k]) byFD[k] = [];
+    const [hh, mm] = r.hora.split(':').map(Number);
+    byFD[k].push(hh * 60 + mm);
   }});
-  charts['chartPontoDia'] = new Chart(document.getElementById('chartPontoDia'), {{
+
+  const result = PONTO_FUNC.map(f => {{
+    let hFalta = 0, hAntecip = 0;
+    dias.forEach(dia => {{
+      const k = f.id + '|' + dia;
+      if (!byFD[k]) {{
+        hFalta += JORNADA; // falta completa
+      }} else {{
+        const pts = byFD[k].slice().sort((a,b)=>a-b);
+        if (pts.length >= 2) {{
+          const span = pts[pts.length-1] - pts[0];
+          const alm  = span > 240 ? 60 : 0;
+          const trab = Math.max(0, span - alm) / 60;
+          if (trab < 7) hAntecip += Math.min(JORNADA, Math.max(0, JORNADA - trab));
+        }} else {{
+          hAntecip += 4; // só entrada sem saída registrada
+        }}
+      }}
+    }});
+    const partes = f.nome.split(' ');
+    const label  = partes[0] + (partes.length > 1 ? ' ' + partes[partes.length-1] : '');
+    return {{ label, hFalta: Math.round(hFalta*10)/10, hAntecip: Math.round(hAntecip*10)/10 }};
+  }}).sort((a,b) => (b.hFalta+b.hAntecip) - (a.hFalta+a.hAntecip));
+
+  const totalAus = result.reduce((s,r)=>s+r.hFalta+r.hAntecip,0);
+  charts['chartPontoAus'] = new Chart(canvas, {{
     type: 'bar',
     data: {{
-      labels,
-      datasets: [{{ label: 'Marcações', data: entries.map(e=>e[1]),
-        backgroundColor: '#0891b2', borderRadius: 4, borderSkipped: false }}]
+      labels: result.map(r=>r.label),
+      datasets: [
+        {{ label: 'Falta completa', data: result.map(r=>r.hFalta),
+           backgroundColor: '#ef4444', stack: 's', borderRadius: 0 }},
+        {{ label: 'Saída antecipada', data: result.map(r=>r.hAntecip),
+           backgroundColor: '#f59e0b', stack: 's', borderRadius: 4 }},
+      ]
     }},
     options: {{
-      responsive:true, maintainAspectRatio:false,
-      plugins: {{ legend:{{display:false}},
-        subtitle:{{display:true,text:'Total: '+PONTO_MARC.length+' batidas',color:'#38bdf8',font:{{size:12,weight:'bold'}},padding:{{bottom:6}}}},
-        tooltip:{{callbacks:{{label:c=>c.raw+' marcações'}}}} }},
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {{
+        legend: {{ labels: {{ color:'#cbd5e1', font:{{size:11}}, boxWidth:12 }} }},
+        subtitle: {{ display:true, text:'Total de ausências: '+totalAus.toFixed(0)+'h no período',
+          color:'#fca5a5', font:{{size:12,weight:'bold'}}, padding:{{bottom:6}} }},
+        tooltip: {{ callbacks: {{ label: c => c.dataset.label+': '+c.raw+'h' }} }}
+      }},
       scales: {{
-        y: {{ticks:{{color:'#cbd5e1',stepSize:1}},grid:{{color:'#334155'}}}},
-        x: {{ticks:{{color:'#cbd5e1',maxRotation:45,font:{{size:9}}}},grid:{{display:false}}}}
+        x: {{ stacked:true, ticks:{{color:'#cbd5e1',callback:v=>v+'h'}}, grid:{{color:'#334155'}},
+             title:{{display:true,text:'Horas de Ausência',color:'#94a3b8'}} }},
+        y: {{ stacked:true, ticks:{{color:'#cbd5e1',font:{{size:10}}}}, grid:{{display:false}} }}
       }}
     }}
   }});
@@ -2200,7 +2241,7 @@ function initPonto() {{
   const presHoje = new Set(PONTO_MARC.filter(r=>r.data===hoje).map(r=>r.funcionario_id)).size;
   if (el('kPontoHoje')) el('kPontoHoje').textContent = presHoje || '0';
   if (el('kPontoAus'))  el('kPontoAus').textContent  = Math.max(0, PONTO_FUNC.length - presHoje) || '0';
-  mkPontoDia();
+  mkPontoAusencias();
   mkPontoFuncChart();
   mkPontoHoras();
   mkPontoPresenca();
