@@ -11,7 +11,7 @@ import hashlib
 import threading
 import concurrent.futures
 import html as html_mod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import math
 import time
 import base64
@@ -42,6 +42,11 @@ GCK_SECRET_TOKEN  = os.getenv("GCK_SECRET_TOKEN",  "SEU_SECRET_TOKEN_AQUI")
 
 # URL base da API GestãoClick
 GCK_BASE_URL = "https://api.beteltecnologia.net/api"
+
+# ── Credenciais Dixiponto (Ponto Colaborador) ──────────────────────────────
+DIXI_EMAIL   = os.getenv("DIXI_EMAIL",   "adm@locvix.ind.br")
+DIXI_SENHA   = os.getenv("DIXI_SENHA",   "Locvix12345@")
+DIXI_UNIDADE = os.getenv("DIXI_UNIDADE", "locacao-guindastes")
 
 # Período padrão (últimos 12 meses)
 _hoje       = datetime.now()
@@ -163,6 +168,115 @@ class GCKClient:
             pag += 1
 
         return todos
+
+
+
+# ══════════════════════════════════════════════════════════════════
+#  DIXIPONTO — CLIENTE API (web.dixiponto.com.br)
+# ══════════════════════════════════════════════════════════════════
+class DixiPontoClient:
+    """Cliente para a API interna do Dixiponto (web.dixiponto.com.br)."""
+    _BASE = "https://webapiponto.dixiponto.com.br:8899"
+    _AUTH = "YW5ndWxhcjpAbmd1bEByMA=="  # angular:@ngul@r0
+
+    def __init__(self, email: str, senha: str, unidade: str):
+        self.email   = email
+        self.senha   = senha
+        self.unidade = unidade
+        self._tokens: dict = {}
+
+    def _hdrs(self) -> dict:
+        return {
+            "Content-Type":      "application/json",
+            "Origin":            "https://web.dixiponto.com.br",
+            "X-User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "X-Language":        "pt-BR",
+            "X-Resolution":      "1920x1080",
+            "X-Client-Platform": "web",
+        }
+
+    def login(self) -> dict:
+        r = requests.post(f"{self._BASE}/login_", json={
+            "usuario": self.email, "senha": self.senha,
+            "unidade": self.unidade, "suporte": False,
+        }, headers=self._hdrs(), timeout=15)
+        r.raise_for_status()
+        data = r.json()["data"]
+        if not data.get("loginSucesso"):
+            raise ValueError(f"Dixiponto login falhou: {data.get('motivo', '?')}")
+        return data
+
+    def _token(self, entidade: str) -> str:
+        if entidade not in self._tokens:
+            r = requests.post(f"{self._BASE}/oauth/token", data={
+                "username": json.dumps({
+                    "login": self.email, "entidade": entidade,
+                    "unidade": self.unidade, "suporte": False,
+                }),
+                "password":   self.senha,
+                "grant_type": "password",
+            }, headers={
+                "Authorization":  f"Basic {self._AUTH}",
+                "Content-Type":   "application/x-www-form-urlencoded",
+                "X-Client-Platform": "web",
+                "Origin": "https://web.dixiponto.com.br",
+            }, timeout=15)
+            r.raise_for_status()
+            self._tokens[entidade] = r.json()["access_token"]
+        return self._tokens[entidade]
+
+    def _get(self, path: str, entidade: str, params: dict | None = None):
+        r = requests.get(f"{self._BASE}{path}", params=params or {}, headers={
+            "Content-Type":      "application/json; charset=UTF-8",
+            "Accept":            "application/json",
+            "Authorization":     f"bearer {self._token(entidade)}",
+            "Entidade":          entidade,
+            "Unidade":           self.unidade,
+            "X-Client-Platform": "web",
+            "Origin":            "https://web.dixiponto.com.br",
+        }, timeout=30)
+        r.raise_for_status()
+        return r.json() if r.text else None
+
+    def _all_pages(self, path: str, entidade: str, params: dict | None = None) -> list:
+        params = dict(params or {})
+        params.setdefault("size", 200)
+        out: list = []
+        for page in range(200):
+            params["page"] = page
+            data = self._get(path, entidade, params)
+            if not data:
+                break
+            if isinstance(data, list):
+                out.extend(data)
+                break
+            content = data.get("content", [])
+            out.extend(content)
+            if data.get("last", True) or not content:
+                break
+        return out
+
+    def get_funcionarios(self) -> list:
+        data = self._get("/funcionario_", "Funcionario")
+        if isinstance(data, list):
+            return data
+        return data.get("content", []) if isinstance(data, dict) else []
+
+    def get_marcacoes(self, d_ini: date, d_fim: date) -> list:
+        return self._all_pages("/marcacao_", "Marcacao", {
+            "dataInicio": d_ini.isoformat(),
+            "dataFim":    d_fim.isoformat(),
+        })
+
+    @staticmethod
+    def parse_data(v: int) -> str:
+        s = str(v)
+        return f"{s[:4]}-{s[4:6]}-{s[6:]}" if len(s) == 8 else str(v)
+
+    @staticmethod
+    def parse_hora(v: int) -> str:
+        s = str(v).zfill(4)
+        return f"{s[:2]}:{s[2:]}"
 
 
 # Instância global (inicializada no main)
@@ -579,6 +693,66 @@ def buscar_ordens_servico(data_ini: str, data_fim: str) -> list[dict]:
     return normalizado
 
 
+
+# ══════════════════════════════════════════════════════════════════
+#  BUSCA DE DADOS — PONTO COLABORADOR (Dixiponto)
+# ══════════════════════════════════════════════════════════════════
+def buscar_ponto(data_ini: str, data_fim: str) -> dict:
+    """
+    Busca marcações de ponto via Dixiponto API.
+    Retorna: {'funcionarios': [...], 'marcacoes': [...]}
+    """
+    _prog(0.79, "Buscando dados de ponto...")
+    try:
+        chave  = f"ponto|{data_ini}|{data_fim}"
+        cached = _cache_load(chave, _TTL_OUTROS)
+        if cached:
+            n = len(cached.get("marcacoes", []))
+            print(f"  ✔ Ponto (cache): {n} marcações")
+            _prog(0.81, f"Ponto: {n} marcações (cache)")
+            return cached
+
+        d_ini_dt = datetime.strptime(data_ini, "%d/%m/%Y").date()
+        d_fim_dt = datetime.strptime(data_fim, "%d/%m/%Y").date()
+
+        client = DixiPontoClient(DIXI_EMAIL, DIXI_SENHA, DIXI_UNIDADE)
+        client.login()
+
+        funcionarios  = client.get_funcionarios()
+        marcacoes_raw = client.get_marcacoes(d_ini_dt, d_fim_dt)
+
+        marcacoes = []
+        for m in marcacoes_raw:
+            if m.get("considerar") != 1:
+                continue
+            rf   = m.get("registroFuncionario") or {}
+            func = rf.get("funcionario") or {}
+            marcacoes.append({
+                "id":            m.get("idMarcacao"),
+                "funcionario_id": func.get("idFuncionario"),
+                "funcionario":   func.get("nome", "Desconhecido"),
+                "data":          DixiPontoClient.parse_data(m.get("dataMarcacao", 0)),
+                "hora":          DixiPontoClient.parse_hora(m.get("hora", 0)),
+            })
+
+        result = {
+            "funcionarios": [
+                {"id": f.get("idFuncionario"), "nome": f.get("nome", "")}
+                for f in funcionarios
+            ],
+            "marcacoes": marcacoes,
+        }
+        _cache_save(chave, result)
+        print(f"  ✔ Ponto: {len(funcionarios)} funcionários, {len(marcacoes)} marcações")
+        _prog(0.81, f"Ponto: {len(marcacoes)} marcações carregadas")
+        return result
+
+    except Exception as e:
+        print(f"  [AVISO] Ponto (Dixiponto): {e}")
+        _prog(0.81, "Ponto: não disponível (Dixiponto offline)")
+        return {"funcionarios": [], "marcacoes": []}
+
+
 # ══════════════════════════════════════════════════════════════════
 #  GERADOR DE EXCEL
 # ══════════════════════════════════════════════════════════════════
@@ -806,6 +980,7 @@ def gerar_dashboard_html(
     caminho:   str,
     data_ini:  str,
     data_fim:  str,
+    ponto_data: dict | None = None,
 ) -> str:
     """Gera dashboard HTML interativo completo para Locvix."""
     import json as _json
@@ -933,6 +1108,10 @@ def gerar_dashboard_html(
     } for c in contratos]
 
     jv = lambda v: _json.dumps(v, ensure_ascii=False)
+
+    # Ponto data
+    ponto_func = (ponto_data or {}).get("funcionarios", [])
+    ponto_marc = (ponto_data or {}).get("marcacoes", [])
 
     # ── Categorias únicas ───────────────────────────────────────────
     categorias   = sorted(df_vendas["Categoria"].dropna().unique().tolist())
@@ -1086,6 +1265,20 @@ body[data-theme="dark"] .footer-dev{{color:#64748b;}}
 body[data-theme="dark"] .footer-sep{{background:#334155;}}
 body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
 
+/* ── MODULE NAV ── */
+.mod-nav{{background:#fff;border-radius:10px;padding:10px 16px;margin-bottom:24px;
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  box-shadow:0 1px 4px rgba(0,0,0,.1);}}
+.nav-tab{{padding:10px 18px;border:none;background:none;font-size:13px;font-weight:700;
+  color:#718096;cursor:pointer;border-radius:7px;transition:all .15s;white-space:nowrap;}}
+.nav-tab:hover{{color:#1a3a4a;background:#f0f4f8;}}
+.nav-tab.active{{background:#1a3a4a;color:#fff;box-shadow:0 2px 8px rgba(15,32,39,.3);}}
+.mod-section{{display:block;}}
+body[data-theme="dark"] .mod-nav{{background:#1e293b;box-shadow:0 2px 8px rgba(0,0,0,.5);}}
+body[data-theme="dark"] .nav-tab{{color:#94a3b8;}}
+body[data-theme="dark"] .nav-tab:hover{{color:#e2e8f0;background:#334155;}}
+body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
+
 </style>
 </head>
 <body data-theme="dark">
@@ -1142,6 +1335,16 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
 
 <div class="container">
 
+  <!-- MODULE NAVIGATION -->
+  <div class="mod-nav" id="modNav">
+    <button class="nav-tab active" data-mod="geral" onclick="setModulo('geral')">📊 Visão Geral</button>
+    <button class="nav-tab" data-mod="vendas" onclick="setModulo('vendas')">💰 Vendas</button>
+    <button class="nav-tab" data-mod="financeiro" onclick="setModulo('financeiro')">💳 Financeiro</button>
+    <button class="nav-tab" data-mod="operacoes" onclick="setModulo('operacoes')">🔧 Operações</button>
+    <button class="nav-tab" data-mod="ponto" onclick="setModulo('ponto')">🕐 Ponto Colaborador</button>
+  </div>
+
+  <div class="mod-section" data-mod="vendas">
   <!-- ── KPIs DE VENDAS ── -->
   <div class="section-title">💰 Vendas — Resumo do Período</div>
   <div class="kpi-grid col6">
@@ -1171,6 +1374,9 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
     </div>
   </div>
 
+  </div><!-- /mod vendas-kpi -->
+
+  <div class="mod-section" data-mod="financeiro">
   <!-- ── KPIs FINANCEIRO ── -->
   <div class="section-title">🏦 Financeiro — Resumo</div>
   <div class="kpi-grid col4">
@@ -1184,6 +1390,9 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
     </div>
   </div>
 
+  </div><!-- /mod financeiro-kpi -->
+
+  <div class="mod-section" data-mod="operacoes">
   <!-- ── KPIs OS + CONTRATOS ── -->
   <div class="section-title">🔧 Operações — OS & Contratos</div>
   <div class="kpi-grid col4">
@@ -1205,6 +1414,9 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
     </div>
   </div>
 
+  </div><!-- /mod operacoes -->
+
+  <div class="mod-section" data-mod="vendas">
   <!-- ── GRÁFICOS DE VENDAS ── -->
   <div class="section-title">📈 Análise de Vendas</div>
   <div class="chart-row col2" style="align-items:start;">
@@ -1236,6 +1448,9 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
     </div>
   </div>
 
+  </div><!-- /mod vendas-charts -->
+
+  <div class="mod-section" data-mod="financeiro">
   <!-- ── GRÁFICOS FINANCEIROS ── -->
   <div class="section-title">💳 Financeiro</div>
   <div class="chart-row col2" style="align-items:start;">
@@ -1253,6 +1468,9 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
     </div>
   </div>
 
+  </div><!-- /mod financeiro-charts -->
+
+  <div class="mod-section" data-mod="vendas">
   <!-- ── TABELA TOP PRODUTOS ── -->
   <div class="section-title">📋 Top 20 Produtos</div>
   <div class="table-card">
@@ -1297,6 +1515,47 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
       <tfoot><tr id="tblCliTotal"></tr></tfoot>
     </table>
   </div>
+  </div><!-- /mod vendas-tables -->
+
+  <!-- ── PONTO COLABORADOR ── -->
+  <div class="mod-section" data-mod="ponto">
+  <div class="section-title">🕐 Ponto Colaborador — {periodo}</div>
+  <div class="kpi-grid col4">
+    <div class="kpi-card blue"><div class="kpi-label">Funcionários</div><div class="kpi-value" id="kPontoFunc">—</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Marcações no Período</div><div class="kpi-value" id="kPontoTotal">—</div></div>
+    <div class="kpi-card teal"><div class="kpi-label">Com Registro Hoje</div><div class="kpi-value" id="kPontoHoje">—</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Sem Registro Hoje</div><div class="kpi-value" id="kPontoAus">—</div></div>
+  </div>
+  <div class="chart-row col2" style="align-items:start;">
+    <div class="chart-card"><h3>📅 Batidas por Dia</h3><div style="position:relative;height:260px;"><canvas id="chartPontoDia"></canvas></div></div>
+    <div class="chart-card"><h3>👤 Marcações por Funcionário</h3><div style="position:relative;height:260px;"><canvas id="chartPontoFunc"></canvas></div></div>
+  </div>
+  <div class="chart-row col2" style="align-items:start;">
+    <div class="chart-card"><h3>⏱ Horas Trabalhadas Estimadas</h3><div style="position:relative;height:260px;"><canvas id="chartPontoHoras"></canvas></div></div>
+    <div class="chart-card"><h3>✅ Presença Hoje</h3><div style="position:relative;height:260px;"><canvas id="chartPontoPresenca"></canvas></div></div>
+  </div>
+  <div class="section-title">📋 Resumo do Dia de Hoje</div>
+  <div class="table-card">
+    <h3>Marcações de hoje por funcionário</h3>
+    <table class="data-tbl">
+      <thead><tr>
+        <th>#</th><th>Funcionário</th>
+        <th class="num">1ª Entrada</th><th class="num">Última Saída</th>
+        <th class="num">Horas Est.</th><th>Status</th>
+      </tr></thead>
+      <tbody id="tblPontoHoje"></tbody>
+    </table>
+  </div>
+  <div class="section-title">📋 Últimas 50 Marcações</div>
+  <div class="table-card">
+    <table class="data-tbl">
+      <thead><tr>
+        <th>Data</th><th>Funcionário</th><th class="num">Hora</th>
+      </tr></thead>
+      <tbody id="tblPontoUlt"></tbody>
+    </table>
+  </div>
+  </div><!-- /mod ponto -->
 
 </div>
 
@@ -1323,6 +1582,8 @@ const PAGAR     = {jv(raw_pag)};
 const PAGAR_ALL = {jv(raw_pag_all)};
 const OS_LIST   = {jv(raw_os)};
 const CONTRATOS = {jv(raw_contr)};
+const PONTO_FUNC = {jv(ponto_func)};
+const PONTO_MARC = {jv(ponto_marc)};
 
 const BRL = v => 'R$\u00a0' + v.toLocaleString('pt-BR',{{minimumFractionDigits:2,maximumFractionDigits:2}});
 const NUM = v => v.toLocaleString('pt-BR');
@@ -1747,6 +2008,220 @@ function mkPagarMensal() {{
 }}
 
 // ═══════════════════════════════════════════════
+//  MÓDULO PONTO COLABORADOR
+// ═══════════════════════════════════════════════
+function mkPontoDia() {{
+  destroyChart('chartPontoDia');
+  const m = {{}};
+  PONTO_MARC.forEach(r => {{ m[r.data] = (m[r.data]||0)+1; }});
+  const entries = Object.entries(m).sort((a,b)=>a[0]>b[0]?1:-1);
+  if (!entries.length) return;
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const labels = entries.map(([d]) => {{
+    const [,mo,dd] = d.split('-');
+    return dd+'/'+meses[parseInt(mo)-1];
+  }});
+  charts['chartPontoDia'] = new Chart(document.getElementById('chartPontoDia'), {{
+    type: 'bar',
+    data: {{
+      labels,
+      datasets: [{{ label: 'Marcações', data: entries.map(e=>e[1]),
+        backgroundColor: '#0891b2', borderRadius: 4, borderSkipped: false }}]
+    }},
+    options: {{
+      responsive:true, maintainAspectRatio:false,
+      plugins: {{ legend:{{display:false}},
+        subtitle:{{display:true,text:'Total: '+PONTO_MARC.length+' batidas',color:'#38bdf8',font:{{size:12,weight:'bold'}},padding:{{bottom:6}}}},
+        tooltip:{{callbacks:{{label:c=>c.raw+' marcações'}}}} }},
+      scales: {{
+        y: {{ticks:{{color:'#cbd5e1',stepSize:1}},grid:{{color:'#334155'}}}},
+        x: {{ticks:{{color:'#cbd5e1',maxRotation:45,font:{{size:9}}}},grid:{{display:false}}}}
+      }}
+    }}
+  }});
+}}
+
+function mkPontoFuncChart() {{
+  destroyChart('chartPontoFunc');
+  const m = {{}};
+  PONTO_MARC.forEach(r => {{ m[r.funcionario] = (m[r.funcionario]||0)+1; }});
+  const entries = Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  if (!entries.length) return;
+  charts['chartPontoFunc'] = new Chart(document.getElementById('chartPontoFunc'), {{
+    type: 'bar',
+    data: {{
+      labels: entries.map(e=>e[0].split(' ')[0]),
+      datasets: [{{ data: entries.map(e=>e[1]),
+        backgroundColor: CORES, borderRadius: 4, borderSkipped: false }}]
+    }},
+    options: {{
+      responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{{legend:{{display:false}},tooltip:{{callbacks:{{label:c=>c.raw+' batidas'}}}}}},
+      scales:{{
+        x:{{ticks:{{color:'#cbd5e1',stepSize:1}},grid:{{color:'#334155'}}}},
+        y:{{ticks:{{color:'#cbd5e1',font:{{size:10}}}},grid:{{display:false}}}}
+      }}
+    }}
+  }});
+}}
+
+function mkPontoHoras() {{
+  destroyChart('chartPontoHoras');
+  const dayFunc = {{}};
+  PONTO_MARC.forEach(r => {{
+    const k = r.funcionario + '|' + r.data;
+    if (!dayFunc[k]) dayFunc[k] = [];
+    const [hh,mm] = r.hora.split(':').map(Number);
+    dayFunc[k].push(hh*60+mm);
+  }});
+  const funcHoras = {{}};
+  Object.entries(dayFunc).forEach(([k, minutos]) => {{
+    const [func] = k.split('|');
+    minutos.sort((a,b)=>a-b);
+    const span   = minutos[minutos.length-1] - minutos[0];
+    const almoco = span > 240 ? 60 : 0;
+    funcHoras[func] = (funcHoras[func]||0) + Math.max(0, span - almoco) / 60;
+  }});
+  const entries = Object.entries(funcHoras).sort((a,b)=>b[1]-a[1]);
+  if (!entries.length) return;
+  charts['chartPontoHoras'] = new Chart(document.getElementById('chartPontoHoras'), {{
+    type: 'bar',
+    data: {{
+      labels: entries.map(e=>e[0].split(' ')[0]),
+      datasets: [{{ data: entries.map(e=>Math.round(e[1]*10)/10),
+        backgroundColor: '#059669', borderRadius: 4, borderSkipped: false }}]
+    }},
+    options: {{
+      responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{{legend:{{display:false}},tooltip:{{callbacks:{{label:c=>c.raw+'h est.'}}}}}},
+      scales:{{
+        x:{{ticks:{{color:'#cbd5e1'}},grid:{{color:'#334155'}},title:{{display:true,text:'Horas',color:'#94a3b8'}}}},
+        y:{{ticks:{{color:'#cbd5e1',font:{{size:10}}}},grid:{{display:false}}}}
+      }}
+    }}
+  }});
+}}
+
+function mkPontoPresenca() {{
+  destroyChart('chartPontoPresenca');
+  const hoje = new Date().toISOString().substring(0,10);
+  const presentes = new Set(PONTO_MARC.filter(r=>r.data===hoje).map(r=>r.funcionario_id)).size;
+  const ausentes  = Math.max(0, PONTO_FUNC.length - presentes);
+  const canvas    = document.getElementById('chartPontoPresenca');
+  if (!canvas) return;
+  const centerPlugin = [{{
+    id: 'pontoCenterText',
+    beforeDraw(chart) {{
+      const {{ctx}} = chart;
+      const cx = chart.chartArea ? (chart.chartArea.left+chart.chartArea.right)/2 : chart.width/2;
+      const cy = chart.chartArea ? (chart.chartArea.top+chart.chartArea.bottom)/2  : chart.height/2;
+      ctx.save();
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle='#cbd5e1'; ctx.font='bold 11px Inter,sans-serif';
+      ctx.fillText('HOJE', cx, cy-10);
+      ctx.fillStyle='#38bdf8'; ctx.font='bold 15px Inter,sans-serif';
+      ctx.fillText(presentes+'/'+PONTO_FUNC.length, cx, cy+8);
+      ctx.restore();
+    }}
+  }}];
+  charts['chartPontoPresenca'] = new Chart(canvas, {{
+    type:'doughnut',
+    data:{{
+      labels:['Presentes','Ausentes'],
+      datasets:[{{data:[presentes, ausentes],
+        backgroundColor:['#059669','#dc2626'],borderWidth:2,borderColor:'#1e293b'}}]
+    }},
+    options:{{
+      responsive:true, maintainAspectRatio:false, cutout:'55%',
+      plugins:{{
+        legend:{{position:'bottom',labels:{{color:'#cbd5e1',font:{{size:11}},boxWidth:14}}}},
+        tooltip:{{callbacks:{{label:c=>c.label+': '+c.raw+' func.'}}}}
+      }}
+    }},
+    plugins: centerPlugin
+  }});
+}}
+
+function renderTblPontoHoje() {{
+  const hoje    = new Date().toISOString().substring(0,10);
+  const byFunc  = {{}};
+  PONTO_MARC.filter(r=>r.data===hoje).forEach(r => {{
+    if (!byFunc[r.funcionario]) byFunc[r.funcionario] = {{func:r.funcionario,horas:[]}};
+    const [hh,mm] = r.hora.split(':').map(Number);
+    byFunc[r.funcionario].horas.push(hh*60+mm);
+  }});
+  PONTO_FUNC.forEach(f => {{
+    if (!byFunc[f.nome]) byFunc[f.nome] = {{func:f.nome,horas:[],ausente:true}};
+  }});
+  const arr = Object.values(byFunc).sort((a,b)=>a.func>b.func?1:-1);
+  let html = '';
+  arr.forEach((r,i) => {{
+    const hrs    = r.horas.sort((a,b)=>a-b);
+    const fmt    = m => Math.floor(m/60)+':'+String(m%60).padStart(2,'0');
+    const entrada = hrs.length > 0 ? fmt(hrs[0]) : '—';
+    const saida   = hrs.length > 1 ? fmt(hrs[hrs.length-1]) : '—';
+    const span    = hrs.length > 1 ? hrs[hrs.length-1]-hrs[0] : 0;
+    const hTrab   = hrs.length > 1 ? (Math.max(0,span-(span>240?60:0))/60).toFixed(1)+'h' : '—';
+    const status  = r.ausente
+      ? '<span class="badge vermelho">SEM REGISTRO</span>'
+      : hrs.length >= 4 ? '<span class="badge verde">COMPLETO</span>'
+      : hrs.length >= 2 ? '<span class="badge amarelo">PARCIAL</span>'
+      : '<span class="badge amarelo">ENTRADA</span>';
+    html += `<tr><td>${{i+1}}</td><td>${{r.func}}</td>
+      <td class="num">${{entrada}}</td><td class="num">${{saida}}</td>
+      <td class="num">${{hTrab}}</td><td>${{status}}</td></tr>`;
+  }});
+  const el = document.getElementById('tblPontoHoje');
+  if (el) el.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:#94a3b8">Sem dados de ponto disponíveis para hoje</td></tr>';
+}}
+
+function renderTblPontoUlt() {{
+  const arr = [...PONTO_MARC].sort((a,b)=>{{
+    if (b.data > a.data) return 1; if (a.data > b.data) return -1;
+    return b.hora > a.hora ? 1 : -1;
+  }}).slice(0,50);
+  let html = '';
+  arr.forEach(r => {{
+    html += `<tr>
+      <td>${{r.data?r.data.split('-').reverse().join('/'):'—'}}</td>
+      <td>${{r.funcionario||'—'}}</td>
+      <td class="num" style="font-weight:700;color:#38bdf8">${{r.hora||'—'}}</td>
+    </tr>`;
+  }});
+  const el = document.getElementById('tblPontoUlt');
+  if (el) el.innerHTML = html || '<tr><td colspan="3" style="text-align:center;color:#94a3b8">Sem marcações no período selecionado</td></tr>';
+}}
+
+function initPonto() {{
+  const hoje = new Date().toISOString().substring(0,10);
+  const el = id => document.getElementById(id);
+  if (el('kPontoFunc'))  el('kPontoFunc').textContent  = PONTO_FUNC.length || '0';
+  if (el('kPontoTotal')) el('kPontoTotal').textContent = PONTO_MARC.length || '0';
+  const presHoje = new Set(PONTO_MARC.filter(r=>r.data===hoje).map(r=>r.funcionario_id)).size;
+  if (el('kPontoHoje')) el('kPontoHoje').textContent = presHoje || '0';
+  if (el('kPontoAus'))  el('kPontoAus').textContent  = Math.max(0, PONTO_FUNC.length - presHoje) || '0';
+  mkPontoDia();
+  mkPontoFuncChart();
+  mkPontoHoras();
+  mkPontoPresenca();
+  renderTblPontoHoje();
+  renderTblPontoUlt();
+}}
+
+// ═══════════════════════════════════════════════
+//  NAVEGAÇÃO POR MÓDULOS
+// ═══════════════════════════════════════════════
+function setModulo(m) {{
+  document.querySelectorAll('.mod-section').forEach(el => {{
+    el.style.display = (m === 'geral' || el.dataset.mod === m) ? '' : 'none';
+  }});
+  document.querySelectorAll('.nav-tab').forEach(btn => {{
+    btn.classList.toggle('active', btn.dataset.mod === m);
+  }});
+  try {{ localStorage.setItem('locvix-modulo', m); }} catch(e) {{}}
+}}
+
+// ═══════════════════════════════════════════════
 //  ATUALIZAÇÃO GERAL
 // ═══════════════════════════════════════════════
 function atualizar() {{
@@ -1841,6 +2316,8 @@ Chart.defaults.font.size   = 12;
 Chart.defaults.color       = '#cbd5e1';
 dadosFilt = VENDAS;
 atualizar();
+initPonto();
+try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }} catch(e){{}}
 </script>
 </body>
 </html>"""
@@ -1915,6 +2392,7 @@ def main(
     produtos  = buscar_produtos()
     contratos = buscar_contratos()
     os_list   = buscar_ordens_servico(d_ini, d_fim)
+    ponto_data = buscar_ponto(d_ini, d_fim)
 
     receber = financ.get("receber", [])
     pagar   = financ.get("pagar", [])
@@ -1944,6 +2422,7 @@ def main(
         df_vendas=df, receber=receber, pagar=pagar, pagar_all=pagar_all,
         os_list=os_list, contratos=contratos,
         caminho=h_path, data_ini=d_ini, data_fim=d_fim,
+        ponto_data=ponto_data,
     )
 
     _prog(1.0, "✔ Concluído!")

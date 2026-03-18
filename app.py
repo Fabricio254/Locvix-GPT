@@ -140,15 +140,21 @@ with st.sidebar:
     st.markdown("---")
 
     # ── Módulos ───────────────────────────────────────────────────
-    st.markdown("##### 📋 Módulos incluídos")
-    st.markdown("""
-- 💰 Vendas
-- 💳 Financeiro (A Receber / A Pagar)
-- 👥 Clientes
-- 📦 Produtos
-- 📑 Contratos / MRR
-- 🔧 Ordens de Serviço
-""")
+    st.markdown("##### 📋 Módulos")
+    modulos = {
+        "geral":       "📊 Visão Geral",
+        "vendas":      "💰 Vendas",
+        "financeiro":  "💳 Financeiro",
+        "operacoes":   "🔧 Operações",
+        "ponto":       "🕐 Ponto Colaborador",
+    }
+    modulo_sel = st.radio(
+        "Selecionar módulo",
+        options=list(modulos.keys()),
+        format_func=lambda k: modulos[k],
+        label_visibility="collapsed",
+        key="modulo_ativo",
+    )
 
     st.markdown("---")
     st.caption(f"Última execução: {datetime.now(_BRT).strftime('%d/%m/%Y %H:%M')}")
@@ -307,6 +313,20 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
     st.success("✅ Dashboard gerado com sucesso!")
 
     _html_safe = st.session_state[HTML_KEY].encode("utf-8", errors="replace").decode("utf-8")
+
+    # Inject module-activation script based on sidebar selection
+    _modulo_sel = st.session_state.get("modulo_ativo", "geral")
+    _allowed    = {"geral", "vendas", "financeiro", "operacoes", "ponto"}
+    if _modulo_sel not in _allowed:
+        _modulo_sel = "geral"
+    _inject = (
+        f"<script>(function(){{function _am(){{if(typeof setModulo==='function')"
+        f"setModulo('{_modulo_sel}');else setTimeout(_am,80);}}"
+        f"if(document.readyState==='complete')_am();"
+        f"else window.addEventListener('load',_am);}})()</script>"
+    )
+    _html_safe = _html_safe.replace("</body>", f"{_inject}</body>")
+
     components.html(
         _html_safe,
         height=980,
