@@ -1597,7 +1597,8 @@ const CORES = ['#1a3a4a','#0891b2','#059669','#d97706','#7c3aed',
 // ═══════════════════════════════════════════════
 //  ESTADO DE FILTROS
 // ═══════════════════════════════════════════════
-let dadosFilt = VENDAS;
+let dadosFilt    = VENDAS;
+let pontoMarcFilt = PONTO_MARC;
 
 function filtrar() {{
   const ini  = document.getElementById('fDateIni').value;
@@ -2010,20 +2011,17 @@ function mkPagarMensal() {{
 // ═══════════════════════════════════════════════
 //  MÓDULO PONTO COLABORADOR
 // ═══════════════════════════════════════════════
-function mkPontoAusencias() {{
+function mkPontoAusencias(marc) {{
   destroyChart('chartPontoAus');
   const canvas = document.getElementById('chartPontoAus');
   if (!canvas) return;
 
-  // Dias com pelo menos uma marcação = dias úteis do período
-  const dias = [...new Set(PONTO_MARC.map(r => r.data))].sort();
+  const dias = [...new Set(marc.map(r => r.data))].sort();
   if (!dias.length || !PONTO_FUNC.length) return;
 
-  const JORNADA = 8; // horas esperadas por dia
-
-  // Agrupa pontos por funcionario_id + data
+  const JORNADA = 8;
   const byFD = {{}};
-  PONTO_MARC.forEach(r => {{
+  marc.forEach(r => {{
     const k = r.funcionario_id + '|' + r.data;
     if (!byFD[k]) byFD[k] = [];
     const [hh, mm] = r.hora.split(':').map(Number);
@@ -2035,7 +2033,7 @@ function mkPontoAusencias() {{
     dias.forEach(dia => {{
       const k = f.id + '|' + dia;
       if (!byFD[k]) {{
-        hFalta += JORNADA; // falta completa
+        hFalta += JORNADA;
       }} else {{
         const pts = byFD[k].slice().sort((a,b)=>a-b);
         if (pts.length >= 2) {{
@@ -2044,7 +2042,7 @@ function mkPontoAusencias() {{
           const trab = Math.max(0, span - alm) / 60;
           if (trab < 7) hAntecip += Math.min(JORNADA, Math.max(0, JORNADA - trab));
         }} else {{
-          hAntecip += 4; // só entrada sem saída registrada
+          hAntecip += 4;
         }}
       }}
     }});
@@ -2082,10 +2080,10 @@ function mkPontoAusencias() {{
   }});
 }}
 
-function mkPontoFuncChart() {{
+function mkPontoFuncChart(marc) {{
   destroyChart('chartPontoFunc');
   const m = {{}};
-  PONTO_MARC.forEach(r => {{ m[r.funcionario] = (m[r.funcionario]||0)+1; }});
+  marc.forEach(r => {{ m[r.funcionario] = (m[r.funcionario]||0)+1; }});
   const entries = Object.entries(m).sort((a,b)=>b[1]-a[1]);
   if (!entries.length) return;
   charts['chartPontoFunc'] = new Chart(document.getElementById('chartPontoFunc'), {{
@@ -2106,10 +2104,10 @@ function mkPontoFuncChart() {{
   }});
 }}
 
-function mkPontoHoras() {{
+function mkPontoHoras(marc) {{
   destroyChart('chartPontoHoras');
   const dayFunc = {{}};
-  PONTO_MARC.forEach(r => {{
+  marc.forEach(r => {{
     const k = r.funcionario + '|' + r.data;
     if (!dayFunc[k]) dayFunc[k] = [];
     const [hh,mm] = r.hora.split(':').map(Number);
@@ -2143,10 +2141,13 @@ function mkPontoHoras() {{
   }});
 }}
 
-function mkPontoPresenca() {{
+function mkPontoPresenca(marc) {{
   destroyChart('chartPontoPresenca');
-  const hoje = new Date().toISOString().substring(0,10);
-  const presentes = new Set(PONTO_MARC.filter(r=>r.data===hoje).map(r=>r.funcionario_id)).size;
+  // Dia de referência = último dia do período filtrado (ou hoje se estiver no filtro)
+  const hoje     = new Date().toISOString().substring(0,10);
+  const diasMarc = [...new Set(marc.map(r=>r.data))].sort();
+  const diaRef   = diasMarc.includes(hoje) ? hoje : (diasMarc[diasMarc.length-1] || hoje);
+  const presentes = new Set(marc.filter(r=>r.data===diaRef).map(r=>r.funcionario_id)).size;
   const ausentes  = Math.max(0, PONTO_FUNC.length - presentes);
   const canvas    = document.getElementById('chartPontoPresenca');
   if (!canvas) return;
@@ -2159,7 +2160,7 @@ function mkPontoPresenca() {{
       ctx.save();
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillStyle='#cbd5e1'; ctx.font='bold 11px Inter,sans-serif';
-      ctx.fillText('HOJE', cx, cy-10);
+      ctx.fillText(diaRef && diaRef!==hoje ? diaRef.split('-').reverse().slice(0,2).join('/') : 'HOJE', cx, cy-10);
       ctx.fillStyle='#38bdf8'; ctx.font='bold 15px Inter,sans-serif';
       ctx.fillText(presentes+'/'+PONTO_FUNC.length, cx, cy+8);
       ctx.restore();
@@ -2183,10 +2184,17 @@ function mkPontoPresenca() {{
   }});
 }}
 
-function renderTblPontoHoje() {{
+function renderTblPontoHoje(marc) {{
+  // Dia de referência = último dia do período filtrado (ou hoje se in range)
   const hoje    = new Date().toISOString().substring(0,10);
+  const diasMarc = [...new Set(marc.map(r=>r.data))].sort();
+  const diaRef  = diasMarc.includes(hoje) ? hoje : (diasMarc[diasMarc.length-1] || hoje);
+  const labelDia = diaRef.split('-').reverse().join('/');
+  // Atualiza título da tabela
+  const th3 = document.querySelector('#tblPontoHoje')?.closest('.table-card')?.querySelector('h3');
+  if (th3) th3.textContent = 'Marcações de ' + labelDia + ' por funcionário';
   const byFunc  = {{}};
-  PONTO_MARC.filter(r=>r.data===hoje).forEach(r => {{
+  marc.filter(r=>r.data===diaRef).forEach(r => {{
     if (!byFunc[r.funcionario]) byFunc[r.funcionario] = {{func:r.funcionario,horas:[]}};
     const [hh,mm] = r.hora.split(':').map(Number);
     byFunc[r.funcionario].horas.push(hh*60+mm);
@@ -2216,8 +2224,8 @@ function renderTblPontoHoje() {{
   if (el) el.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:#94a3b8">Sem dados de ponto disponíveis para hoje</td></tr>';
 }}
 
-function renderTblPontoUlt() {{
-  const arr = [...PONTO_MARC].sort((a,b)=>{{
+function renderTblPontoUlt(marc) {{
+  const arr = [...marc].sort((a,b)=>{{
     if (b.data > a.data) return 1; if (a.data > b.data) return -1;
     return b.hora > a.hora ? 1 : -1;
   }}).slice(0,50);
@@ -2233,20 +2241,24 @@ function renderTblPontoUlt() {{
   if (el) el.innerHTML = html || '<tr><td colspan="3" style="text-align:center;color:#94a3b8">Sem marcações no período selecionado</td></tr>';
 }}
 
-function initPonto() {{
-  const hoje = new Date().toISOString().substring(0,10);
+function initPonto(marc) {{
+  marc = marc || PONTO_MARC;
+  // Dia de referência = último dia do período filtrado (ou hoje se in range)
+  const hoje    = new Date().toISOString().substring(0,10);
+  const diasMarc = [...new Set(marc.map(r=>r.data))].sort();
+  const diaRef   = diasMarc.includes(hoje) ? hoje : (diasMarc[diasMarc.length-1] || hoje);
   const el = id => document.getElementById(id);
   if (el('kPontoFunc'))  el('kPontoFunc').textContent  = PONTO_FUNC.length || '0';
-  if (el('kPontoTotal')) el('kPontoTotal').textContent = PONTO_MARC.length || '0';
-  const presHoje = new Set(PONTO_MARC.filter(r=>r.data===hoje).map(r=>r.funcionario_id)).size;
+  if (el('kPontoTotal')) el('kPontoTotal').textContent = marc.length || '0';
+  const presHoje = new Set(marc.filter(r=>r.data===diaRef).map(r=>r.funcionario_id)).size;
   if (el('kPontoHoje')) el('kPontoHoje').textContent = presHoje || '0';
   if (el('kPontoAus'))  el('kPontoAus').textContent  = Math.max(0, PONTO_FUNC.length - presHoje) || '0';
-  mkPontoAusencias();
-  mkPontoFuncChart();
-  mkPontoHoras();
-  mkPontoPresenca();
-  renderTblPontoHoje();
-  renderTblPontoUlt();
+  mkPontoAusencias(marc);
+  mkPontoFuncChart(marc);
+  mkPontoHoras(marc);
+  mkPontoPresenca(marc);
+  renderTblPontoHoje(marc);
+  renderTblPontoUlt(marc);
 }}
 
 // ═══════════════════════════════════════════════
@@ -2289,6 +2301,7 @@ function atualizar() {{
   renderTblProdutos(rows);
   renderTblClientes(rows);
   mkFinanceiro();
+  initPonto(pontoMarcFilt);
 }}
 
 function aplicarFiltros() {{ filtrar(); atualizar(); }}
@@ -2298,7 +2311,8 @@ function limparFiltros() {{
   document.getElementById('fCat').value  = '';
   document.getElementById('fVend').value = '';
   document.getElementById('filtroInfo').textContent = '';
-  dadosFilt = VENDAS;
+  dadosFilt     = VENDAS;
+  pontoMarcFilt = PONTO_MARC;
   atualizar();
 }}
 
@@ -2357,7 +2371,7 @@ Chart.defaults.font.size   = 12;
 Chart.defaults.color       = '#cbd5e1';
 dadosFilt = VENDAS;
 atualizar();
-initPonto();
+initPonto(PONTO_MARC);
 try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }} catch(e){{}}
 </script>
 </body>
