@@ -1088,7 +1088,7 @@ body[data-theme="dark"] #btn-theme{{background:#e2e8f0;color:#1e293b;}}
 
 </style>
 </head>
-<body>
+<body data-theme="dark">
 
 <button id="btn-theme" onclick="toggleTheme()" title="Alternar modo claro/escuro">🌙</button>
 <button id="btn-fullscreen" onclick="abrirTelaCheia()" title="Abrir em tela cheia">&#x26F6;</button>
