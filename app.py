@@ -163,12 +163,12 @@ with st.sidebar:
     fonte_vendas_sel = st.radio(
         "Fonte dos dados de vendas",
         options=["api", "excel"],
-        format_func=lambda k: "🌐 API GestãoClick" if k == "api" else "📊 Excel Manual",
+        format_func=lambda k: "API GestaoClick" if k == "api" else "Excel Manual",
         label_visibility="collapsed",
         key="fonte_vendas",
     )
     if fonte_vendas_sel == "excel":
-        st.info("📊 Usando planilhas:\n- CONTROLE CONTAS A RECEBER - 2025.xlsx\n- CONTROLE CONTAS A RECEBER - 2026.xlsx", icon="ℹ️")
+        st.info("Planilhas: CONTROLE CONTAS A RECEBER 2025 e 2026")
 
     st.markdown("---")
     st.caption(f"Última execução: {datetime.now(_BRT).strftime('%d/%m/%Y %H:%M')}")
