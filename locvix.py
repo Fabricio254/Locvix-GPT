@@ -707,7 +707,7 @@ def buscar_ponto(data_ini: str, data_fim: str) -> dict:
     """
     _prog(0.79, "Buscando dados de ponto...")
     try:
-        chave  = f"ponto|{data_ini}|{data_fim}"
+        chave  = f"ponto_v2|{data_ini}|{data_fim}"
         if not _SKIP_PONTO_CACHE:
             cached = _cache_load(chave, _TTL_OUTROS)
             if cached:
