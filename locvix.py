@@ -1538,7 +1538,7 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
   </div>
   <div class="chart-row col2" style="align-items:start;">
     <div class="chart-card"><h3>⏰ Horas Regulares vs Hora Extra (período)</h3><div style="position:relative;height:260px;"><canvas id="chartPontoHoras"></canvas></div></div>
-    <div class="chart-card"><h3>✅ Presença Hoje</h3><div style="position:relative;height:260px;"><canvas id="chartPontoPresenca"></canvas></div></div>
+    <div class="chart-card"><h3>⏰ Ranking Hora Extra no Período</h3><div style="position:relative;height:260px;"><canvas id="chartPontoHoraExtra"></canvas></div></div>
   </div>
   <div class="section-title">📋 Resumo do Dia de Hoje</div>
   <div class="table-card">
@@ -2183,46 +2183,62 @@ function mkPontoHoras(marc) {{
   }});
 }}
 
-function mkPontoPresenca(marc) {{
-  destroyChart('chartPontoPresenca');
-  // Dia de referência = último dia do período filtrado (ou hoje se estiver no filtro)
-  const hoje     = new Date().toISOString().substring(0,10);
-  const diasMarc = [...new Set(marc.map(r=>r.data))].sort();
-  const diaRef   = diasMarc.includes(hoje) ? hoje : (diasMarc[diasMarc.length-1] || hoje);
-  const presentes = new Set(marc.filter(r=>r.data===diaRef).map(r=>r.funcionario_id)).size;
-  const ausentes  = Math.max(0, PONTO_FUNC.length - presentes);
-  const canvas    = document.getElementById('chartPontoPresenca');
+function mkPontoHoraExtra(marc) {{
+  destroyChart('chartPontoHoraExtra');
+  const canvas = document.getElementById('chartPontoHoraExtra');
   if (!canvas) return;
-  const centerPlugin = [{{
-    id: 'pontoCenterText',
-    beforeDraw(chart) {{
-      const {{ctx}} = chart;
-      const cx = chart.chartArea ? (chart.chartArea.left+chart.chartArea.right)/2 : chart.width/2;
-      const cy = chart.chartArea ? (chart.chartArea.top+chart.chartArea.bottom)/2  : chart.height/2;
-      ctx.save();
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillStyle='#cbd5e1'; ctx.font='bold 11px Inter,sans-serif';
-      ctx.fillText(diaRef && diaRef!==hoje ? diaRef.split('-').reverse().slice(0,2).join('/') : 'HOJE', cx, cy-10);
-      ctx.fillStyle='#38bdf8'; ctx.font='bold 15px Inter,sans-serif';
-      ctx.fillText(presentes+'/'+PONTO_FUNC.length, cx, cy+8);
-      ctx.restore();
+  // Agrega hExtra por funcionario em todo o periodo
+  const byFunc = {{}};
+  calcJornadas(marc).forEach(j => {{
+    if (j.hExtra > 0) {{
+      byFunc[j.func] = (byFunc[j.func] || 0) + j.hExtra;
     }}
-  }}];
-  charts['chartPontoPresenca'] = new Chart(canvas, {{
-    type:'doughnut',
-    data:{{
-      labels:['Presentes','Ausentes'],
-      datasets:[{{data:[presentes, ausentes],
-        backgroundColor:['#059669','#dc2626'],borderWidth:2,borderColor:'#1e293b'}}]
+  }});
+  const entries = Object.entries(byFunc).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) {{
+    destroyChart('chartPontoHoraExtra');
+    canvas.style.display = 'none';
+    const prev = document.getElementById('chartPontoHoraExtra-nodata');
+    if (!prev) {{
+      const msg = document.createElement('div');
+      msg.id = 'chartPontoHoraExtra-nodata';
+      msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:260px;color:#94a3b8;font-size:13px;text-align:center;flex-direction:column;gap:6px';
+      msg.innerHTML = '<span style="font-size:28px">\u{1F7E2}</span>Nenhuma hora extra no período';
+      canvas.parentNode.insertBefore(msg, canvas.nextSibling);
+    }}
+    return;
+  }}
+  // Remove mensagem de sem dados se existir
+  const nodata = document.getElementById('chartPontoHoraExtra-nodata');
+  if (nodata) nodata.remove();
+  canvas.style.display = '';
+  const totalHE = entries.reduce((s, e) => s + e[1], 0);
+  charts['chartPontoHoraExtra'] = new Chart(canvas, {{
+    type: 'bar',
+    data: {{
+      labels: entries.map(e => e[0].split(' ')[0]),
+      datasets: [{{
+        label: 'Hora Extra',
+        data: entries.map(e => Math.round(e[1] * 10) / 10),
+        backgroundColor: entries.map((_, i) => i === 0 ? '#f97316' : i === 1 ? '#fb923c' : '#fed7aa'),
+        borderRadius: 4, borderSkipped: false
+      }}]
     }},
-    options:{{
-      responsive:true, maintainAspectRatio:false, cutout:'55%',
-      plugins:{{
-        legend:{{position:'bottom',labels:{{color:'#cbd5e1',font:{{size:11}},boxWidth:14}}}},
-        tooltip:{{callbacks:{{label:c=>c.label+': '+c.raw+' func.'}}}}
+    options: {{
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {{
+        legend: {{ display: false }},
+        subtitle: {{ display: true,
+          text: 'Total no período: ' + totalHE.toFixed(1) + 'h',
+          color: '#f97316', font: {{ size: 12, weight: 'bold' }}, padding: {{ bottom: 6 }} }},
+        tooltip: {{ callbacks: {{ label: c => c.raw + 'h de HE' }} }}
+      }},
+      scales: {{
+        x: {{ ticks: {{ color: '#cbd5e1', callback: v => v + 'h' }}, grid: {{ color: '#334155' }},
+             title: {{ display: true, text: 'Horas Extras no Período', color: '#94a3b8' }} }},
+        y: {{ ticks: {{ color: '#cbd5e1', font: {{ size: 10 }} }}, grid: {{ display: false }} }}
       }}
-    }},
-    plugins: centerPlugin
+    }}
   }});
 }}
 
@@ -2347,7 +2363,7 @@ function initPonto(marc) {{
   mkPontoAusencias(marc);
   mkPontoFuncChart(marc);
   mkPontoHoras(marc);
-  mkPontoPresenca(marc);
+  mkPontoHoraExtra(marc);
   renderTblPontoHoje(marc);
   renderTblPontoUlt(marc);
   renderTblPontoJustif(marc);
