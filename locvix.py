@@ -1626,7 +1626,7 @@ function filtrar() {{
   }});
   const fmtD = s => s ? s.split('-').reverse().join('/') : '?';
   const tP = document.getElementById('tituloPonto');
-  if (tP) tP.textContent = '\u{1F550} Ponto Colaborador \u2014 ' + fmtD(ini) + ' a ' + fmtD(fim);
+  if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 ' + fmtD(ini) + ' a ' + fmtD(fim);
   const info = document.getElementById('filtroInfo');
   info.textContent = dadosFilt.length === VENDAS.length ? '' :
     `\u2714 ${{NUM(dadosFilt.length)}} de ${{NUM(VENDAS.length)}} itens filtrados`;
@@ -2404,7 +2404,7 @@ function limparFiltros() {{
   document.getElementById('fVend').value = '';
   document.getElementById('filtroInfo').textContent = '';
   const tP = document.getElementById('tituloPonto');
-  if (tP) tP.textContent = '\u{1F550} Ponto Colaborador \u2014 {periodo}';
+  if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 {periodo}';
   dadosFilt     = VENDAS;
   pontoMarcFilt = PONTO_MARC;
   atualizar();
