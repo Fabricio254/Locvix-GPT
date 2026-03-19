@@ -213,7 +213,8 @@ if btn_atualizar or HTML_KEY not in st.session_state:
     lv.GCK_ACCESS_TOKEN = os.getenv("GCK_ACCESS_TOKEN", lv.GCK_ACCESS_TOKEN)
     lv.GCK_SECRET_TOKEN = os.getenv("GCK_SECRET_TOKEN", lv.GCK_SECRET_TOKEN)
 
-    # Se clicou Atualizar, ignora cache de ponto (flag no módulo)
+    # Se clicou Atualizar, ignora todo cache em disco (flag no módulo)
+    lv._SKIP_CACHE       = btn_atualizar
     lv._SKIP_PONTO_CACHE = btn_atualizar
 
     # Fila de progresso: (float, str) ou None (sentinela)

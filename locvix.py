@@ -77,6 +77,7 @@ _progresso = None
 
 # Flag para forçar refresh do ponto (ignorar cache em disco)
 _SKIP_PONTO_CACHE = False
+_SKIP_CACHE       = False   # quando True, ignora todo cache em disco (Atualizar Dados)
 
 def _prog(pct: float, msg: str = ""):
     if callable(_progresso):
@@ -300,6 +301,8 @@ def _cache_path(chave: str) -> str:
     return os.path.join(_CACHE_DIR, f"{h}.json")
 
 def _cache_load(chave: str, ttl: int) -> list | dict | None:
+    if _SKIP_CACHE:
+        return None
     p = _cache_path(chave)
     if not os.path.exists(p):
         return None
