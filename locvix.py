@@ -2051,9 +2051,20 @@ function calcJornadas(marc) {{
       // Remove batidas da madrugada (fim do turno anterior) para não inflar HE
       ptsCalc = pts.filter(m => m >= HORA_LIMITE);
     }}
-    const span    = ptsCalc.length >= 2 ? ptsCalc[ptsCalc.length - 1] - ptsCalc[0] : 0;
-    const almoco  = span > 240 ? 60 : 0;
-    const minTrab = ptsCalc.length >= 2 ? Math.max(0, span - almoco) : 0;
+    // Par a par: (saída_almoço - entrada) + (volta - saída_final) — exato com 4 batidas
+    let minTrab = 0;
+    if (ptsCalc.length >= 4) {{
+      // 4+ batidas: soma dos pares (entrada→saída, volta→saída)
+      for (let i = 0; i + 1 < ptsCalc.length; i += 2) {{
+        minTrab += ptsCalc[i + 1] - ptsCalc[i];
+      }}
+    }} else if (ptsCalc.length >= 2) {{
+      // 2 batidas: span - estimativa almoço
+      const span   = ptsCalc[ptsCalc.length - 1] - ptsCalc[0];
+      const almoco = span > 240 ? 60 : 0;
+      minTrab = Math.max(0, span - almoco);
+    }}
+    minTrab = Math.max(0, minTrab);
     const hTrab   = minTrab / 60;
     const hReg    = Math.min(minTrab, LIMITE) / 60;
     const hExtra  = Math.max(0, minTrab - LIMITE) / 60;
@@ -2091,9 +2102,14 @@ function mkPontoAusencias(marc) {{
         dFalta += 1;
       }} else {{
         const pts = byFD[k].slice().sort((a, b) => a - b);
-        const span   = pts.length >= 2 ? pts[pts.length - 1] - pts[0] : 0;
-        const alm    = span > 240 ? 60 : 0;
-        const trab   = pts.length >= 2 ? Math.max(0, span - alm) / 60 : 0;
+        let minTrabAus = 0;
+        if (pts.length >= 4) {{
+          for (let i = 0; i + 1 < pts.length; i += 2) minTrabAus += pts[i + 1] - pts[i];
+        }} else if (pts.length >= 2) {{
+          const span = pts[pts.length - 1] - pts[0];
+          minTrabAus = Math.max(0, span - (span > 240 ? 60 : 0));
+        }}
+        const trab = minTrabAus / 60;
         const faltou = Math.max(0, JORNADA - trab);
         if (faltou >= JORNADA) {{
           // Só 1 batida = dia incompleto → conta como saída antecipada
