@@ -345,7 +345,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
 
     # Inject module-activation script based on sidebar selection
     _modulo_sel = st.session_state.get("modulo_ativo", "geral")
-    _allowed    = {"geral", "vendas", "financeiro", "operacoes", "ponto"}
+    _allowed    = {"geral", "vendas", "financeiro", "operacoes", "ponto", "orcamento"}
     if _modulo_sel not in _allowed:
         _modulo_sel = "geral"
     _inject = (
