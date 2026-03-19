@@ -750,6 +750,137 @@ def buscar_contratos() -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════
+#  LEITURA DE PROPOSTAS (PDF) — PERDIDAS E FECHADAS
+# ══════════════════════════════════════════════════════════════════
+def buscar_orcamentos() -> list[dict]:
+    """
+    Lê PDFs das pastas 'PROPOSTA PERDIDAS' e 'PROPOSTAS FECHADAS' e extrai:
+    número, data, cliente, vendedor, material, valor, contato, fone, status.
+    """
+    import os as _os
+    import re as _re
+
+    try:
+        import pdfplumber as _pl
+    except ImportError:
+        print("  [AVISO] pdfplumber não instalado — módulo Orçamento indisponível")
+        return []
+
+    _prog(0.69, "Lendo propostas PDF...")
+    base_dir = _os.path.dirname(_os.path.abspath(__file__))
+
+    pastas = [
+        (_os.path.join(base_dir, "PROPOSTA PERDIDAS"),  "perdida"),
+        (_os.path.join(base_dir, "PROPOSTAS FECHADAS"), "fechada"),
+    ]
+
+    registros: list[dict] = []
+
+    for pasta, status in pastas:
+        if not _os.path.exists(pasta):
+            continue
+        for nome_arq in sorted(_os.listdir(pasta)):
+            if not nome_arq.lower().endswith(".pdf"):
+                continue
+            caminho = _os.path.join(pasta, nome_arq)
+            try:
+                with _pl.open(caminho) as pdf:
+                    texto = "\n".join(p.extract_text() or "" for p in pdf.pages[:4])
+            except Exception as e:
+                print(f"  [AVISO] Erro ao ler {nome_arq}: {e}")
+                continue
+
+            # ── Número da proposta
+            m = _re.search(r'PROPOSTA\s+COMERCIAL\s+N[ºo°]?\s*(\w+)', texto, _re.IGNORECASE)
+            numero = m.group(1) if m else nome_arq[:20]
+
+            # ── Data: extraída do sufixo do nome  (YYYYDDMMHHMM)
+            m = _re.search(r'(\d{4})(\d{2})(\d{2})\d{4}(?:REV\d+)?\.pdf', nome_arq, _re.IGNORECASE)
+            if m:
+                data_str = f"{m.group(2)}/{m.group(3)}/{m.group(1)}"
+            else:
+                data_str = ""
+
+            # ── Bloco CONTRATADA (de onde tiramos o vendedor)
+            m_c = _re.search(r'CONTRATADA\s*\n(.*?)(?=\nCONTRATANTE)', texto, _re.DOTALL)
+            bloco_contratada = m_c.group(1) if m_c else ""
+
+            # ── Bloco CONTRATANTE (cliente, fone, contato)
+            m_ct = _re.search(r'CONTRATANTE\s*\n(.*?)(?=\nAtendendo|\nEQUIPAMENTOS)', texto, _re.DOTALL)
+            bloco_contratante = m_ct.group(1) if m_ct else ""
+
+            # ── Vendedor (Contato: no bloco da CONTRATADA)
+            m = _re.search(r'Contato:\s*(.+)', bloco_contratada)
+            vendedor = m.group(1).strip() if m else ""
+
+            # ── Cliente (1ª linha não-CNPJ do bloco CONTRATANTE)
+            cliente = ""
+            for linha in bloco_contratante.split("\n"):
+                linha = linha.strip()
+                if linha and not _re.match(r'(CNPJ|Fone|E-mail|Contato)', linha, _re.IGNORECASE):
+                    cliente = linha
+                    break
+
+            # ── Fone do contratante
+            m = _re.search(r'Fone:\s*(.+)', bloco_contratante)
+            fone = m.group(1).strip() if m else ""
+
+            # ── Contato do contratante
+            m = _re.search(r'Contato:\s*(.+)', bloco_contratante)
+            contato = m.group(1).strip() if m else ""
+
+            # ── Equipamentos / Material e Valor
+            m_eq = _re.search(
+                r'EQUIPAMENTOS PARA LOC[AÇA]+[ÃA]O E PRE[ÇC]O\s*\n(.*?)(?=\n\d+\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕ]|\Z)',
+                texto, _re.DOTALL | _re.IGNORECASE
+            )
+            bloco_eq = m_eq.group(1) if m_eq else texto
+
+            equips = _re.findall(
+                r'(Loca[çc][ãa]o\s+(?:de\s+)?[A-Za-zÀ-ÿ0-9\s]+?)\s+R\$\s*([\d.,]+)',
+                bloco_eq, _re.IGNORECASE
+            )
+
+            if equips:
+                # Nomes únicos dos equipamentos
+                nomes = sorted(set(
+                    _re.sub(r'\s+', ' ', e[0].strip()) for e in equips
+                ))
+                material = " / ".join(nomes)
+                # Maior valor da tabela = valor mensal/diário principal
+                vals_n = []
+                for _, v in equips:
+                    try:
+                        vals_n.append(float(v.replace(".", "").replace(",", ".")))
+                    except Exception:
+                        pass
+                valor = max(vals_n) if vals_n else 0.0
+            else:
+                material = ""
+                vals_txt = _re.findall(r'R\$\s*([\d.,]+)', bloco_eq)
+                try:
+                    valor = max(float(v.replace(".", "").replace(",", ".")) for v in vals_txt) if vals_txt else 0.0
+                except Exception:
+                    valor = 0.0
+
+            registros.append({
+                "numero":   numero,
+                "data":     data_str,
+                "status":   status,
+                "cliente":  cliente,
+                "vendedor": vendedor,
+                "material": material,
+                "valor":    round(valor, 2),
+                "contato":  contato,
+                "fone":     fone,
+                "arquivo":  nome_arq,
+            })
+
+    print(f"  ✔ {len(registros)} propostas lidas ({sum(1 for r in registros if r['status']=='fechada')} fechadas)")
+    return registros
+
+
+# ══════════════════════════════════════════════════════════════════
 #  BUSCA DE DADOS — ORDENS DE SERVIÇO
 # ══════════════════════════════════════════════════════════════════
 def buscar_ordens_servico(data_ini: str, data_fim: str) -> list[dict]:
@@ -1237,6 +1368,7 @@ def gerar_dashboard_html(
         "period": c.get("Periodicidade",""),
         "st":     c.get("Status",""),
     } for c in contratos]
+    raw_orc = orcamentos  # já preparado em buscar_orcamentos()
 
     jv = lambda v: _json.dumps(v, ensure_ascii=False)
 
@@ -1312,6 +1444,15 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1e293b;f
 .kpi-card.red{{border-top-color:#dc2626;}}
 .kpi-card.purple{{border-top-color:#7c3aed;}}
 .kpi-card.blue{{border-top-color:#2563eb;}}
+/* ── BOTÕES FILTRO ORÇAMENTO ── */
+.btn-filter-orc{{background:#1e3a5f;color:#94a3b8;border:1px solid #334155;border-radius:6px;
+  padding:5px 14px;font-size:12px;cursor:pointer;transition:all .2s;}}
+.btn-filter-orc:hover{{background:#2563eb;color:#fff;border-color:#2563eb;}}
+.btn-filter-orc.active{{background:#2563eb;color:#fff;border-color:#2563eb;}}
+/* ── BADGE STATUS ── */
+.badge{{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;}}
+.badge.green{{background:#dcfce7;color:#166534;}}
+.badge.red{{background:#fee2e2;color:#991b1b;}}
 .kpi-label{{font-size:11px;color:#718096;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}}
 .kpi-value{{font-size:20px;font-weight:800;color:#1e293b;}}
 .kpi-value.small{{font-size:15px;}}
@@ -1473,6 +1614,7 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
     <button class="nav-tab" data-mod="financeiro" onclick="setModulo('financeiro')">💳 Financeiro</button>
     <button class="nav-tab" data-mod="operacoes" onclick="setModulo('operacoes')">🔧 Operações</button>
     <button class="nav-tab" data-mod="ponto" onclick="setModulo('ponto')">🕐 Ponto Colaborador</button>
+    <button class="nav-tab" data-mod="orcamento" onclick="setModulo('orcamento')">📋 Orçamento</button>
   </div>
 
   <div class="mod-section" data-mod="vendas">
@@ -1703,6 +1845,78 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
   </div>
   </div><!-- /mod ponto -->
 
+  <!-- ═══════════════════════════════════════════ ORÇAMENTO ═══ -->
+  <div class="mod-section" data-mod="orcamento" style="display:none">
+  <div class="section-title">📋 Orçamento — Propostas Comerciais</div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid col6">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Propostas</div>
+      <div class="kpi-value" id="kOrcTotal">—</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">✅ Fechadas</div>
+      <div class="kpi-value" id="kOrcFech">—</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">❌ Perdidas</div>
+      <div class="kpi-value" id="kOrcPerd">—</div>
+    </div>
+    <div class="kpi-card teal">
+      <div class="kpi-label">Valor Fechado</div>
+      <div class="kpi-value small" id="kOrcValFech">—</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Valor Perdido</div>
+      <div class="kpi-value small" id="kOrcValPerd">—</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Taxa Conversão</div>
+      <div class="kpi-value" id="kOrcTaxa">—</div>
+    </div>
+  </div>
+
+  <!-- Gráficos -->
+  <div class="chart-row" style="align-items:start;">
+    <div class="chart-card" style="flex:1;">
+      <h3>📊 Propostas por Vendedor — Fechadas vs Perdidas</h3>
+      <div style="position:relative;height:280px;"><canvas id="chartOrcVendedor"></canvas></div>
+    </div>
+    <div class="chart-card" style="flex:0 0 280px;">
+      <h3>🎯 Taxa de Conversão</h3>
+      <div style="position:relative;height:280px;"><canvas id="chartOrcTaxa"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Filtro de status -->
+  <div class="section-title">🔍 Propostas Detalhadas</div>
+  <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <span style="color:#94a3b8;font-size:13px;">Filtrar:</span>
+    <button class="btn-filter-orc active" data-f="todos"   onclick="filtrarOrc(this)">Todas</button>
+    <button class="btn-filter-orc"        data-f="fechada" onclick="filtrarOrc(this)">✅ Fechadas</button>
+    <button class="btn-filter-orc"        data-f="perdida" onclick="filtrarOrc(this)">❌ Perdidas</button>
+  </div>
+
+  <div class="table-card">
+    <table class="data-tbl" id="tblOrcamentos">
+      <thead><tr>
+        <th>#</th>
+        <th>Data</th>
+        <th>Nº Proposta</th>
+        <th>Cliente</th>
+        <th>Vendedor</th>
+        <th>Equipamento / Material</th>
+        <th class="num">Valor Ref.</th>
+        <th>Contato</th>
+        <th>Fone</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody id="tblOrcBody"></tbody>
+    </table>
+  </div>
+  </div><!-- /mod orcamento -->
+
 </div>
 
 <div class="footer">
@@ -1730,6 +1944,7 @@ const OS_LIST   = {jv(raw_os)};
 const CONTRATOS = {jv(raw_contr)};
 const PONTO_FUNC = {jv(ponto_func)};
 const PONTO_MARC = {jv(ponto_marc)};
+const ORCAMENTOS = {jv(raw_orc)};
 const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do período selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
 
@@ -2702,6 +2917,119 @@ function initPonto(marc) {{
 }}
 
 // ═══════════════════════════════════════════════
+//  MÓDULO ORÇAMENTO
+// ═══════════════════════════════════════════════
+let _orcFiltro = 'todos';
+
+function filtrarOrc(btn) {{
+  _orcFiltro = btn.dataset.f;
+  document.querySelectorAll('.btn-filter-orc').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTblOrc();
+}}
+
+function renderTblOrc() {{
+  const tbody = document.getElementById('tblOrcBody');
+  if (!tbody) return;
+  const lista = _orcFiltro === 'todos' ? ORCAMENTOS
+    : ORCAMENTOS.filter(r => r.status === _orcFiltro);
+  // Ordenar: fechadas primeiro, depois por data desc
+  const sorted = [...lista].sort((a, b) => {{
+    if (a.status !== b.status) return a.status === 'fechada' ? -1 : 1;
+    return (b.data || '').localeCompare(a.data || '');
+  }});
+  tbody.innerHTML = sorted.map((r, i) => {{
+    const badge = r.status === 'fechada'
+      ? '<span class="badge green">✅ Fechada</span>'
+      : '<span class="badge red">❌ Perdida</span>';
+    const val = r.valor > 0 ? BRL(r.valor) : '—';
+    const mat = (r.material || '—').replace(/Locação (de )?/gi,'').trim() || '—';
+    return `<tr>
+      <td>${{i+1}}</td>
+      <td style="white-space:nowrap">${{r.data || '—'}}</td>
+      <td style="font-size:11px;color:#94a3b8">${{r.numero}}</td>
+      <td><strong>${{r.cliente || '—'}}</strong></td>
+      <td style="font-size:12px">${{r.vendedor || '—'}}</td>
+      <td style="font-size:12px;max-width:220px">${{mat}}</td>
+      <td class="num">${{val}}</td>
+      <td style="font-size:12px">${{r.contato || '—'}}</td>
+      <td style="font-size:12px;white-space:nowrap">${{r.fone || '—'}}</td>
+      <td>${{badge}}</td>
+    </tr>`;
+  }}).join('') || '<tr><td colspan="10" style="text-align:center;color:#94a3b8">Nenhuma proposta</td></tr>';
+}}
+
+function mkOrcamento() {{
+  if (!ORCAMENTOS.length) return;
+  const fechadas = ORCAMENTOS.filter(r => r.status === 'fechada');
+  const perdidas = ORCAMENTOS.filter(r => r.status === 'perdida');
+  const valFech  = fechadas.reduce((s, r) => s + (r.valor || 0), 0);
+  const valPerd  = perdidas.reduce((s, r) => s + (r.valor || 0), 0);
+  const taxa     = ORCAMENTOS.length > 0
+    ? (fechadas.length / ORCAMENTOS.length * 100).toFixed(1) + '%' : '—';
+
+  const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
+  _set('kOrcTotal',   NUM(ORCAMENTOS.length));
+  _set('kOrcFech',    NUM(fechadas.length));
+  _set('kOrcPerd',    NUM(perdidas.length));
+  _set('kOrcValFech', BRL(valFech));
+  _set('kOrcValPerd', BRL(valPerd));
+  _set('kOrcTaxa',    taxa);
+
+  renderTblOrc();
+
+  // ── Gráfico: propostas por vendedor (fechadas vs perdidas)
+  destroyChart('chartOrcVendedor');
+  const cv = document.getElementById('chartOrcVendedor');
+  if (cv) {{
+    const vends = [...new Set(ORCAMENTOS.map(r => r.vendedor || 'Sem Vendedor'))].sort();
+    const isDark = document.body.getAttribute('data-theme') !== 'light';
+    const txtClr = isDark ? '#cbd5e1' : '#1e293b';
+    const gridClr = isDark ? '#334155' : '#e2e8f0';
+    charts['chartOrcVendedor'] = new Chart(cv, {{
+      type: 'bar',
+      data: {{
+        labels: vends,
+        datasets: [
+          {{ label: '✅ Fechadas', data: vends.map(v => fechadas.filter(r => (r.vendedor||'Sem Vendedor')===v).length), backgroundColor: '#059669' }},
+          {{ label: '❌ Perdidas', data: vends.map(v => perdidas.filter(r => (r.vendedor||'Sem Vendedor')===v).length), backgroundColor: '#ef4444' }},
+        ]
+      }},
+      options: {{
+        responsive: true, maintainAspectRatio: false,
+        plugins: {{ legend: {{ labels: {{ color: txtClr }} }}, tooltip: {{ callbacks: {{ label: c => c.dataset.label + ': ' + c.raw + ' proposta(s)' }} }} }},
+        scales: {{
+          x: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr }} }},
+          y: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr, stepSize: 1 }}, beginAtZero: true }}
+        }}
+      }}
+    }});
+  }}
+
+  // ── Gráfico: donut taxa de conversão
+  destroyChart('chartOrcTaxa');
+  const ct = document.getElementById('chartOrcTaxa');
+  if (ct) {{
+    const isDark = document.body.getAttribute('data-theme') !== 'light';
+    const txtClr = isDark ? '#cbd5e1' : '#1e293b';
+    charts['chartOrcTaxa'] = new Chart(ct, {{
+      type: 'doughnut',
+      data: {{
+        labels: ['Fechadas', 'Perdidas'],
+        datasets: [{{ data: [fechadas.length, perdidas.length], backgroundColor: ['#059669','#ef4444'], borderWidth: 0 }}]
+      }},
+      options: {{
+        responsive: true, maintainAspectRatio: false,
+        plugins: {{
+          legend: {{ position: 'bottom', labels: {{ color: txtClr }} }},
+          tooltip: {{ callbacks: {{ label: c => c.label + ': ' + c.raw + ' (' + PCT(c.raw, ORCAMENTOS.length) + ')' }} }}
+        }}
+      }}
+    }});
+  }}
+}}
+
+// ═══════════════════════════════════════════════
 //  NAVEGAÇÃO POR MÓDULOS
 // ═══════════════════════════════════════════════
 function setModulo(m) {{
@@ -2742,6 +3070,7 @@ function atualizar() {{
   renderTblClientes(rows);
   mkFinanceiro();
   initPonto(pontoMarcFilt);
+  mkOrcamento();
 }}
 
 function aplicarFiltros() {{ filtrar(); atualizar(); }}
@@ -2904,6 +3233,7 @@ def main(
     clientes  = buscar_clientes()
     produtos  = buscar_produtos()
     contratos = buscar_contratos()
+    orcamentos = buscar_orcamentos()
     os_list   = buscar_ordens_servico(d_ini, d_fim)
     ponto_data = buscar_ponto(d_ini, d_fim)
 

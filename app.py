@@ -153,6 +153,7 @@ with st.sidebar:
         "financeiro":  "💳 Financeiro",
         "operacoes":   "🔧 Operações",
         "ponto":       "🕐 Ponto Colaborador",
+        "orcamento":   "📋 Orçamento",
     }
     modulo_sel = st.radio(
         "Selecionar módulo",
