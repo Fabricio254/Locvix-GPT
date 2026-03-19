@@ -102,7 +102,7 @@ with st.sidebar:
     if _lp:
         _cl, _cr = st.columns([1, 1])
         with _cl:
-            st.image(_lp, use_container_width=True)
+            st.image(_lp, width=150)
     st.markdown("## 📊 Dashboard LOCVIX")
     st.markdown("---")
     st.markdown("##### 🌐 ERP GestãoClick")
