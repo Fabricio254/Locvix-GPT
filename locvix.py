@@ -275,8 +275,8 @@ class DixiPontoClient:
 
     @staticmethod
     def parse_hora(v: int) -> str:
-        s = str(v).zfill(4)
-        return f"{s[:2]}:{s[2:]}"
+        # API retorna hora em minutos desde meia-noite (ex: 423 = 07:03)
+        return f"{v // 60:02d}:{v % 60:02d}"
 
 
 # Instância global (inicializada no main)
