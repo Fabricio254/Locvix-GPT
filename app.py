@@ -201,10 +201,24 @@ if btn_atualizar or HTML_KEY not in st.session_state:
     # Carrega / recarrega o módulo locvix
     if "locvix" in sys.modules:
         lv = sys.modules["locvix"]
-        # Ao pressionar Atualizar, força fetch fresco (limpa cache em memória)
+        # Ao pressionar Atualizar, força fetch fresco (limpa cache em memória e disco)
         if btn_atualizar:
             if hasattr(lv, "_client"):
                 lv._client = None
+            # Limpa cache de ponto em disco para forçar nova busca na API
+            import glob as _glob
+            import hashlib as _hashlib
+            _cache_dir = os.path.join(_BASE_DIR, "_cache_gck")
+            _ponto_prefix = f"ponto|"
+            for _cf in _glob.glob(os.path.join(_cache_dir, "*.json")):
+                try:
+                    import json as _json
+                    with open(_cf, encoding="utf-8") as _f:
+                        _cd = _json.load(_f)
+                    if isinstance(_cd, dict) and "marcacoes" in _cd:
+                        os.remove(_cf)
+                except Exception:
+                    pass
         importlib.reload(lv)
     else:
         import locvix as lv
