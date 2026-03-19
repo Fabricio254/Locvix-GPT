@@ -2157,12 +2157,14 @@ function mkResultadoMensal() {{
     data: {{
       labels,
       datasets: [
-        {{ type: 'bar',  label: 'Receitas',  data: recData,  backgroundColor: '#059669', stack: 's', borderRadius: 0 }},
-        {{ type: 'bar',  label: 'Despesas',  data: despData, backgroundColor: '#ef4444', stack: 's', borderRadius: 4 }},
+        {{ type: 'bar',  label: 'Receitas',  data: recData,  backgroundColor: '#059669', stack: 's', borderRadius: 0, order: 2 }},
+        {{ type: 'bar',  label: 'Despesas',  data: despData, backgroundColor: '#ef4444', stack: 's', borderRadius: 4, order: 2 }},
         {{ type: 'line', label: 'Resultado', data: resData,
            borderColor: '#f59e0b', backgroundColor: 'transparent',
            pointBackgroundColor: resData.map(v => v >= 0 ? '#22c55e' : '#ef4444'),
-           pointRadius: 5, borderWidth: 2, tension: 0.3, yAxisID: 'yRes' }}
+           pointBorderColor: '#fff', pointBorderWidth: 1,
+           pointRadius: 7, pointHoverRadius: 10,
+           borderWidth: 2, tension: 0.3, yAxisID: 'yRes', order: 0 }}
       ]
     }},
     options: {{
