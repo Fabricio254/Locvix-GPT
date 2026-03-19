@@ -727,12 +727,16 @@ def buscar_ponto(data_ini: str, data_fim: str) -> dict:
                 continue
             rf   = m.get("registroFuncionario") or {}
             func = rf.get("funcionario") or {}
+            tp   = m.get("tpOrigemMarcacao") or {}
             marcacoes.append({
                 "id":            m.get("idMarcacao"),
                 "funcionario_id": func.get("idFuncionario"),
                 "funcionario":   func.get("nome", "Desconhecido"),
                 "data":          DixiPontoClient.parse_data(m.get("dataMarcacao", 0)),
                 "hora":          DixiPontoClient.parse_hora(m.get("hora", 0)),
+                "origem_id":     tp.get("idTpOrigemMarcacao"),
+                "origem":        tp.get("descricao", ""),
+                "descricao":     m.get("descricao", ""),
             })
 
         result = {
@@ -1520,11 +1524,12 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
   <!-- ── PONTO COLABORADOR ── -->
   <div class="mod-section" data-mod="ponto">
   <div class="section-title">🕐 Ponto Colaborador — {periodo}</div>
-  <div class="kpi-grid col4">
+  <div class="kpi-grid col5">
     <div class="kpi-card blue"><div class="kpi-label">Funcionários</div><div class="kpi-value" id="kPontoFunc">—</div></div>
     <div class="kpi-card green"><div class="kpi-label">Marcações no Período</div><div class="kpi-value" id="kPontoTotal">—</div></div>
     <div class="kpi-card teal"><div class="kpi-label">Com Registro Hoje</div><div class="kpi-value" id="kPontoHoje">—</div></div>
     <div class="kpi-card orange"><div class="kpi-label">Sem Registro Hoje</div><div class="kpi-value" id="kPontoAus">—</div></div>
+    <div class="kpi-card purple"><div class="kpi-label">✏️ Ajustes Manuais</div><div class="kpi-value" id="kPontoManual">—</div></div>
   </div>
   <div class="chart-row col2" style="align-items:start;">
     <div class="chart-card"><h3>⚠️ Ausências por Funcionário — Faltas e Saídas Antecipadas (horas)</h3><div style="position:relative;height:280px;"><canvas id="chartPontoAus"></canvas></div></div>
@@ -1541,7 +1546,7 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
       <thead><tr>
         <th>#</th><th>Funcionário</th>
         <th class="num">1ª Entrada</th><th class="num">Última Saída</th>
-        <th class="num">Horas Est.</th><th>Status</th>
+        <th class="num">Horas Est.</th><th>Status</th><th>Origem</th>
       </tr></thead>
       <tbody id="tblPontoHoje"></tbody>
     </table>
@@ -1550,7 +1555,7 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
   <div class="table-card">
     <table class="data-tbl">
       <thead><tr>
-        <th>Data</th><th>Funcionário</th><th class="num">Hora</th>
+        <th>Data</th><th>Funcionário</th><th class="num">Hora</th><th>Origem</th>
       </tr></thead>
       <tbody id="tblPontoUlt"></tbody>
     </table>
@@ -2195,12 +2200,13 @@ function renderTblPontoHoje(marc) {{
   if (th3) th3.textContent = 'Marcações de ' + labelDia + ' por funcionário';
   const byFunc  = {{}};
   marc.filter(r=>r.data===diaRef).forEach(r => {{
-    if (!byFunc[r.funcionario]) byFunc[r.funcionario] = {{func:r.funcionario,horas:[]}};
+    if (!byFunc[r.funcionario]) byFunc[r.funcionario] = {{func:r.funcionario,horas:[],manuais:0}};
     const [hh,mm] = r.hora.split(':').map(Number);
     byFunc[r.funcionario].horas.push(hh*60+mm);
+    if (r.origem_id === 2) byFunc[r.funcionario].manuais = (byFunc[r.funcionario].manuais||0)+1;
   }});
   PONTO_FUNC.forEach(f => {{
-    if (!byFunc[f.nome]) byFunc[f.nome] = {{func:f.nome,horas:[],ausente:true}};
+    if (!byFunc[f.nome]) byFunc[f.nome] = {{func:f.nome,horas:[],ausente:true,manuais:0}};
   }});
   const arr = Object.values(byFunc).sort((a,b)=>a.func>b.func?1:-1);
   let html = '';
@@ -2216,9 +2222,12 @@ function renderTblPontoHoje(marc) {{
       : hrs.length >= 4 ? '<span class="badge verde">COMPLETO</span>'
       : hrs.length >= 2 ? '<span class="badge amarelo">PARCIAL</span>'
       : '<span class="badge amarelo">ENTRADA</span>';
+    const origemCell = r.ausente ? '—'
+      : r.manuais > 0 ? `<span style="color:#f59e0b;font-weight:600">✏️ Manual (${r.manuais})</span>`
+      : '<span style="color:#94a3b8;font-size:11px">Automático</span>';
     html += `<tr><td>${{i+1}}</td><td>${{r.func}}</td>
       <td class="num">${{entrada}}</td><td class="num">${{saida}}</td>
-      <td class="num">${{hTrab}}</td><td>${{status}}</td></tr>`;
+      <td class="num">${{hTrab}}</td><td>${{status}}</td><td>${{origemCell}}</td></tr>`;
   }});
   const el = document.getElementById('tblPontoHoje');
   if (el) el.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:#94a3b8">Sem dados de ponto disponíveis para hoje</td></tr>';
@@ -2231,14 +2240,14 @@ function renderTblPontoUlt(marc) {{
   }}).slice(0,50);
   let html = '';
   arr.forEach(r => {{
-    html += `<tr>
-      <td>${{r.data?r.data.split('-').reverse().join('/'):'—'}}</td>
-      <td>${{r.funcionario||'—'}}</td>
-      <td class="num" style="font-weight:700;color:#38bdf8">${{r.hora||'—'}}</td>
-    </tr>`;
+    const isManual = r.origem_id === 2;
+    const origemCell = isManual
+      ? `<span style="color:#f59e0b;font-weight:600">✏️ Manual<br><span style="font-size:10px;font-weight:400;color:#fcd34d">${{r.descricao||''}}</span></span>`
+      : `<span style="color:#94a3b8;font-size:11px">${{r.origem||'Automático'}}</span>`;
+    html += `<tr${{isManual?' style="background:rgba(245,158,11,0.07)"':''}}>\n      <td>${{r.data?r.data.split('-').reverse().join('/'):'—'}}</td>\n      <td>${{r.funcionario||'—'}}</td>\n      <td class="num" style="font-weight:700;color:#38bdf8">${{r.hora||'—'}}</td>\n      <td>${{origemCell}}</td>\n    </tr>`;
   }});
   const el = document.getElementById('tblPontoUlt');
-  if (el) el.innerHTML = html || '<tr><td colspan="3" style="text-align:center;color:#94a3b8">Sem marcações no período selecionado</td></tr>';
+  if (el) el.innerHTML = html || '<tr><td colspan="4" style="text-align:center;color:#94a3b8">Sem marcações no período selecionado</td></tr>';
 }}
 
 function initPonto(marc) {{
@@ -2250,9 +2259,11 @@ function initPonto(marc) {{
   const el = id => document.getElementById(id);
   if (el('kPontoFunc'))  el('kPontoFunc').textContent  = PONTO_FUNC.length || '0';
   if (el('kPontoTotal')) el('kPontoTotal').textContent = marc.length || '0';
-  const presHoje = new Set(marc.filter(r=>r.data===diaRef).map(r=>r.funcionario_id)).size;
-  if (el('kPontoHoje')) el('kPontoHoje').textContent = presHoje || '0';
-  if (el('kPontoAus'))  el('kPontoAus').textContent  = Math.max(0, PONTO_FUNC.length - presHoje) || '0';
+  const presHoje   = new Set(marc.filter(r=>r.data===diaRef).map(r=>r.funcionario_id)).size;
+  const nManuais   = marc.filter(r=>r.origem_id===2).length;
+  if (el('kPontoHoje'))   el('kPontoHoje').textContent   = presHoje || '0';
+  if (el('kPontoAus'))    el('kPontoAus').textContent    = Math.max(0, PONTO_FUNC.length - presHoje) || '0';
+  if (el('kPontoManual')) el('kPontoManual').textContent = nManuais || '0';
   mkPontoAusencias(marc);
   mkPontoFuncChart(marc);
   mkPontoHoras(marc);
