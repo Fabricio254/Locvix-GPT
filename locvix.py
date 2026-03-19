@@ -2203,7 +2203,7 @@ function mkPontoHoraExtra(marc) {{
       const msg = document.createElement('div');
       msg.id = 'chartPontoHoraExtra-nodata';
       msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:260px;color:#94a3b8;font-size:13px;text-align:center;flex-direction:column;gap:6px';
-      msg.innerHTML = '<span style="font-size:28px">\u{1F7E2}</span>Nenhuma hora extra no período';
+      msg.innerHTML = '<span style="font-size:28px">\u2705</span>Nenhuma hora extra no per\u00edodo';
       canvas.parentNode.insertBefore(msg, canvas.nextSibling);
     }}
     return;
