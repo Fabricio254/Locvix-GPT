@@ -2065,10 +2065,13 @@ function calcJornadas(marc) {{
     // Situação: saída da noite anterior (ex: 05:30) misturada com entrada da noite seguinte (ex: 19:30)
     const SPAN_MAX    = 10 * 60; // 600 min — acima disso suspeito de mix noturno
     const HORA_LIMITE =  7 * 60; // 07:00 — batida antes disso = fim de turno noturno
+    const HORA_NOITE  = 20 * 60; // 20:00 — turno noturno só se última batida for após 20h
     const span0 = pts.length >= 2 ? pts[pts.length - 1] - pts[0] : 0;
     let turnoFora = false;
     let ptsCalc   = pts;
-    if (span0 > SPAN_MAX && pts[0] < HORA_LIMITE) {{
+    // Só remove batidas madrugada se: span > 10h E primeiro < 07:00 E último > 20:00
+    // (trabalhadores diurnos que chegam cedo NÃO devem ser afetados)
+    if (span0 > SPAN_MAX && pts[0] < HORA_LIMITE && pts[pts.length - 1] > HORA_NOITE) {{
       turnoFora = true;
       // Remove batidas da madrugada (fim do turno anterior) para não inflar HE
       ptsCalc = pts.filter(m => m >= HORA_LIMITE);
