@@ -2233,7 +2233,7 @@ function mkPontoHoras(marc) {{
       datasets: [
         {{ label: 'Regular (≤9h/dia)', data: entries.map(e => Math.round(e[1].hReg * 10) / 10),
            backgroundColor: '#059669', stack: 's', borderRadius: 0 }},
-        {{ label: 'Hora Extra (>8h/dia)', data: entries.map(e => Math.round(e[1].hExtra * 10) / 10),
+        {{ label: 'Hora Extra (>9h/dia)', data: entries.map(e => Math.round(e[1].hExtra * 10) / 10),
            backgroundColor: '#f97316', stack: 's', borderRadius: 4 }},
       ]
     }},
