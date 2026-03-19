@@ -2029,7 +2029,7 @@ function mkPagarMensal() {{
 
 // Calcula horas trabalhadas por funcionário/dia pareando as batidas
 function calcJornadas(marc) {{
-  const LIMITE = 8 * 60; // 8h em minutos
+  const LIMITE = 9 * 60; // 9h em minutos (07:00-17:00 ou 06:30-16:30, 1h almoço)
   const byFD = {{}};
   marc.forEach(r => {{
     const k = r.funcionario + '|' + r.data;
@@ -2061,7 +2061,7 @@ function mkPontoAusencias(marc) {{
     .sort();
   if (!diasUteis.length || !PONTO_FUNC.length) return;
 
-  const JORNADA = 8; // horas esperadas por dia útil
+  const JORNADA = 9; // horas esperadas por dia útil (07:00-17:00, 1h almoço)
   const byFD = {{}};
   marc.forEach(r => {{
     const k = r.funcionario_id + '|' + r.data;
