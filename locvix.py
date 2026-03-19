@@ -1234,6 +1234,7 @@ def gerar_dashboard_html(
     data_ini:  str,
     data_fim:  str,
     ponto_data: dict | None = None,
+    orcamentos: list | None = None,
 ) -> str:
     """Gera dashboard HTML interativo completo para Locvix."""
     import json as _json
@@ -1368,7 +1369,7 @@ def gerar_dashboard_html(
         "period": c.get("Periodicidade",""),
         "st":     c.get("Status",""),
     } for c in contratos]
-    raw_orc = orcamentos  # já preparado em buscar_orcamentos()
+    raw_orc = orcamentos or []  # já preparado em buscar_orcamentos()
 
     jv = lambda v: _json.dumps(v, ensure_ascii=False)
 
@@ -3265,7 +3266,7 @@ def main(
         df_vendas=df, receber=receber, pagar=pagar, pagar_all=pagar_all,
         os_list=os_list, contratos=contratos,
         caminho=h_path, data_ini=d_ini, data_fim=d_fim,
-        ponto_data=ponto_data,
+        ponto_data=ponto_data, orcamentos=orcamentos,
     )
 
     _prog(1.0, "✔ Concluído!")
