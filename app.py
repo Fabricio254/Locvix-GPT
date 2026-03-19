@@ -40,6 +40,12 @@ div[data-testid="stSidebar"] .stButton button{
     background:#1e40af;color:#fff;border:none;border-radius:6px;
 }
 div[data-testid="stSidebar"] .stButton button:hover{background:#2563eb;}
+/* Oculta toolbar superior (Share, Edit, Deploy, Github) */
+[data-testid="stToolbar"]{display:none!important;}
+[data-testid="stDecoration"]{display:none!important;}
+[data-testid="stHeader"]{display:none!important;}
+#MainMenu{display:none!important;}
+footer{display:none!important;}
 </style>
 """, unsafe_allow_html=True)
 

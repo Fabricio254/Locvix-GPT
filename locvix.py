@@ -44,8 +44,8 @@ GCK_SECRET_TOKEN  = os.getenv("GCK_SECRET_TOKEN",  "SEU_SECRET_TOKEN_AQUI")
 GCK_BASE_URL = "https://api.beteltecnologia.net/api"
 
 # ── Credenciais Dixiponto (Ponto Colaborador) ──────────────────────────────
-DIXI_EMAIL   = os.getenv("DIXI_EMAIL",   "adm@locvix.ind.br")
-DIXI_SENHA   = os.getenv("DIXI_SENHA",   "Locvix12345@")
+DIXI_EMAIL   = os.getenv("DIXI_EMAIL",   "")
+DIXI_SENHA   = os.getenv("DIXI_SENHA",   "")
 DIXI_UNIDADE = os.getenv("DIXI_UNIDADE", "locacao-guindastes")
 
 # Período padrão (últimos 12 meses)
