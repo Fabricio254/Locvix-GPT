@@ -1524,19 +1524,20 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
   <!-- ── PONTO COLABORADOR ── -->
   <div class="mod-section" data-mod="ponto">
   <div class="section-title">🕐 Ponto Colaborador — {periodo}</div>
-  <div class="kpi-grid col5">
+  <div class="kpi-grid col6">
     <div class="kpi-card blue"><div class="kpi-label">Funcionários</div><div class="kpi-value" id="kPontoFunc">—</div></div>
     <div class="kpi-card green"><div class="kpi-label">Marcações no Período</div><div class="kpi-value" id="kPontoTotal">—</div></div>
     <div class="kpi-card teal"><div class="kpi-label">Com Registro Hoje</div><div class="kpi-value" id="kPontoHoje">—</div></div>
     <div class="kpi-card orange"><div class="kpi-label">Sem Registro Hoje</div><div class="kpi-value" id="kPontoAus">—</div></div>
     <div class="kpi-card purple"><div class="kpi-label">✏️ Ajustes Manuais</div><div class="kpi-value" id="kPontoManual">—</div></div>
+    <div class="kpi-card red"><div class="kpi-label">⏰ HE Hoje</div><div class="kpi-value" id="kPontoHE">—</div></div>
   </div>
   <div class="chart-row col2" style="align-items:start;">
     <div class="chart-card"><h3>⚠️ Ausências por Funcionário — Faltas e Saídas Antecipadas (horas)</h3><div style="position:relative;height:280px;"><canvas id="chartPontoAus"></canvas></div></div>
     <div class="chart-card"><h3>👤 Marcações por Funcionário</h3><div style="position:relative;height:280px;"><canvas id="chartPontoFunc"></canvas></div></div>
   </div>
   <div class="chart-row col2" style="align-items:start;">
-    <div class="chart-card"><h3>⏱ Horas Trabalhadas Estimadas</h3><div style="position:relative;height:260px;"><canvas id="chartPontoHoras"></canvas></div></div>
+    <div class="chart-card"><h3>⏰ Horas Regulares vs Hora Extra (período)</h3><div style="position:relative;height:260px;"><canvas id="chartPontoHoras"></canvas></div></div>
     <div class="chart-card"><h3>✅ Presença Hoje</h3><div style="position:relative;height:260px;"><canvas id="chartPontoPresenca"></canvas></div></div>
   </div>
   <div class="section-title">📋 Resumo do Dia de Hoje</div>
@@ -1558,6 +1559,16 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
         <th>Data</th><th>Funcionário</th><th class="num">Hora</th><th>Origem</th>
       </tr></thead>
       <tbody id="tblPontoUlt"></tbody>
+    </table>
+  </div>
+  <div class="section-title">✏️ Motivos dos Ajustes Manuais</div>
+  <div class="table-card">
+    <h3>Registros manuais agrupados por justificativa no período</h3>
+    <table class="data-tbl">
+      <thead><tr>
+        <th>#</th><th>Motivo</th><th class="num">Qtd</th><th>Funcionários</th>
+      </tr></thead>
+      <tbody id="tblPontoJustif"></tbody>
     </table>
   </div>
   </div><!-- /mod ponto -->
@@ -2016,6 +2027,30 @@ function mkPagarMensal() {{
 // ═══════════════════════════════════════════════
 //  MÓDULO PONTO COLABORADOR
 // ═══════════════════════════════════════════════
+
+// Calcula horas trabalhadas por funcionário/dia pareando as batidas
+function calcJornadas(marc) {{
+  const LIMITE = 8 * 60; // 8h em minutos
+  const byFD = {{}};
+  marc.forEach(r => {{
+    const k = r.funcionario + '|' + r.data;
+    if (!byFD[k]) byFD[k] = {{func: r.funcionario, func_id: r.funcionario_id, data: r.data, mins: []}};
+    const [hh, mm] = r.hora.split(':').map(Number);
+    byFD[k].mins.push(hh * 60 + mm);
+  }});
+  return Object.values(byFD).map(e => {{
+    const pts     = e.mins.slice().sort((a, b) => a - b);
+    const span    = pts.length >= 2 ? pts[pts.length - 1] - pts[0] : 0;
+    const almoco  = span > 240 ? 60 : 0;
+    const minTrab = pts.length >= 2 ? Math.max(0, span - almoco) : 0;
+    const hTrab   = minTrab / 60;
+    const hReg    = Math.min(minTrab, LIMITE) / 60;
+    const hExtra  = Math.max(0, minTrab - LIMITE) / 60;
+    return {{func: e.func, func_id: e.func_id, data: e.data,
+             nMarc: pts.length, minTrab, hTrab, hReg, hExtra}};
+  }});
+}}
+
 function mkPontoAusencias(marc) {{
   destroyChart('chartPontoAus');
   const canvas = document.getElementById('chartPontoAus');
@@ -2111,36 +2146,39 @@ function mkPontoFuncChart(marc) {{
 
 function mkPontoHoras(marc) {{
   destroyChart('chartPontoHoras');
-  const dayFunc = {{}};
-  marc.forEach(r => {{
-    const k = r.funcionario + '|' + r.data;
-    if (!dayFunc[k]) dayFunc[k] = [];
-    const [hh,mm] = r.hora.split(':').map(Number);
-    dayFunc[k].push(hh*60+mm);
+  const canvas = document.getElementById('chartPontoHoras');
+  if (!canvas) return;
+  const jornadas = calcJornadas(marc);
+  if (!jornadas.length) return;
+  // Agrega por funcionário: soma hReg e hExtra de todos os dias
+  const byFunc = {{}};
+  jornadas.forEach(j => {{
+    if (!byFunc[j.func]) byFunc[j.func] = {{hReg: 0, hExtra: 0}};
+    byFunc[j.func].hReg   += j.hReg;
+    byFunc[j.func].hExtra += j.hExtra;
   }});
-  const funcHoras = {{}};
-  Object.entries(dayFunc).forEach(([k, minutos]) => {{
-    const [func] = k.split('|');
-    minutos.sort((a,b)=>a-b);
-    const span   = minutos[minutos.length-1] - minutos[0];
-    const almoco = span > 240 ? 60 : 0;
-    funcHoras[func] = (funcHoras[func]||0) + Math.max(0, span - almoco) / 60;
-  }});
-  const entries = Object.entries(funcHoras).sort((a,b)=>b[1]-a[1]);
-  if (!entries.length) return;
-  charts['chartPontoHoras'] = new Chart(document.getElementById('chartPontoHoras'), {{
+  const entries = Object.entries(byFunc).sort((a, b) => (b[1].hReg + b[1].hExtra) - (a[1].hReg + a[1].hExtra));
+  charts['chartPontoHoras'] = new Chart(canvas, {{
     type: 'bar',
     data: {{
-      labels: entries.map(e=>e[0].split(' ')[0]),
-      datasets: [{{ data: entries.map(e=>Math.round(e[1]*10)/10),
-        backgroundColor: '#059669', borderRadius: 4, borderSkipped: false }}]
+      labels: entries.map(e => e[0].split(' ')[0]),
+      datasets: [
+        {{ label: 'Regular (≤8h/dia)', data: entries.map(e => Math.round(e[1].hReg * 10) / 10),
+           backgroundColor: '#059669', stack: 's', borderRadius: 0 }},
+        {{ label: 'Hora Extra (>8h/dia)', data: entries.map(e => Math.round(e[1].hExtra * 10) / 10),
+           backgroundColor: '#f97316', stack: 's', borderRadius: 4 }},
+      ]
     }},
     options: {{
-      responsive:true, maintainAspectRatio:false, indexAxis:'y',
-      plugins:{{legend:{{display:false}},tooltip:{{callbacks:{{label:c=>c.raw+'h est.'}}}}}},
-      scales:{{
-        x:{{ticks:{{color:'#cbd5e1'}},grid:{{color:'#334155'}},title:{{display:true,text:'Horas',color:'#94a3b8'}}}},
-        y:{{ticks:{{color:'#cbd5e1',font:{{size:10}}}},grid:{{display:false}}}}
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {{
+        legend: {{ labels: {{ color: '#cbd5e1', font: {{size: 11}}, boxWidth: 12 }} }},
+        tooltip: {{ callbacks: {{ label: c => c.dataset.label + ': ' + c.raw + 'h' }} }}
+      }},
+      scales: {{
+        x: {{ stacked: true, ticks: {{ color: '#cbd5e1', callback: v => v + 'h' }}, grid: {{ color: '#334155' }},
+              title: {{ display: true, text: 'Horas no Período', color: '#94a3b8' }} }},
+        y: {{ stacked: true, ticks: {{ color: '#cbd5e1', font: {{ size: 10 }} }}, grid: {{ display: false }} }}
       }}
     }}
   }});
@@ -2198,6 +2236,11 @@ function renderTblPontoHoje(marc) {{
   // Atualiza título da tabela
   const th3 = document.querySelector('#tblPontoHoje')?.closest('.table-card')?.querySelector('h3');
   if (th3) th3.textContent = 'Marcações de ' + labelDia + ' por funcionário';
+  // Pre-calcula horas por funcionário/dia via calcJornadas
+  const jDia = {{}};
+  calcJornadas(marc.filter(r => r.data === diaRef)).forEach(j => {{
+    jDia[j.func] = j;
+  }});
   const byFunc  = {{}};
   marc.filter(r=>r.data===diaRef).forEach(r => {{
     if (!byFunc[r.funcionario]) byFunc[r.funcionario] = {{func:r.funcionario,horas:[],manuais:0}};
@@ -2211,26 +2254,35 @@ function renderTblPontoHoje(marc) {{
   const arr = Object.values(byFunc).sort((a,b)=>a.func>b.func?1:-1);
   let html = '';
   arr.forEach((r,i) => {{
-    const hrs    = r.horas.sort((a,b)=>a-b);
-    const fmt    = m => Math.floor(m/60)+':'+String(m%60).padStart(2,'0');
+    const hrs     = r.horas.sort((a,b)=>a-b);
+    const fmt     = m => Math.floor(m/60)+':'+String(m%60).padStart(2,'0');
     const entrada = hrs.length > 0 ? fmt(hrs[0]) : '—';
     const saida   = hrs.length > 1 ? fmt(hrs[hrs.length-1]) : '—';
-    const span    = hrs.length > 1 ? hrs[hrs.length-1]-hrs[0] : 0;
-    const hTrab   = hrs.length > 1 ? (Math.max(0,span-(span>240?60:0))/60).toFixed(1)+'h' : '—';
+    const jd      = jDia[r.func];
+    const hTrabNum = jd ? jd.hTrab : 0;
+    const hExtra  = jd ? jd.hExtra : 0;
+    let hTrabCell = '—';
+    if (hrs.length > 1) {{
+      hTrabCell = `<span style="font-weight:700">${{hTrabNum.toFixed(1)}}h</span>`;
+      if (hExtra > 0) hTrabCell += ` <span style="color:#f97316;font-size:11px;font-weight:600">+${{hExtra.toFixed(1)}}h⏰</span>`;
+    }}
+    const heStyle = (!r.ausente && hExtra > 0) ? ' style="background:rgba(249,115,22,0.07)"' : '';
+    const heStatus = (!r.ausente && hExtra > 0)
+      ? ' <span class="badge" style="background:#f97316;color:#fff;font-size:10px">HE</span>' : '';
     const status  = r.ausente
       ? '<span class="badge vermelho">SEM REGISTRO</span>'
-      : hrs.length >= 4 ? '<span class="badge verde">COMPLETO</span>'
-      : hrs.length >= 2 ? '<span class="badge amarelo">PARCIAL</span>'
+      : hrs.length >= 4 ? `<span class="badge verde">COMPLETO</span>${{heStatus}}`
+      : hrs.length >= 2 ? `<span class="badge amarelo">PARCIAL</span>${{heStatus}}`
       : '<span class="badge amarelo">ENTRADA</span>';
     const origemCell = r.ausente ? '—'
       : r.manuais > 0 ? `<span style="color:#f59e0b;font-weight:600">✏️ Manual (${{r.manuais}})</span>`
       : '<span style="color:#94a3b8;font-size:11px">Automático</span>';
-    html += `<tr><td>${{i+1}}</td><td>${{r.func}}</td>
+    html += `<tr${{heStyle}}><td>${{i+1}}</td><td>${{r.func}}</td>
       <td class="num">${{entrada}}</td><td class="num">${{saida}}</td>
-      <td class="num">${{hTrab}}</td><td>${{status}}</td><td>${{origemCell}}</td></tr>`;
+      <td class="num">${{hTrabCell}}</td><td>${{status}}</td><td>${{origemCell}}</td></tr>`;
   }});
   const el = document.getElementById('tblPontoHoje');
-  if (el) el.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:#94a3b8">Sem dados de ponto disponíveis para hoje</td></tr>';
+  if (el) el.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:#94a3b8">Sem dados de ponto disponíveis para hoje</td></tr>';
 }}
 
 function renderTblPontoUlt(marc) {{
@@ -2250,6 +2302,32 @@ function renderTblPontoUlt(marc) {{
   if (el) el.innerHTML = html || '<tr><td colspan="4" style="text-align:center;color:#94a3b8">Sem marcações no período selecionado</td></tr>';
 }}
 
+function renderTblPontoJustif(marc) {{
+  const manuais = marc.filter(r => r.origem_id === 2 && r.descricao && r.descricao.trim());
+  const el = document.getElementById('tblPontoJustif');
+  if (!el) return;
+  if (!manuais.length) {{
+    el.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8">Nenhum ajuste manual com justificativa no período</td></tr>';
+    return;
+  }}
+  const grouped = {{}};
+  manuais.forEach(r => {{
+    const motivo = r.descricao.trim();
+    if (!grouped[motivo]) grouped[motivo] = {{count: 0, funcs: new Set()}};
+    grouped[motivo].count++;
+    grouped[motivo].funcs.add(r.funcionario.split(' ')[0]);
+  }});
+  const arr = Object.entries(grouped).sort((a, b) => b[1].count - a[1].count);
+  let html = '';
+  arr.forEach(([motivo, info], i) => {{
+    const funcs = [...info.funcs].join(', ');
+    html += `<tr><td>${{i+1}}</td><td style="color:#fcd34d">${{motivo}}</td>
+      <td class="num" style="font-weight:700;color:#f59e0b">${{info.count}}</td>
+      <td style="font-size:12px;color:#94a3b8">${{funcs}}</td></tr>`;
+  }});
+  el.innerHTML = html;
+}}
+
 function initPonto(marc) {{
   marc = marc || PONTO_MARC;
   // Dia de referência = último dia do período filtrado (ou hoje se in range)
@@ -2261,15 +2339,19 @@ function initPonto(marc) {{
   if (el('kPontoTotal')) el('kPontoTotal').textContent = marc.length || '0';
   const presHoje   = new Set(marc.filter(r=>r.data===diaRef).map(r=>r.funcionario_id)).size;
   const nManuais   = marc.filter(r=>r.origem_id===2).length;
+  const jHoje      = calcJornadas(marc.filter(r => r.data === diaRef));
+  const nHoraExtra = jHoje.filter(j => j.hExtra > 0).length;
   if (el('kPontoHoje'))   el('kPontoHoje').textContent   = presHoje || '0';
   if (el('kPontoAus'))    el('kPontoAus').textContent    = Math.max(0, PONTO_FUNC.length - presHoje) || '0';
   if (el('kPontoManual')) el('kPontoManual').textContent = nManuais || '0';
+  if (el('kPontoHE'))     el('kPontoHE').textContent     = nHoraExtra || '0';
   mkPontoAusencias(marc);
   mkPontoFuncChart(marc);
   mkPontoHoras(marc);
   mkPontoPresenca(marc);
   renderTblPontoHoje(marc);
   renderTblPontoUlt(marc);
+  renderTblPontoJustif(marc);
 }}
 
 // ═══════════════════════════════════════════════
