@@ -2038,15 +2038,27 @@ function calcJornadas(marc) {{
     byFD[k].mins.push(hh * 60 + mm);
   }});
   return Object.values(byFD).map(e => {{
-    const pts     = e.mins.slice().sort((a, b) => a - b);
-    const span    = pts.length >= 2 ? pts[pts.length - 1] - pts[0] : 0;
+    const pts = e.mins.slice().sort((a, b) => a - b);
+    // Detecção de turno noturno: span > 10h E primeira batida antes das 07:00
+    // Situação: saída da noite anterior (ex: 05:30) misturada com entrada da noite seguinte (ex: 19:30)
+    const SPAN_MAX    = 10 * 60; // 600 min — acima disso suspeito de mix noturno
+    const HORA_LIMITE =  7 * 60; // 07:00 — batida antes disso = fim de turno noturno
+    const span0 = pts.length >= 2 ? pts[pts.length - 1] - pts[0] : 0;
+    let turnoFora = false;
+    let ptsCalc   = pts;
+    if (span0 > SPAN_MAX && pts[0] < HORA_LIMITE) {{
+      turnoFora = true;
+      // Remove batidas da madrugada (fim do turno anterior) para não inflar HE
+      ptsCalc = pts.filter(m => m >= HORA_LIMITE);
+    }}
+    const span    = ptsCalc.length >= 2 ? ptsCalc[ptsCalc.length - 1] - ptsCalc[0] : 0;
     const almoco  = span > 240 ? 60 : 0;
-    const minTrab = pts.length >= 2 ? Math.max(0, span - almoco) : 0;
+    const minTrab = ptsCalc.length >= 2 ? Math.max(0, span - almoco) : 0;
     const hTrab   = minTrab / 60;
     const hReg    = Math.min(minTrab, LIMITE) / 60;
     const hExtra  = Math.max(0, minTrab - LIMITE) / 60;
     return {{func: e.func, func_id: e.func_id, data: e.data,
-             nMarc: pts.length, minTrab, hTrab, hReg, hExtra}};
+             nMarc: pts.length, minTrab, hTrab, hReg, hExtra, turnoFora}};
   }});
 }}
 
@@ -2178,7 +2190,7 @@ function mkPontoHoras(marc) {{
     data: {{
       labels: entries.map(e => e[0].split(' ')[0]),
       datasets: [
-        {{ label: 'Regular (≤8h/dia)', data: entries.map(e => Math.round(e[1].hReg * 10) / 10),
+        {{ label: 'Regular (≤9h/dia)', data: entries.map(e => Math.round(e[1].hReg * 10) / 10),
            backgroundColor: '#059669', stack: 's', borderRadius: 0 }},
         {{ label: 'Hora Extra (>8h/dia)', data: entries.map(e => Math.round(e[1].hExtra * 10) / 10),
            backgroundColor: '#f97316', stack: 's', borderRadius: 4 }},
@@ -2300,14 +2312,18 @@ function renderTblPontoHoje(marc) {{
       hTrabCell = `<span style="font-weight:700">${{hTrabNum.toFixed(1)}}h</span>`;
       if (hExtra > 0) hTrabCell += ` <span style="color:#f97316;font-size:11px;font-weight:600">+${{hExtra.toFixed(1)}}h⏰</span>`;
     }}
-    const heStyle = (!r.ausente && hExtra > 0) ? ' style="background:rgba(249,115,22,0.07)"' : '';
+    const foraJornada = jd && jd.turnoFora;
+    const heStyle = (!r.ausente && hExtra > 0) ? ' style="background:rgba(249,115,22,0.07)"'
+      : foraJornada ? ' style="background:rgba(99,102,241,0.07)"' : '';
     const heStatus = (!r.ausente && hExtra > 0)
       ? ' <span class="badge" style="background:#f97316;color:#fff;font-size:10px">HE</span>' : '';
+    const foraStatus = foraJornada
+      ? ' <span class="badge" style="background:#6366f1;color:#fff;font-size:10px" title="Batidas fora do horário da jornada cadastrada">🌙 Fora Jornada</span>' : '';
     const status  = r.ausente
       ? '<span class="badge vermelho">SEM REGISTRO</span>'
-      : hrs.length >= 4 ? `<span class="badge verde">COMPLETO</span>${{heStatus}}`
-      : hrs.length >= 2 ? `<span class="badge amarelo">PARCIAL</span>${{heStatus}}`
-      : '<span class="badge amarelo">ENTRADA</span>';
+      : hrs.length >= 4 ? `<span class="badge verde">COMPLETO</span>${{heStatus}}${{foraStatus}}`
+      : hrs.length >= 2 ? `<span class="badge amarelo">PARCIAL</span>${{heStatus}}${{foraStatus}}`
+      : `<span class="badge amarelo">ENTRADA</span>${{foraStatus}}`;
     const origemCell = r.ausente ? '—'
       : r.manuais > 0 ? `<span style="color:#f59e0b;font-weight:600">✏️ Manual (${{r.manuais}})</span>`
       : '<span style="color:#94a3b8;font-size:11px">Automático</span>';
