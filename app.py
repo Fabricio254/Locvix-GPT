@@ -201,21 +201,10 @@ if btn_atualizar or HTML_KEY not in st.session_state:
     # Carrega / recarrega o módulo locvix
     if "locvix" in sys.modules:
         lv = sys.modules["locvix"]
-        # Ao pressionar Atualizar, força fetch fresco (limpa cache em memória e disco)
+        # Ao pressionar Atualizar, força fetch fresco (limpa cache em memória)
         if btn_atualizar:
             if hasattr(lv, "_client"):
                 lv._client = None
-            # Limpa cache de ponto em disco: calcula o hash exato da chave usada pelo locvix.py
-            import hashlib as _hashlib
-            _cache_dir = os.path.join(_BASE_DIR, "_cache_gck")
-            _chave_ponto = f"ponto|{_data_ini_str}|{_data_fim_str}"
-            _ponto_hash  = _hashlib.md5(_chave_ponto.encode()).hexdigest()
-            _ponto_cache = os.path.join(_cache_dir, f"{_ponto_hash}.json")
-            if os.path.exists(_ponto_cache):
-                try:
-                    os.remove(_ponto_cache)
-                except Exception:
-                    pass
         importlib.reload(lv)
     else:
         import locvix as lv
@@ -223,6 +212,9 @@ if btn_atualizar or HTML_KEY not in st.session_state:
     # Injeta credenciais nas variáveis globais do módulo
     lv.GCK_ACCESS_TOKEN = os.getenv("GCK_ACCESS_TOKEN", lv.GCK_ACCESS_TOKEN)
     lv.GCK_SECRET_TOKEN = os.getenv("GCK_SECRET_TOKEN", lv.GCK_SECRET_TOKEN)
+
+    # Se clicou Atualizar, ignora cache de ponto (flag no módulo)
+    lv._SKIP_PONTO_CACHE = btn_atualizar
 
     # Fila de progresso: (float, str) ou None (sentinela)
     _q: queue.Queue = queue.Queue()

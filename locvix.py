@@ -75,6 +75,9 @@ _TTL_OUTROS    = 86400  # 24 h
 # Callback de progresso (usado pelo Streamlit ou similar)
 _progresso = None
 
+# Flag para forçar refresh do ponto (ignorar cache em disco)
+_SKIP_PONTO_CACHE = False
+
 def _prog(pct: float, msg: str = ""):
     if callable(_progresso):
         try:
@@ -705,12 +708,13 @@ def buscar_ponto(data_ini: str, data_fim: str) -> dict:
     _prog(0.79, "Buscando dados de ponto...")
     try:
         chave  = f"ponto|{data_ini}|{data_fim}"
-        cached = _cache_load(chave, _TTL_OUTROS)
-        if cached:
-            n = len(cached.get("marcacoes", []))
-            print(f"  ✔ Ponto (cache): {n} marcações")
-            _prog(0.81, f"Ponto: {n} marcações (cache)")
-            return cached
+        if not _SKIP_PONTO_CACHE:
+            cached = _cache_load(chave, _TTL_OUTROS)
+            if cached:
+                n = len(cached.get("marcacoes", []))
+                print(f"  ✔ Ponto (cache): {n} marcações")
+                _prog(0.81, f"Ponto: {n} marcações (cache)")
+                return cached
 
         d_ini_dt = datetime.strptime(data_ini, "%d/%m/%Y").date()
         d_fim_dt = datetime.strptime(data_fim, "%d/%m/%Y").date()
