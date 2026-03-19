@@ -1604,6 +1604,12 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
       <div id="wrapPagarCC" style="position:relative;height:260px;"><canvas id="chartPagarCC"></canvas></div>
     </div>
   </div>
+  <div class="chart-row" style="align-items:start;">
+    <div class="chart-card" style="flex:1;">
+      <h3>📈 Receitas vs Despesas por Mês — Resultado</h3>
+      <div style="position:relative;height:320px;"><canvas id="chartResultado"></canvas></div>
+    </div>
+  </div>
 
   </div><!-- /mod financeiro-charts -->
 
@@ -2098,6 +2104,88 @@ function mkFinanceiro() {{
   mkDonut('chartPagar', pagEntries, BRL(totalPagar));
   mkPagarMensal();
   mkPagarCentroCusto();
+  mkResultadoMensal();
+}}
+
+function mkResultadoMensal() {{
+  destroyChart('chartResultado');
+  const canvas = document.getElementById('chartResultado');
+  if (!canvas) return;
+
+  // Coleta meses presentes nos dados
+  const mesesSet = new Set();
+  VENDAS.forEach(r  => {{ if (r.data) mesesSet.add(r.data.slice(0,7)); }});
+  PAGAR_ALL.forEach(r => {{ if (r.venc) mesesSet.add(r.venc.slice(0,7)); }});
+  if (!mesesSet.size) return;
+  const meses = [...mesesSet].sort();
+
+  // Agrupa receitas (vendas liq) por mês
+  const recMes = {{}};
+  meses.forEach(m => recMes[m] = 0);
+  VENDAS.forEach(r => {{
+    const mk = (r.data || '').slice(0,7);
+    if (recMes[mk] !== undefined) recMes[mk] += (r.liq || 0);
+  }});
+
+  // Agrupa despesas (pagar_all) por mês de vencimento
+  const despMes = {{}};
+  meses.forEach(m => despMes[m] = 0);
+  PAGAR_ALL.forEach(r => {{
+    const mk = (r.venc || '').slice(0,7);
+    if (despMes[mk] !== undefined) despMes[mk] += (r.valor || 0);
+  }});
+
+  const labels   = meses.map(m => {{
+    const [y,mo] = m.split('-');
+    return new Date(+y, +mo-1, 1).toLocaleDateString('pt-BR',{{month:'short',year:'2-digit'}});
+  }});
+  const recData  = meses.map(m => Math.round(recMes[m]  * 100) / 100);
+  const despData = meses.map(m => Math.round(despMes[m] * 100) / 100);
+  const resData  = meses.map(m => Math.round((recMes[m] - despMes[m]) * 100) / 100);
+
+  const totalRec  = recData.reduce((s,v)=>s+v,0);
+  const totalDesp = despData.reduce((s,v)=>s+v,0);
+  const totalRes  = totalRec - totalDesp;
+  const corRes    = totalRes >= 0 ? '#22c55e' : '#ef4444';
+
+  const isDark  = document.body.getAttribute('data-theme') !== 'light';
+  const gridClr = isDark ? '#334155' : '#e2e8f0';
+  const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
+
+  charts['chartResultado'] = new Chart(canvas, {{
+    type: 'bar',
+    data: {{
+      labels,
+      datasets: [
+        {{ type: 'bar',  label: 'Receitas',  data: recData,  backgroundColor: '#059669', stack: 's', borderRadius: 0 }},
+        {{ type: 'bar',  label: 'Despesas',  data: despData, backgroundColor: '#ef4444', stack: 's', borderRadius: 4 }},
+        {{ type: 'line', label: 'Resultado', data: resData,
+           borderColor: '#f59e0b', backgroundColor: 'transparent',
+           pointBackgroundColor: resData.map(v => v >= 0 ? '#22c55e' : '#ef4444'),
+           pointRadius: 5, borderWidth: 2, tension: 0.3, yAxisID: 'yRes' }}
+      ]
+    }},
+    options: {{
+      responsive: true, maintainAspectRatio: false,
+      plugins: {{
+        legend: {{ labels: {{ color: txtClr, font: {{size:11}}, boxWidth:12 }} }},
+        subtitle: {{
+          display: true,
+          text: 'Receitas: ' + BRL(totalRec) + '   |   Despesas: ' + BRL(totalDesp) + '   |   Resultado: ' + BRL(totalRes),
+          color: corRes, font: {{ size: 12, weight: 'bold' }}, padding: {{ bottom: 6 }}
+        }},
+        tooltip: {{ callbacks: {{ label: c => c.dataset.label + ': ' + BRL(c.raw) }} }}
+      }},
+      scales: {{
+        x: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr, maxRotation: 45, font: {{size:9}} }} }},
+        y: {{ stacked: true, grid: {{ color: gridClr }}, ticks: {{ color: txtClr, callback: v => v>=1000?'R$'+(v/1000).toFixed(0)+'k':'R$'+v }} }},
+        yRes: {{
+          position: 'right', grid: {{ display: false }},
+          ticks: {{ color: '#f59e0b', callback: v => v>=1000?'R$'+(v/1000).toFixed(0)+'k':'R$'+v }}
+        }}
+      }}
+    }}
+  }});
 }}
 
 function mkPagarCentroCusto() {{
