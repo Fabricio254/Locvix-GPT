@@ -1523,7 +1523,7 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
 
   <!-- ── PONTO COLABORADOR ── -->
   <div class="mod-section" data-mod="ponto">
-  <div class="section-title">🕐 Ponto Colaborador — {periodo}</div>
+  <div class="section-title" id="tituloPonto">🕐 Ponto Colaborador — {periodo}</div>
   <div class="kpi-grid col6">
     <div class="kpi-card blue"><div class="kpi-label">Funcionários</div><div class="kpi-value" id="kPontoFunc">—</div></div>
     <div class="kpi-card green"><div class="kpi-label">Marcações no Período</div><div class="kpi-value" id="kPontoTotal">—</div></div>
@@ -1619,6 +1619,14 @@ function filtrar() {{
     if (vend && r.vendedor  !== vend) return false;
     return true;
   }});
+  pontoMarcFilt = PONTO_MARC.filter(r => {{
+    if (ini && r.data < ini) return false;
+    if (fim && r.data > fim) return false;
+    return true;
+  }});
+  const fmtD = s => s ? s.split('-').reverse().join('/') : '?';
+  const tP = document.getElementById('tituloPonto');
+  if (tP) tP.textContent = '\u{1F550} Ponto Colaborador \u2014 ' + fmtD(ini) + ' a ' + fmtD(fim);
   const info = document.getElementById('filtroInfo');
   info.textContent = dadosFilt.length === VENDAS.length ? '' :
     `\u2714 ${{NUM(dadosFilt.length)}} de ${{NUM(VENDAS.length)}} itens filtrados`;
@@ -2395,6 +2403,8 @@ function limparFiltros() {{
   document.getElementById('fCat').value  = '';
   document.getElementById('fVend').value = '';
   document.getElementById('filtroInfo').textContent = '';
+  const tP = document.getElementById('tituloPonto');
+  if (tP) tP.textContent = '\u{1F550} Ponto Colaborador \u2014 {periodo}';
   dadosFilt     = VENDAS;
   pontoMarcFilt = PONTO_MARC;
   atualizar();
