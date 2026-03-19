@@ -457,6 +457,110 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════
+#  BUSCA DE DADOS — VENDAS (EXCEL MANUAL)
+# ══════════════════════════════════════════════════════════════════
+def buscar_vendas_excel(data_ini: str, data_fim: str) -> list[dict]:
+    """
+    Lê os arquivos Excel manuais de Contas a Receber (2025 e 2026) e retorna
+    a lista de recebimentos no mesmo formato de buscar_vendas().
+
+    Estrutura da planilha:
+      Linha 7 = cabeçalho: (None, DATA, CLIENTE, FORMA, TIPO, SITUAÇÃO, ATRASADO,
+                             DESCONTADO, SIMPLES, DESCONTADO, SIMPLES, ...)
+      Linhas 8+ = dados: banco de valores nas colunas H-Q (índices 7-16).
+    """
+    import os as _os
+    import openpyxl as _xl
+
+    _prog(0.05, "Lendo Excel de vendas...")
+
+    def br_to_date(d: str):
+        try:
+            return datetime.strptime(d, "%d/%m/%Y")
+        except Exception:
+            return None
+
+    d_ini_dt = br_to_date(data_ini)
+    d_fim_dt = br_to_date(data_fim)
+
+    base_dir = _os.path.dirname(_os.path.abspath(__file__))
+    arquivos = [
+        _os.path.join(base_dir, "CONTROLE CONTAS A RECEBER - 2025.xlsx"),
+        _os.path.join(base_dir, "CONTROLE CONTAS A RECEBER - 2026.xlsx"),
+    ]
+
+    ABAS_IGNORAR = {"ATRASADOS", "Planilha1"}
+
+    registros: list[dict] = []
+    for caminho_xlsx in arquivos:
+        if not _os.path.exists(caminho_xlsx):
+            print(f"  [AVISO] Arquivo não encontrado: {caminho_xlsx}")
+            continue
+        try:
+            wb = _xl.load_workbook(caminho_xlsx, data_only=True, read_only=True)
+        except Exception as e:
+            print(f"  [AVISO] Erro ao abrir {caminho_xlsx}: {e}")
+            continue
+
+        for aba_nome in wb.sheetnames:
+            if aba_nome in ABAS_IGNORAR:
+                continue
+            ws = wb[aba_nome]
+            for row_idx, row in enumerate(ws.iter_rows(min_row=8, values_only=True), start=8):
+                data_cel   = row[1]   # col B
+                cliente    = row[2]   # col C
+                forma      = row[3]   # col D
+                tipo_nf    = row[4]   # col E  (NF 0104, RE 001-12, etc.)
+                situacao   = row[5]   # col F  (PAGO, A PAGAR, ATRASADO)
+
+                # Ignora linhas de totais ou vazias
+                if not cliente or not isinstance(data_cel, datetime):
+                    continue
+
+                # Soma colunas H-Q (índices 7-16) = todos os bancos DESCONTADO/SIMPLES
+                valor = sum(
+                    v for v in row[7:17]
+                    if isinstance(v, (int, float))
+                )
+                if valor <= 0:
+                    continue
+
+                # Filtro de período pela data do recebimento
+                if d_ini_dt and data_cel < d_ini_dt:
+                    continue
+                if d_fim_dt and data_cel > d_fim_dt:
+                    continue
+
+                status_str  = str(situacao or "").strip().upper() or "PAGO"
+                cliente_str = str(cliente).strip().upper()
+                nf_str      = str(tipo_nf).strip() if tipo_nf else ""
+                forma_str   = str(forma).strip().upper() if forma else ""
+
+                registros.append({
+                    "ID":           f"XLS|{aba_nome}|{row_idx}",
+                    "NF":           nf_str,
+                    "Data":         data_cel,
+                    "Cliente":      cliente_str,
+                    "Status":       status_str,
+                    "Vendedor":     "Sem Vendedor",
+                    "Categoria":    "SEM CATEGORIA",
+                    "Cod. Produto": "",
+                    "Produto":      forma_str,
+                    "Unidade":      "",
+                    "Qtd":          1.0,
+                    "Vlr Unitário": valor,
+                    "Vlr Bruto":    valor,
+                    "Desconto":     0.0,
+                    "Vlr Líquido":  valor,
+                })
+        wb.close()
+
+    print(f"  ✔ Excel: {len(registros)} recebimentos no período")
+    _prog(0.30, f"Vendas (Excel): {len(registros)} registros carregados")
+    return registros
+
+
+# ══════════════════════════════════════════════════════════════════
 #  BUSCA DE DADOS — FINANCEIRO
 # ══════════════════════════════════════════════════════════════════
 def buscar_financeiro(data_ini: str, data_fim: str) -> dict:
@@ -2640,20 +2744,22 @@ try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }
 #  MAIN
 # ══════════════════════════════════════════════════════════════════
 def main(
-    saida_html:  str | None = None,
-    saida_excel: str | None = None,
-    data_ini:    str | None = None,
-    data_fim:    str | None = None,
+    saida_html:   str | None = None,
+    saida_excel:  str | None = None,
+    data_ini:     str | None = None,
+    data_fim:     str | None = None,
+    fonte_vendas: str        = "api",   # "api" = GestãoClick  |  "excel" = planilha manual
 ) -> str | None:
     """
     Executa a coleta completa de dados e gera Excel + Dashboard HTML.
 
     Parâmetros
     ----------
-    saida_html  : caminho do HTML gerado (usa SAIDA_HTML global se None)
-    saida_excel : caminho do Excel (usa SAIDA_EXCEL global se None; "" = pula Excel)
-    data_ini    : início do período "DD/MM/AAAA" (usa DATA_INI global se None)
-    data_fim    : fim do período   "DD/MM/AAAA" (usa DATA_FIM global se None)
+    saida_html   : caminho do HTML gerado (usa SAIDA_HTML global se None)
+    saida_excel  : caminho do Excel (usa SAIDA_EXCEL global se None; "" = pula Excel)
+    data_ini     : início do período "DD/MM/AAAA" (usa DATA_INI global se None)
+    data_fim     : fim do período   "DD/MM/AAAA" (usa DATA_FIM global se None)
+    fonte_vendas : "api" (GestãoClick) ou "excel" (planilhas manuais)
 
     Retorna o conteúdo HTML como string (útil para Streamlit).
     """
@@ -2684,7 +2790,12 @@ def main(
     _client = GCKClient(GCK_ACCESS_TOKEN, GCK_SECRET_TOKEN)
 
     # ── Coleta de dados ────────────────────────────────────────────
-    vendas    = buscar_vendas(d_ini, d_fim)
+    if fonte_vendas == "excel":
+        print("  📂 Fonte de vendas: Excel manual")
+        vendas = buscar_vendas_excel(d_ini, d_fim)
+    else:
+        print("  🌐 Fonte de vendas: API GestãoClick")
+        vendas = buscar_vendas(d_ini, d_fim)
     financ    = buscar_financeiro(d_ini, d_fim)
 
     # Busca pagamentos em janela fixa 2 anos atras / 2 anos a frente

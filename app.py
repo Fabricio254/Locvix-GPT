@@ -157,6 +157,20 @@ with st.sidebar:
     )
 
     st.markdown("---")
+
+    # ── Fonte das Vendas ──────────────────────────────────────────
+    st.markdown("##### 📂 Fonte das Vendas")
+    fonte_vendas_sel = st.radio(
+        "Fonte dos dados de vendas",
+        options=["api", "excel"],
+        format_func=lambda k: "🌐 API GestãoClick" if k == "api" else "📊 Excel Manual",
+        label_visibility="collapsed",
+        key="fonte_vendas",
+    )
+    if fonte_vendas_sel == "excel":
+        st.info("📊 Usando planilhas:\n- CONTROLE CONTAS A RECEBER - 2025.xlsx\n- CONTROLE CONTAS A RECEBER - 2026.xlsx", icon="ℹ️")
+
+    st.markdown("---")
     st.caption(f"Última execução: {datetime.now(_BRT).strftime('%d/%m/%Y %H:%M')}")
 
 # ═══════════════════════════════════════════════════════════════════
@@ -233,6 +247,8 @@ if btn_atualizar or HTML_KEY not in st.session_state:
 
     _result: list = [None, None]   # [html_str | None, exc | None]
 
+    _fonte_vendas = fonte_vendas_sel
+
     def _worker():
         try:
             with contextlib.redirect_stdout(log_buf):
@@ -241,6 +257,7 @@ if btn_atualizar or HTML_KEY not in st.session_state:
                     saida_excel=None,          # sem Excel no Streamlit
                     data_ini=_data_ini_str,
                     data_fim=_data_fim_str,
+                    fonte_vendas=_fonte_vendas,
                 )
         except Exception as exc:
             _result[1] = exc
