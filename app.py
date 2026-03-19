@@ -205,18 +205,15 @@ if btn_atualizar or HTML_KEY not in st.session_state:
         if btn_atualizar:
             if hasattr(lv, "_client"):
                 lv._client = None
-            # Limpa cache de ponto em disco para forçar nova busca na API
-            import glob as _glob
+            # Limpa cache de ponto em disco: calcula o hash exato da chave usada pelo locvix.py
             import hashlib as _hashlib
             _cache_dir = os.path.join(_BASE_DIR, "_cache_gck")
-            _ponto_prefix = f"ponto|"
-            for _cf in _glob.glob(os.path.join(_cache_dir, "*.json")):
+            _chave_ponto = f"ponto|{_data_ini_str}|{_data_fim_str}"
+            _ponto_hash  = _hashlib.md5(_chave_ponto.encode()).hexdigest()
+            _ponto_cache = os.path.join(_cache_dir, f"{_ponto_hash}.json")
+            if os.path.exists(_ponto_cache):
                 try:
-                    import json as _json
-                    with open(_cf, encoding="utf-8") as _f:
-                        _cd = _json.load(_f)
-                    if isinstance(_cd, dict) and "marcacoes" in _cd:
-                        os.remove(_cf)
+                    os.remove(_ponto_cache)
                 except Exception:
                     pass
         importlib.reload(lv)
