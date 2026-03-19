@@ -1096,6 +1096,7 @@ def gerar_dashboard_html(
                 "pgto":     _dt("Pagamento"),
                 "status":   r.get("Status",""),
                 "cat":      r.get("Categoria",""),
+                "cc":       r.get("Centro Custo",""),
                 "tipo":     tipo,
             })
         return rows
@@ -1491,6 +1492,12 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
       <div style="position:relative;height:260px;">
         <canvas id="chartPagarMensal"></canvas>
       </div>
+    </div>
+  </div>
+  <div class="chart-row" style="align-items:start;">
+    <div class="chart-card" style="flex:1;">
+      <h3>🏷️ Despesas por Centro de Custo</h3>
+      <div id="wrapPagarCC" style="position:relative;height:260px;"><canvas id="chartPagarCC"></canvas></div>
     </div>
   </div>
 
@@ -1986,6 +1993,53 @@ function mkFinanceiro() {{
   const totalPagar = PAGAR.reduce((s,r)=>s+r.valor, 0);
   mkDonut('chartPagar', pagEntries, BRL(totalPagar));
   mkPagarMensal();
+  mkPagarCentroCusto();
+}}
+
+function mkPagarCentroCusto() {{
+  destroyChart('chartPagarCC');
+  const canvas = document.getElementById('chartPagarCC');
+  if (!canvas) return;
+  const mCC = {{}};
+  PAGAR.forEach(r => {{
+    const cc = (r.cc || '').trim() || 'SEM CENTRO DE CUSTO';
+    mCC[cc] = (mCC[cc] || 0) + r.valor;
+  }});
+  const entries = Object.entries(mCC).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) return;
+  const total = entries.reduce((s, e) => s + e[1], 0);
+  const alturaCC = Math.max(260, entries.length * 42);
+  const wrapCC = document.getElementById('wrapPagarCC');
+  if (wrapCC) wrapCC.style.height = alturaCC + 'px';
+  const isDark  = document.body.getAttribute('data-theme') !== 'light';
+  const gridClr = isDark ? '#334155' : '#e2e8f0';
+  const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
+  const CORES_CC = ['#6366f1','#8b5cf6','#a78bfa','#c4b5fd','#ddd6fe','#818cf8','#4f46e5','#4338ca'];
+  charts['chartPagarCC'] = new Chart(canvas, {{
+    type: 'bar',
+    data: {{
+      labels: entries.map(e => e[0]),
+      datasets: [{{
+        label: 'Despesas',
+        data: entries.map(e => Math.round(e[1] * 100) / 100),
+        backgroundColor: entries.map((_, i) => CORES_CC[i % CORES_CC.length]),
+        borderRadius: 4, borderSkipped: false
+      }}]
+    }},
+    options: {{
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {{
+        legend: {{ display: false }},
+        subtitle: {{ display: true, text: 'Total: ' + BRL(total),
+          color: '#6366f1', font: {{ size: 12, weight: 'bold' }}, padding: {{ bottom: 6 }} }},
+        tooltip: {{ callbacks: {{ label: c => BRL(c.raw) + ' (' + ((c.raw / total) * 100).toFixed(1) + '%)' }} }}
+      }},
+      scales: {{
+        x: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr, callback: v => v >= 1000 ? 'R$' + (v/1000).toFixed(0) + 'k' : 'R$' + v }} }},
+        y: {{ grid: {{ display: false }}, ticks: {{ color: txtClr, font: {{ size: 10 }} }} }}
+      }}
+    }}
+  }});
 }}
 
 function mkPagarMensal() {{
