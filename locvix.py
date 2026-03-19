@@ -2112,25 +2112,25 @@ function mkResultadoMensal() {{
   const canvas = document.getElementById('chartResultado');
   if (!canvas) return;
 
-  // Coleta meses presentes nos dados
+  // Coleta meses presentes nos dados FILTRADOS pelo período
   const mesesSet = new Set();
-  VENDAS.forEach(r  => {{ if (r.data) mesesSet.add(r.data.slice(0,7)); }});
-  PAGAR_ALL.forEach(r => {{ if (r.venc) mesesSet.add(r.venc.slice(0,7)); }});
+  dadosFilt.forEach(r  => {{ if (r.data) mesesSet.add(r.data.slice(0,7)); }});
+  PAGAR.forEach(r => {{ if (r.venc) mesesSet.add(r.venc.slice(0,7)); }});
   if (!mesesSet.size) return;
   const meses = [...mesesSet].sort();
 
-  // Agrupa receitas (vendas liq) por mês
+  // Agrupa receitas (vendas liq filtradas) por mês
   const recMes = {{}};
   meses.forEach(m => recMes[m] = 0);
-  VENDAS.forEach(r => {{
+  dadosFilt.forEach(r => {{
     const mk = (r.data || '').slice(0,7);
     if (recMes[mk] !== undefined) recMes[mk] += (r.liq || 0);
   }});
 
-  // Agrupa despesas (pagar_all) por mês de vencimento
+  // Agrupa despesas (pagar do período) por mês de vencimento
   const despMes = {{}};
   meses.forEach(m => despMes[m] = 0);
-  PAGAR_ALL.forEach(r => {{
+  PAGAR.forEach(r => {{
     const mk = (r.venc || '').slice(0,7);
     if (despMes[mk] !== undefined) despMes[mk] += (r.valor || 0);
   }});
