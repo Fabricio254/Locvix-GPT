@@ -1533,12 +1533,12 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
     <div class="kpi-card red"><div class="kpi-label">⏰ HE Hoje</div><div class="kpi-value" id="kPontoHE">—</div></div>
   </div>
   <div class="chart-row col2" style="align-items:start;">
-    <div class="chart-card"><h3>⚠️ Ausências por Funcionário — Faltas e Saídas Antecipadas (horas)</h3><div style="position:relative;height:280px;"><canvas id="chartPontoAus"></canvas></div></div>
+    <div class="chart-card"><h3>⚠️ Ausências por Funcionário — Faltas e Saídas Antecipadas (horas)</h3><div id="wrapPontoAus" style="position:relative;height:280px;"><canvas id="chartPontoAus"></canvas></div></div>
     <div class="chart-card"><h3>👤 Marcações por Funcionário</h3><div style="position:relative;height:280px;"><canvas id="chartPontoFunc"></canvas></div></div>
   </div>
   <div class="chart-row col2" style="align-items:start;">
-    <div class="chart-card"><h3>⏰ Horas Regulares vs Hora Extra (período)</h3><div style="position:relative;height:260px;"><canvas id="chartPontoHoras"></canvas></div></div>
-    <div class="chart-card"><h3>⏰ Ranking Hora Extra no Período</h3><div style="position:relative;height:260px;"><canvas id="chartPontoHoraExtra"></canvas></div></div>
+    <div class="chart-card"><h3>⏰ Horas Regulares vs Hora Extra (período)</h3><div id="wrapPontoHoras" style="position:relative;height:260px;"><canvas id="chartPontoHoras"></canvas></div></div>
+    <div class="chart-card"><h3>⏰ Ranking Hora Extra no Período</h3><div id="wrapPontoHoraExtra" style="position:relative;height:260px;"><canvas id="chartPontoHoraExtra"></canvas></div></div>
   </div>
   <div class="section-title">📋 Resumo do Dia de Hoje</div>
   <div class="table-card">
@@ -2099,6 +2099,9 @@ function mkPontoAusencias(marc) {{
     .sort((a, b) => (b.dFalta + b.dAntecip) - (a.dFalta + a.dAntecip));
 
   const totalDias = result.reduce((s,r)=>s+r.dFalta+r.dAntecip, 0);
+  const alturaAus = Math.max(280, result.length * 40);
+  const wrapAus = document.getElementById('wrapPontoAus');
+  if (wrapAus) wrapAus.style.height = alturaAus + 'px';
   charts['chartPontoAus'] = new Chart(canvas, {{
     type: 'bar',
     data: {{
@@ -2166,6 +2169,10 @@ function mkPontoHoras(marc) {{
     byFunc[j.func].hExtra += j.hExtra;
   }});
   const entries = Object.entries(byFunc).sort((a, b) => (b[1].hReg + b[1].hExtra) - (a[1].hReg + a[1].hExtra));
+  // Altura dinâmica: mín 260px, 40px por funcionário
+  const alturaHoras = Math.max(260, entries.length * 40);
+  const wrapH = document.getElementById('wrapPontoHoras');
+  if (wrapH) wrapH.style.height = alturaHoras + 'px';
   charts['chartPontoHoras'] = new Chart(canvas, {{
     type: 'bar',
     data: {{
@@ -2222,6 +2229,9 @@ function mkPontoHoraExtra(marc) {{
   if (nodata) nodata.remove();
   canvas.style.display = '';
   const totalHE = entries.reduce((s, e) => s + e[1], 0);
+  const alturaHE = Math.max(260, entries.length * 40);
+  const wrapHE = document.getElementById('wrapPontoHoraExtra');
+  if (wrapHE) wrapHE.style.height = alturaHE + 'px';
   charts['chartPontoHoraExtra'] = new Chart(canvas, {{
     type: 'bar',
     data: {{
