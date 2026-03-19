@@ -718,6 +718,8 @@ def buscar_ponto(data_ini: str, data_fim: str) -> dict:
 
         d_ini_dt = datetime.strptime(data_ini, "%d/%m/%Y").date()
         d_fim_dt = datetime.strptime(data_fim, "%d/%m/%Y").date()
+        d_ini_iso = d_ini_dt.isoformat()
+        d_fim_iso = d_fim_dt.isoformat()
 
         client = DixiPontoClient(DIXI_EMAIL, DIXI_SENHA, DIXI_UNIDADE)
         client.login()
@@ -732,11 +734,16 @@ def buscar_ponto(data_ini: str, data_fim: str) -> dict:
             rf   = m.get("registroFuncionario") or {}
             func = rf.get("funcionario") or {}
             tp   = m.get("tpOrigemMarcacao") or {}
+            data_str = DixiPontoClient.parse_data(m.get("dataMarcacao", 0))
+            # A API ignora os parâmetros de data e retorna todo o histórico;
+            # filtramos aqui no Python para garantir somente o período solicitado.
+            if data_str < d_ini_iso or data_str > d_fim_iso:
+                continue
             marcacoes.append({
                 "id":            m.get("idMarcacao"),
                 "funcionario_id": func.get("idFuncionario"),
                 "funcionario":   func.get("nome", "Desconhecido"),
-                "data":          DixiPontoClient.parse_data(m.get("dataMarcacao", 0)),
+                "data":          data_str,
                 "hora":          DixiPontoClient.parse_hora(m.get("hora", 0)),
                 "origem_id":     tp.get("idTpOrigemMarcacao"),
                 "origem":        tp.get("descricao", ""),
@@ -1001,6 +1008,14 @@ def gerar_dashboard_html(
         dt_min = dt_max = datetime.now()
     dt_min_iso = dt_min.strftime("%Y-%m-%d") if isinstance(dt_min, datetime) else data_ini
     dt_max_iso = dt_max.strftime("%Y-%m-%d") if isinstance(dt_max, datetime) else data_fim
+
+    # Datas ISO do período de ponto (independente do range de vendas)
+    try:
+        ponto_d_ini_iso = datetime.strptime(data_ini, "%d/%m/%Y").strftime("%Y-%m-%d")
+        ponto_d_fim_iso = datetime.strptime(data_fim, "%d/%m/%Y").strftime("%Y-%m-%d")
+    except Exception:
+        ponto_d_ini_iso = dt_min_iso
+        ponto_d_fim_iso = dt_max_iso
     periodo    = f"{data_ini} a {data_fim}"
     agora_str  = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -2479,7 +2494,7 @@ function limparFiltros() {{
   const tP = document.getElementById('tituloPonto');
   if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 {periodo}';
   dadosFilt     = VENDAS;
-  pontoMarcFilt = PONTO_MARC;
+  pontoMarcFilt = PONTO_MARC.filter(r => r.data >= '{ponto_d_ini_iso}' && r.data <= '{ponto_d_fim_iso}');
   atualizar();
 }}
 
@@ -2537,10 +2552,10 @@ Chart.defaults.font.family = "'Segoe UI', Arial, sans-serif";
 Chart.defaults.font.size   = 12;
 Chart.defaults.color       = '#cbd5e1';
 dadosFilt = VENDAS;
-// Sincroniza pontoMarcFilt com o filtro de datas inicial (mesma janela das vendas)
+// Sincroniza pontoMarcFilt com o período do ponto (independente do range de vendas)
 (function() {{
-  const ini = document.getElementById('fDateIni').value;
-  const fim = document.getElementById('fDateFim').value;
+  const ini = '{ponto_d_ini_iso}';
+  const fim = '{ponto_d_fim_iso}';
   pontoMarcFilt = PONTO_MARC.filter(r => {{
     if (ini && r.data < ini) return false;
     if (fim && r.data > fim) return false;
