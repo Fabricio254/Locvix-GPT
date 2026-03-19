@@ -2055,10 +2055,13 @@ function mkPontoAusencias(marc) {{
   const canvas = document.getElementById('chartPontoAus');
   if (!canvas) return;
 
-  const dias = [...new Set(marc.map(r => r.data))].sort();
-  if (!dias.length || !PONTO_FUNC.length) return;
+  // Apenas dias úteis (seg-sex) dentro do período
+  const diasUteis = [...new Set(marc.map(r => r.data))]
+    .filter(d => {{ const dow = new Date(d + 'T00:00:00').getDay(); return dow >= 1 && dow <= 5; }})
+    .sort();
+  if (!diasUteis.length || !PONTO_FUNC.length) return;
 
-  const JORNADA = 8;
+  const JORNADA = 8; // horas esperadas por dia útil
   const byFD = {{}};
   marc.forEach(r => {{
     const k = r.funcionario_id + '|' + r.data;
@@ -2068,37 +2071,42 @@ function mkPontoAusencias(marc) {{
   }});
 
   const result = PONTO_FUNC.map(f => {{
-    let hFalta = 0, hAntecip = 0;
-    dias.forEach(dia => {{
+    let dFalta = 0, dAntecip = 0;
+    diasUteis.forEach(dia => {{
       const k = f.id + '|' + dia;
       if (!byFD[k]) {{
-        hFalta += JORNADA;
+        // Nenhuma batida no dia útil = falta completa
+        dFalta += 1;
       }} else {{
-        const pts = byFD[k].slice().sort((a,b)=>a-b);
-        if (pts.length >= 2) {{
-          const span = pts[pts.length-1] - pts[0];
-          const alm  = span > 240 ? 60 : 0;
-          const trab = Math.max(0, span - alm) / 60;
-          if (trab < 7) hAntecip += Math.min(JORNADA, Math.max(0, JORNADA - trab));
-        }} else {{
-          hAntecip += 4;
+        const pts = byFD[k].slice().sort((a, b) => a - b);
+        const span   = pts.length >= 2 ? pts[pts.length - 1] - pts[0] : 0;
+        const alm    = span > 240 ? 60 : 0;
+        const trab   = pts.length >= 2 ? Math.max(0, span - alm) / 60 : 0;
+        const faltou = Math.max(0, JORNADA - trab);
+        if (faltou >= JORNADA) {{
+          // Só 1 batida = dia incompleto → conta como saída antecipada
+          dAntecip += 1;
+        }} else if (faltou > 0.5) {{
+          // Trabalhou menos de 7.5h = saída antecipada
+          dAntecip += 1;
         }}
       }}
     }});
     const partes = f.nome.split(' ');
-    const label  = partes[0] + (partes.length > 1 ? ' ' + partes[partes.length-1] : '');
-    return {{ label, hFalta: Math.round(hFalta*10)/10, hAntecip: Math.round(hAntecip*10)/10 }};
-  }}).sort((a,b) => (b.hFalta+b.hAntecip) - (a.hFalta+a.hAntecip));
+    const label  = partes[0] + (partes.length > 1 ? ' ' + partes[partes.length - 1] : '');
+    return {{ label, dFalta, dAntecip }};
+  }}).filter(r => r.dFalta > 0 || r.dAntecip > 0)
+    .sort((a, b) => (b.dFalta + b.dAntecip) - (a.dFalta + a.dAntecip));
 
-  const totalAus = result.reduce((s,r)=>s+r.hFalta+r.hAntecip,0);
+  const totalDias = result.reduce((s,r)=>s+r.dFalta+r.dAntecip, 0);
   charts['chartPontoAus'] = new Chart(canvas, {{
     type: 'bar',
     data: {{
       labels: result.map(r=>r.label),
       datasets: [
-        {{ label: 'Falta completa', data: result.map(r=>r.hFalta),
+        {{ label: 'Falta completa', data: result.map(r=>r.dFalta),
            backgroundColor: '#ef4444', stack: 's', borderRadius: 0 }},
-        {{ label: 'Saída antecipada', data: result.map(r=>r.hAntecip),
+        {{ label: 'Saída antecipada', data: result.map(r=>r.dAntecip),
            backgroundColor: '#f59e0b', stack: 's', borderRadius: 4 }},
       ]
     }},
@@ -2106,13 +2114,14 @@ function mkPontoAusencias(marc) {{
       responsive: true, maintainAspectRatio: false, indexAxis: 'y',
       plugins: {{
         legend: {{ labels: {{ color:'#cbd5e1', font:{{size:11}}, boxWidth:12 }} }},
-        subtitle: {{ display:true, text:'Total de ausências: '+totalAus.toFixed(0)+'h no período',
+        subtitle: {{ display:true, text:'Total: '+totalDias+' ocorrência(s) no período',
           color:'#fca5a5', font:{{size:12,weight:'bold'}}, padding:{{bottom:6}} }},
-        tooltip: {{ callbacks: {{ label: c => c.dataset.label+': '+c.raw+'h' }} }}
+        tooltip: {{ callbacks: {{ label: c => c.dataset.label+': '+c.raw+' dia(s)' }} }}
       }},
       scales: {{
-        x: {{ stacked:true, ticks:{{color:'#cbd5e1',callback:v=>v+'h'}}, grid:{{color:'#334155'}},
-             title:{{display:true,text:'Horas de Ausência',color:'#94a3b8'}} }},
+        x: {{ stacked:true, ticks:{{color:'#cbd5e1',stepSize:1,callback:v=>Number.isInteger(v)?v:''}},
+             grid:{{color:'#334155'}},
+             title:{{display:true,text:'Dias',color:'#94a3b8'}} }},
         y: {{ stacked:true, ticks:{{color:'#cbd5e1',font:{{size:10}}}}, grid:{{display:false}} }}
       }}
     }}
