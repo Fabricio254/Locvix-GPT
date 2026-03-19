@@ -164,6 +164,7 @@ with st.sidebar:
         "Fonte dos dados de vendas",
         options=["api", "excel"],
         format_func=lambda k: "API GestaoClick" if k == "api" else "Excel Manual",
+        index=1,
         label_visibility="collapsed",
         key="fonte_vendas",
     )
