@@ -1730,6 +1730,8 @@ const OS_LIST   = {jv(raw_os)};
 const CONTRATOS = {jv(raw_contr)};
 const PONTO_FUNC = {jv(ponto_func)};
 const PONTO_MARC = {jv(ponto_marc)};
+const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do período selecionado
+const PERIODO_FIM = '{ponto_d_fim_iso}';
 
 const BRL = v => 'R$\u00a0' + v.toLocaleString('pt-BR',{{minimumFractionDigits:2,maximumFractionDigits:2}});
 const NUM = v => v.toLocaleString('pt-BR');
@@ -2117,7 +2119,11 @@ function mkResultadoMensal() {{
   dadosFilt.forEach(r  => {{ if (r.data) mesesSet.add(r.data.slice(0,7)); }});
   PAGAR.forEach(r => {{ if (r.venc) mesesSet.add(r.venc.slice(0,7)); }});
   if (!mesesSet.size) return;
-  const meses = [...mesesSet].sort();
+  // Filtra apenas meses dentro do período selecionado pelo usuário
+  const _mkIni = PERIODO_INI.slice(0,7);
+  const _mkFim = PERIODO_FIM.slice(0,7);
+  const meses = [...mesesSet].sort().filter(m => m >= _mkIni && m <= _mkFim);
+  if (!meses.length) return;
 
   // Agrupa receitas (vendas liq filtradas) por mês
   const recMes = {{}};
