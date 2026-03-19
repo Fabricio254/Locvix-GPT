@@ -1552,15 +1552,6 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
       <tbody id="tblPontoHoje"></tbody>
     </table>
   </div>
-  <div class="section-title">📋 Últimas 50 Marcações</div>
-  <div class="table-card">
-    <table class="data-tbl">
-      <thead><tr>
-        <th>Data</th><th>Funcionário</th><th class="num">Hora</th><th>Origem</th>
-      </tr></thead>
-      <tbody id="tblPontoUlt"></tbody>
-    </table>
-  </div>
   <div class="section-title">✏️ Motivos dos Ajustes Manuais</div>
   <div class="table-card">
     <h3>Registros manuais agrupados por justificativa no período</h3>
