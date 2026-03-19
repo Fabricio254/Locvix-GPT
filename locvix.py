@@ -2223,7 +2223,7 @@ function renderTblPontoHoje(marc) {{
       : hrs.length >= 2 ? '<span class="badge amarelo">PARCIAL</span>'
       : '<span class="badge amarelo">ENTRADA</span>';
     const origemCell = r.ausente ? '—'
-      : r.manuais > 0 ? `<span style="color:#f59e0b;font-weight:600">✏️ Manual (${r.manuais})</span>`
+      : r.manuais > 0 ? `<span style="color:#f59e0b;font-weight:600">✏️ Manual (${{r.manuais}})</span>`
       : '<span style="color:#94a3b8;font-size:11px">Automático</span>';
     html += `<tr><td>${{i+1}}</td><td>${{r.func}}</td>
       <td class="num">${{entrada}}</td><td class="num">${{saida}}</td>
