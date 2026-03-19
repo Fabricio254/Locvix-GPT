@@ -2370,8 +2370,17 @@ Chart.defaults.font.family = "'Segoe UI', Arial, sans-serif";
 Chart.defaults.font.size   = 12;
 Chart.defaults.color       = '#cbd5e1';
 dadosFilt = VENDAS;
+// Sincroniza pontoMarcFilt com o filtro de datas inicial (mesma janela das vendas)
+(function() {{
+  const ini = document.getElementById('fDateIni').value;
+  const fim = document.getElementById('fDateFim').value;
+  pontoMarcFilt = PONTO_MARC.filter(r => {{
+    if (ini && r.data < ini) return false;
+    if (fim && r.data > fim) return false;
+    return true;
+  }});
+}})();
 atualizar();
-initPonto(PONTO_MARC);
 try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }} catch(e){{}}
 </script>
 </body>
