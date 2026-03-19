@@ -1546,8 +1546,8 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
     <table class="data-tbl">
       <thead><tr>
         <th>#</th><th>Funcionário</th>
-        <th class="num">1ª Entrada</th><th class="num">Última Saída</th>
-        <th class="num">Horas Est.</th><th>Status</th><th>Origem</th>
+        <th class="num">1ª Entrada</th><th class="num">Saída Almoço</th><th class="num">Retorno</th><th class="num">Última Saída</th>
+        <th class="num">H. Trabalhadas</th><th>Status</th><th>Origem</th>
       </tr></thead>
       <tbody id="tblPontoHoje"></tbody>
     </table>
@@ -2318,8 +2318,10 @@ function renderTblPontoHoje(marc) {{
   arr.forEach((r,i) => {{
     const hrs     = r.horas.sort((a,b)=>a-b);
     const fmt     = m => Math.floor(m/60)+':'+String(m%60).padStart(2,'0');
-    const entrada = hrs.length > 0 ? fmt(hrs[0]) : '—';
-    const saida   = hrs.length > 1 ? fmt(hrs[hrs.length-1]) : '—';
+    const entrada     = hrs.length > 0 ? fmt(hrs[0]) : '—';
+    const saidaAlmoco = hrs.length >= 4 ? fmt(hrs[1]) : '—';
+    const retorno     = hrs.length >= 4 ? fmt(hrs[2]) : (hrs.length === 3 ? fmt(hrs[1]) : '—');
+    const saida       = hrs.length > 1 ? fmt(hrs[hrs.length-1]) : '—';
     const jd      = jDia[r.func];
     const hTrabNum = jd ? jd.hTrab : 0;
     const hExtra  = jd ? jd.hExtra : 0;
@@ -2344,11 +2346,11 @@ function renderTblPontoHoje(marc) {{
       : r.manuais > 0 ? `<span style="color:#f59e0b;font-weight:600">✏️ Manual (${{r.manuais}})</span>`
       : '<span style="color:#94a3b8;font-size:11px">Automático</span>';
     html += `<tr${{heStyle}}><td>${{i+1}}</td><td>${{r.func}}</td>
-      <td class="num">${{entrada}}</td><td class="num">${{saida}}</td>
+      <td class="num">${{entrada}}</td><td class="num" style="color:#94a3b8">${{saidaAlmoco}}</td><td class="num" style="color:#94a3b8">${{retorno}}</td><td class="num">${{saida}}</td>
       <td class="num">${{hTrabCell}}</td><td>${{status}}</td><td>${{origemCell}}</td></tr>`;
   }});
   const el = document.getElementById('tblPontoHoje');
-  if (el) el.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:#94a3b8">Sem dados de ponto disponíveis para hoje</td></tr>';
+  if (el) el.innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:#94a3b8">Sem dados de ponto disponíveis para hoje</td></tr>';
 }}
 
 function renderTblPontoUlt(marc) {{
