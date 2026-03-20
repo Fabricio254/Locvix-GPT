@@ -23,7 +23,7 @@ import streamlit.components.v1 as components
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
     page_title="Dashboard Locvix",
-    page_icon="📊",
+    page_icon="logo_locvix.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
