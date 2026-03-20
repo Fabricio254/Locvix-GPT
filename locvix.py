@@ -881,6 +881,223 @@ def buscar_orcamentos() -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════
+#  BUSCA DE DADOS — BOLETINS DE MEDIÇÃO
+# ══════════════════════════════════════════════════════════════════
+def buscar_medicoes() -> list[dict]:
+    """
+    Lê PDFs da pasta 'MEDIÇÃO' e extrai dados dos Boletins de Medição:
+    número, equipamento, período, cliente, horas diurno/noturno/extra,
+    valores financeiros por turno, desmobilização e total a pagar.
+    """
+    import os as _os
+    import re as _re
+
+    try:
+        import pdfplumber as _pl
+    except ImportError:
+        print("  [AVISO] pdfplumber não instalado — módulo Medição indisponível")
+        return []
+
+    _prog(0.695, "Lendo boletins de medição PDF...")
+    base_dir = _os.path.dirname(_os.path.abspath(__file__))
+    pasta = _os.path.join(base_dir, "MEDIÇÃO")
+
+    if not _os.path.exists(pasta):
+        print(f"  [AVISO] Pasta MEDIÇÃO não encontrada: {pasta}")
+        return []
+
+    def _parse_val(txt: str) -> float:
+        """Converte string com R$ e espaços para float."""
+        if not txt:
+            return 0.0
+        limpo = _re.sub(r'[R$\s\.]', '', str(txt)).replace(',', '.')
+        try:
+            return float(limpo)
+        except Exception:
+            return 0.0
+
+    registros: list[dict] = []
+
+    for nome_arq in sorted(_os.listdir(pasta)):
+        if not nome_arq.lower().endswith(".pdf"):
+            continue
+        caminho = _os.path.join(pasta, nome_arq)
+        try:
+            with _pl.open(caminho) as pdf:
+                page = pdf.pages[0]
+                tabelas = page.extract_tables()
+        except Exception as e:
+            print(f"  [AVISO] Erro ao ler {nome_arq}: {e}")
+            continue
+
+        if not tabelas:
+            continue
+
+        tbl = tabelas[0]  # O PDF inteiro é uma tabela grande
+
+        # ── Número do boletim (linha 0, col 15)
+        numero = ""
+        for row in tbl[:3]:
+            if row and len(row) > 15 and row[15]:
+                val = str(row[15]).strip()
+                if _re.match(r'\d+', val):
+                    numero = val
+                    break
+
+        # ── Equipamento e Período (linha 1, col 1, dentro do texto multi-linha)
+        equipamento = ""
+        periodo = ""
+        for row in tbl[:4]:
+            if row and row[1]:
+                celula = str(row[1])
+                m = _re.search(r'EQUIPAMENTO:\s*(.+)', celula)
+                if m:
+                    equipamento = m.group(1).strip()
+                m = _re.search(r'PERÍODO\s*:\s*(.+)', celula)
+                if m:
+                    periodo = m.group(1).strip()
+
+        # ── Cliente: extraído do nome do arquivo
+        # Padrão: "MEDIÇÃO [TIPO] CLIENTE - EQUIPAMENTO DATA..."
+        # Ex:     "MEDIÇÃO DEFINITIVA REDE - EMPILHADEIRA 10T ..."
+        cliente = ""
+        nome_base = nome_arq.replace('.pdf', '')
+        partes = _re.split(r'\s+-\s+', nome_base, maxsplit=1)
+        if partes:
+            # Remove o prefixo "MEDIÇÃO" e palavras modificadoras (DEFINITIVA, PARCIAL etc)
+            _mods = {'DEFINITIVA','DEFINITIVO','PARCIAL','FINAL','COMPLEMENTAR',
+                     'INICIAL','REVISAO','REVISÃO','LOCACAO','LOCAÇÃO'}
+            palavras = partes[0].split()
+            cli_partes = []
+            for pw in palavras:
+                pu = pw.upper().replace('Ç','C').replace('Ã','A').replace('Õ','O')
+                if not cli_partes and (pu.startswith('MEDIC') or pu in _mods):
+                    continue
+                cli_partes.append(pw)
+            cliente = ' '.join(cli_partes).strip()
+
+        # ── Lançamentos diários: cols 1-7 diurno, 9-15 noturno
+        dias_diurno: list[dict] = []
+        dias_noturno: list[dict] = []
+        horas_diurno_total = 0.0
+        horas_noturno_total = 0.0
+        horas_extra_diurno = 0.0
+        horas_extra_noturno = 0.0
+
+        DIAS_PT = {'SEG','TER','QUA','QUI','SEX','SÁB','SAB','DOM'}
+        for row in tbl:
+            if not row or len(row) < 16:
+                continue
+            data_d = str(row[1] or '').strip()
+            sem_d  = str(row[2] or '').strip().upper()
+            # Linha de dado diurno: col 1 tem data dd/mm/yyyy, col 2 tem dia da semana
+            if _re.match(r'\d{2}/\d{2}/\d{4}', data_d) and sem_d in DIAS_PT:
+                h_d = _parse_val(str(row[7] or ''))
+                e_d = _parse_val(str(row[8] or ''))
+                dias_diurno.append({
+                    "data": data_d, "semana": sem_d,
+                    "entrada": str(row[3] or '').strip(),
+                    "saida_almoco": str(row[4] or '').strip(),
+                    "retorno_almoco": str(row[5] or '').strip(),
+                    "saida": str(row[6] or '').strip(),
+                    "horas": h_d, "extra": e_d,
+                })
+                horas_diurno_total += h_d
+                horas_extra_diurno += e_d
+                # Turno noturno (colunas 9-15, mesma linha)
+                if len(row) > 15:
+                    h_n = _parse_val(str(row[15] or ''))
+                    e_n = _parse_val(str(row[16] or '')) if len(row) > 16 else 0.0
+                    if h_n > 0:
+                        dias_noturno.append({
+                            "data": str(row[9] or data_d).strip(), "semana": str(row[10] or sem_d).strip().upper(),
+                            "entrada": str(row[11] or '').strip(),
+                            "saida_jantar": str(row[12] or '').strip(),
+                            "retorno_jantar": str(row[13] or '').strip(),
+                            "saida": str(row[14] or '').strip(),
+                            "horas": h_n, "extra": e_n,
+                        })
+                        horas_noturno_total += h_n
+                        horas_extra_noturno += e_n
+
+        # ── Totais de horas da linha de TOTAL HORAS MÊS
+        for row in tbl:
+            if not row:
+                continue
+            celula = str(row[1] or '')
+            if 'TOTAL HORAS MÊS' in celula and 'TURNO DIA' in celula:
+                if row[7]:
+                    horas_diurno_total = _parse_val(str(row[7]))
+                if row[8]:
+                    horas_extra_diurno = _parse_val(str(row[8]))
+                if row[15]:
+                    horas_noturno_total = _parse_val(str(row[15]))
+                if len(row) > 16 and row[16]:
+                    horas_extra_noturno = _parse_val(str(row[16]))
+                break
+
+        horas_extra_total = horas_extra_diurno + horas_extra_noturno
+
+        # ── Valores financeiros
+        valor_hora_dia = 0.0
+        valor_hora_not = 0.0
+        valor_hora_ext = 0.0
+        valor_diurno = 0.0
+        valor_noturno = 0.0
+        valor_extra = 0.0
+        valor_desmobi = 0.0
+        total_medicao = 0.0
+        total_pagar = 0.0
+
+        for row in tbl:
+            if not row:
+                continue
+            col1 = str(row[1] or '')
+            col15 = str(row[15] or '') if len(row) > 15 else ''
+            col11 = str(row[11] or '') if len(row) > 11 else ''
+            if 'TOTAL DE HORAS/MÊS - TURNO DIURNO' in col1:
+                valor_hora_dia = _parse_val(col11)
+                valor_diurno   = _parse_val(col15)
+            elif 'TOTAL DE HORAS/MÊS - TURNO NOTURNO' in col1:
+                valor_hora_not = _parse_val(col11)
+                valor_noturno  = _parse_val(col15)
+            elif 'HORAS EXTRA TOTAL' in col1:
+                valor_hora_ext = _parse_val(col11)
+                valor_extra    = _parse_val(col15)
+            elif 'DESMOBILIZAÇÃO' in col1:
+                valor_desmobi = _parse_val(col15)
+            elif 'TOTAL MEDIÇÃO PERÍODO' in col1 or 'TOTAL MEDI' in col1:
+                total_medicao = _parse_val(col15)
+            elif 'TOTAL A PAGAR' in col1:
+                total_pagar = _parse_val(col15)
+
+        registros.append({
+            "numero":            numero,
+            "equipamento":       equipamento,
+            "periodo":           periodo,
+            "cliente":           cliente,
+            "horas_diurno":      round(horas_diurno_total, 1),
+            "horas_noturno":     round(horas_noturno_total, 1),
+            "horas_extra":       round(horas_extra_total, 1),
+            "valor_hora_dia":    round(valor_hora_dia, 2),
+            "valor_hora_not":    round(valor_hora_not, 2),
+            "valor_hora_ext":    round(valor_hora_ext, 2),
+            "valor_diurno":      round(valor_diurno, 2),
+            "valor_noturno":     round(valor_noturno, 2),
+            "valor_extra":       round(valor_extra, 2),
+            "valor_desmobi":     round(valor_desmobi, 2),
+            "total_medicao":     round(total_medicao, 2),
+            "total_pagar":       round(total_pagar, 2),
+            "dias_diurno":       dias_diurno,
+            "dias_noturno":      dias_noturno,
+            "arquivo":           nome_arq,
+        })
+
+    print(f"  ✔ {len(registros)} boletins de medição lidos")
+    return registros
+
+
+# ══════════════════════════════════════════════════════════════════
 #  BUSCA DE DADOS — ORDENS DE SERVIÇO
 # ══════════════════════════════════════════════════════════════════
 def buscar_ordens_servico(data_ini: str, data_fim: str) -> list[dict]:
@@ -1235,6 +1452,7 @@ def gerar_dashboard_html(
     data_fim:  str,
     ponto_data: dict | None = None,
     orcamentos: list | None = None,
+    medicoes:   list | None = None,
 ) -> str:
     """Gera dashboard HTML interativo completo para Locvix."""
     import json as _json
@@ -1370,6 +1588,7 @@ def gerar_dashboard_html(
         "st":     c.get("Status",""),
     } for c in contratos]
     raw_orc = orcamentos or []  # já preparado em buscar_orcamentos()
+    raw_med = medicoes or []    # já preparado em buscar_medicoes()
 
     jv = lambda v: _json.dumps(v, ensure_ascii=False)
 
@@ -1686,6 +1905,71 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
       <div class="kpi-label">MRR (Recorrência)</div>
       <div class="kpi-value small" id="kMRR">—</div>
     </div>
+  </div><!-- /kpi OS -->
+
+  <!-- ── BOLETINS DE MEDIÇÃO ── -->
+  <div class="section-title" style="margin-top:28px;">📋 Boletins de Medição</div>
+  <!-- KPIs Medição -->
+  <div class="kpi-grid col5" id="secMedicaoKpis">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Boletins</div>
+      <div class="kpi-value" id="kMedTotal">—</div>
+    </div>
+    <div class="kpi-card teal">
+      <div class="kpi-label">Horas Diurno</div>
+      <div class="kpi-value small" id="kMedHrDia">—</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Horas Noturno</div>
+      <div class="kpi-value small" id="kMedHrNot">—</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Horas Extra</div>
+      <div class="kpi-value small" id="kMedHrExt">—</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Total Faturado</div>
+      <div class="kpi-value small" id="kMedTotal$">—</div>
+    </div>
+  </div>
+  <!-- Gráficos Medição -->
+  <div class="chart-row col2" style="align-items:start;margin-top:16px;" id="secMedicaoCharts">
+    <div class="chart-card">
+      <h3>🏗️ Horas por Equipamento</h3>
+      <div style="position:relative;height:240px;">
+        <canvas id="chartMedHoras"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>💰 Faturamento por Boletim</h3>
+      <div style="position:relative;height:240px;">
+        <canvas id="chartMedFat"></canvas>
+      </div>
+    </div>
+  </div>
+  <!-- Tabela Medição -->
+  <div class="table-card" style="margin-top:16px;" id="secMedicaoTabela">
+    <h3>📄 Detalhamento dos Boletins</h3>
+    <div style="overflow-x:auto;">
+      <table class="data-tbl" id="tblMedicoes">
+        <thead>
+          <tr>
+            <th>Nº Boletim</th><th>Equipamento</th><th>Cliente</th><th>Período</th>
+            <th class="num">H.Diurno</th><th class="num">H.Noturno</th><th class="num">H.Extra</th>
+            <th class="num">Vl.Hora Dia</th><th class="num">Vl.Hora Not</th>
+            <th class="num">Turno Diurno</th><th class="num">Turno Noturno</th>
+            <th class="num">Horas Extra</th><th class="num">Desmobilização</th>
+            <th class="num">Total Medição</th><th class="num">Total a Pagar</th>
+          </tr>
+        </thead>
+        <tbody id="tblMedicoesBdy"></tbody>
+        <tfoot id="tblMedicoesFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div id="secMedicaoVazio" style="display:none;padding:32px;text-align:center;color:#94a3b8;font-size:15px;">
+    📂 Nenhum boletim de medição encontrado na pasta <code>MEDIÇÃO/</code>
   </div>
 
   </div><!-- /mod operacoes -->
@@ -1946,6 +2230,7 @@ const CONTRATOS = {jv(raw_contr)};
 const PONTO_FUNC = {jv(ponto_func)};
 const PONTO_MARC = {jv(ponto_marc)};
 const ORCAMENTOS = {jv(raw_orc)};
+const MEDICOES   = {jv(raw_med)};
 const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do período selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
 
@@ -3031,6 +3316,149 @@ function mkOrcamento() {{
 }}
 
 // ═══════════════════════════════════════════════
+//  BOLETINS DE MEDIÇÃO
+// ═══════════════════════════════════════════════
+function mkMedicoes() {{
+  const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
+  const vazio  = document.getElementById('secMedicaoVazio');
+  const kpis   = document.getElementById('secMedicaoKpis');
+  const charts = document.getElementById('secMedicaoCharts');
+  const tabela = document.getElementById('secMedicaoTabela');
+
+  if (!MEDICOES || !MEDICOES.length) {{
+    if (vazio) vazio.style.display = '';
+    if (kpis)   kpis.style.display   = 'none';
+    if (charts) charts.style.display = 'none';
+    if (tabela) tabela.style.display = 'none';
+    return;
+  }}
+  if (vazio) vazio.style.display = 'none';
+  if (kpis)   kpis.style.display   = '';
+  if (charts) charts.style.display = '';
+  if (tabela) tabela.style.display = '';
+
+  // ── KPIs
+  const totBoletins  = MEDICOES.length;
+  const totHrDia     = MEDICOES.reduce((s, r) => s + (r.horas_diurno  || 0), 0);
+  const totHrNot     = MEDICOES.reduce((s, r) => s + (r.horas_noturno || 0), 0);
+  const totHrExt     = MEDICOES.reduce((s, r) => s + (r.horas_extra   || 0), 0);
+  const totFaturado  = MEDICOES.reduce((s, r) => s + (r.total_pagar   || 0), 0);
+
+  _set('kMedTotal',   NUM(totBoletins));
+  _set('kMedHrDia',   totHrDia.toLocaleString('pt-BR', {{maximumFractionDigits:1}}) + 'h');
+  _set('kMedHrNot',   totHrNot.toLocaleString('pt-BR', {{maximumFractionDigits:1}}) + 'h');
+  _set('kMedHrExt',   totHrExt.toLocaleString('pt-BR', {{maximumFractionDigits:1}}) + 'h');
+  _set('kMedTotal$',  BRL(totFaturado));
+
+  // ── Tabela
+  const tbody = document.getElementById('tblMedicoesBdy');
+  const tfoot = document.getElementById('tblMedicoesFoot');
+  if (tbody) {{
+    tbody.innerHTML = MEDICOES.map(r => `
+      <tr>
+        <td><strong>${{r.numero || '—'}}</strong></td>
+        <td>${{r.equipamento || '—'}}</td>
+        <td>${{r.cliente || '—'}}</td>
+        <td style="white-space:nowrap">${{r.periodo || '—'}}</td>
+        <td class="num">${{(r.horas_diurno  || 0).toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
+        <td class="num">${{(r.horas_noturno || 0).toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
+        <td class="num">${{(r.horas_extra   || 0).toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
+        <td class="num">${{BRL(r.valor_hora_dia || 0)}}</td>
+        <td class="num">${{BRL(r.valor_hora_not || 0)}}</td>
+        <td class="num">${{BRL(r.valor_diurno   || 0)}}</td>
+        <td class="num">${{BRL(r.valor_noturno  || 0)}}</td>
+        <td class="num">${{BRL(r.valor_extra    || 0)}}</td>
+        <td class="num">${{BRL(r.valor_desmobi  || 0)}}</td>
+        <td class="num"><strong>${{BRL(r.total_medicao || 0)}}</strong></td>
+        <td class="num"><strong style="color:#059669">${{BRL(r.total_pagar   || 0)}}</strong></td>
+      </tr>`).join('');
+  }}
+  if (tfoot) {{
+    const totDesmobi = MEDICOES.reduce((s, r) => s + (r.valor_desmobi || 0), 0);
+    const totMed     = MEDICOES.reduce((s, r) => s + (r.total_medicao || 0), 0);
+    const totDia$    = MEDICOES.reduce((s, r) => s + (r.valor_diurno  || 0), 0);
+    const totNot$    = MEDICOES.reduce((s, r) => s + (r.valor_noturno || 0), 0);
+    const totExt$    = MEDICOES.reduce((s, r) => s + (r.valor_extra   || 0), 0);
+    tfoot.innerHTML = `<tr style="font-weight:700;background:#f0fdf4">
+      <td colspan="4">TOTAL (${{{totBoletins}}} boletim${{totBoletins!==1?'s':''}})</td>
+      <td class="num">${{totHrDia.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
+      <td class="num">${{totHrNot.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
+      <td class="num">${{totHrExt.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
+      <td class="num">—</td><td class="num">—</td>
+      <td class="num">${{BRL(totDia$)}}</td>
+      <td class="num">${{BRL(totNot$)}}</td>
+      <td class="num">${{BRL(totExt$)}}</td>
+      <td class="num">${{BRL(totDesmobi)}}</td>
+      <td class="num"><strong>${{BRL(totMed)}}</strong></td>
+      <td class="num"><strong style="color:#059669">${{BRL(totFaturado)}}</strong></td>
+    </tr>`;
+  }}
+
+  const isDark  = document.body.getAttribute('data-theme') !== 'light';
+  const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
+  const gridClr = isDark ? '#334155' : '#e2e8f0';
+
+  // ── Gráfico: Horas por Equipamento (diurno vs noturno)
+  destroyChart('chartMedHoras');
+  const cvH = document.getElementById('chartMedHoras');
+  if (cvH) {{
+    const labels = MEDICOES.map(r => (r.equipamento || r.numero || r.arquivo || '—').replace(/\d+\/\d+T$/,'').trim());
+    charts['chartMedHoras'] = new Chart(cvH, {{
+      type: 'bar',
+      data: {{
+        labels,
+        datasets: [
+          {{ label: '☀️ Diurno',  data: MEDICOES.map(r => r.horas_diurno  || 0), backgroundColor: '#0891b2', borderRadius: 4 }},
+          {{ label: '🌙 Noturno', data: MEDICOES.map(r => r.horas_noturno || 0), backgroundColor: '#7c3aed', borderRadius: 4 }},
+          {{ label: '⚡ Extra',   data: MEDICOES.map(r => r.horas_extra   || 0), backgroundColor: '#f59e0b', borderRadius: 4 }},
+        ]
+      }},
+      options: {{
+        responsive: true, maintainAspectRatio: false,
+        plugins: {{
+          legend: {{ labels: {{ color: txtClr }} }},
+          tooltip: {{ callbacks: {{ label: c => c.dataset.label + ': ' + c.raw + 'h' }} }}
+        }},
+        scales: {{
+          x: {{ stacked: true, ticks: {{ color: txtClr }}, grid: {{ color: gridClr }} }},
+          y: {{ stacked: true, ticks: {{ color: txtClr, callback: v => v + 'h' }}, grid: {{ color: gridClr }}, beginAtZero: true }}
+        }}
+      }}
+    }});
+  }}
+
+  // ── Gráfico: Faturamento por Boletim
+  destroyChart('chartMedFat');
+  const cvF = document.getElementById('chartMedFat');
+  if (cvF) {{
+    const labels = MEDICOES.map(r => 'Nº ' + (r.numero || r.arquivo?.slice(0,12) || '—'));
+    const cores = MEDICOES.map((_, i) => CORES[i % CORES.length]);
+    charts['chartMedFat'] = new Chart(cvF, {{
+      type: 'bar',
+      data: {{
+        labels,
+        datasets: [{{
+          label: 'Total a Pagar',
+          data: MEDICOES.map(r => r.total_pagar || 0),
+          backgroundColor: cores, borderRadius: 6
+        }}]
+      }},
+      options: {{
+        responsive: true, maintainAspectRatio: false,
+        plugins: {{
+          legend: {{ display: false }},
+          tooltip: {{ callbacks: {{ label: c => BRL(c.raw) }} }}
+        }},
+        scales: {{
+          x: {{ ticks: {{ color: txtClr }}, grid: {{ color: gridClr }} }},
+          y: {{ ticks: {{ color: txtClr, callback: v => 'R$' + (v/1000).toFixed(0) + 'k' }}, grid: {{ color: gridClr }}, beginAtZero: true }}
+        }}
+      }}
+    }});
+  }}
+}}
+
+// ═══════════════════════════════════════════════
 //  NAVEGAÇÃO POR MÓDULOS
 // ═══════════════════════════════════════════════
 function setModulo(m) {{
@@ -3072,6 +3500,7 @@ function atualizar() {{
   mkFinanceiro();
   initPonto(pontoMarcFilt);
   mkOrcamento();
+  mkMedicoes();
 }}
 
 function aplicarFiltros() {{ filtrar(); atualizar(); }}
@@ -3235,6 +3664,7 @@ def main(
     produtos  = buscar_produtos()
     contratos = buscar_contratos()
     orcamentos = buscar_orcamentos()
+    medicoes   = buscar_medicoes()
     os_list   = buscar_ordens_servico(d_ini, d_fim)
     ponto_data = buscar_ponto(d_ini, d_fim)
 
@@ -3266,7 +3696,7 @@ def main(
         df_vendas=df, receber=receber, pagar=pagar, pagar_all=pagar_all,
         os_list=os_list, contratos=contratos,
         caminho=h_path, data_ini=d_ini, data_fim=d_fim,
-        ponto_data=ponto_data, orcamentos=orcamentos,
+        ponto_data=ponto_data, orcamentos=orcamentos, medicoes=medicoes,
     )
 
     _prog(1.0, "✔ Concluído!")
