@@ -3458,7 +3458,7 @@ function atualizar() {{
   const rows = dadosFilt;
   atualizarKPIVendas(rows);
   atualizarKPIFinanceiro();
-  atualizarKPIOS();
+  // atualizarKPIOS() removido — elementos HTML foram removidos do módulo Operações
 
   // Gráficos de vendas
   mkMensal(rows);
