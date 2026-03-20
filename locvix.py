@@ -1805,21 +1805,6 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
     <input type="date" id="fDateFim" value="{dt_max_iso}"/>
   </div>
   <div class="filter-sep"></div>
-  <div class="filter-group">
-    <label>🏷 Categoria</label>
-    <select id="fCat">
-      <option value="">— Todas —</option>
-      {opt_cat}
-    </select>
-  </div>
-  <div class="filter-group">
-    <label>👤 Vendedor</label>
-    <select id="fVend">
-      <option value="">— Todos —</option>
-      {opt_vend}
-    </select>
-  </div>
-  <div class="filter-sep"></div>
   <button class="btn btn-apply" onclick="aplicarFiltros()">▶ Aplicar</button>
   <button class="btn btn-clear" onclick="limparFiltros()">✕ Limpar</button>
   <div class="filter-info" id="filtroInfo"></div>
@@ -2232,13 +2217,9 @@ let pontoMarcFilt = PONTO_MARC;
 function filtrar() {{
   const ini  = document.getElementById('fDateIni').value;
   const fim  = document.getElementById('fDateFim').value;
-  const cat  = document.getElementById('fCat').value;
-  const vend = document.getElementById('fVend').value;
   dadosFilt = VENDAS.filter(r => {{
-    if (ini  && r.data < ini)  return false;
-    if (fim  && r.data > fim)  return false;
-    if (cat  && r.categoria !== cat)  return false;
-    if (vend && r.vendedor  !== vend) return false;
+    if (ini && r.data < ini) return false;
+    if (fim && r.data > fim) return false;
     return true;
   }});
   pontoMarcFilt = PONTO_MARC.filter(r => {{
@@ -3487,8 +3468,6 @@ function aplicarFiltros() {{ filtrar(); atualizar(); }}
 function limparFiltros() {{
   document.getElementById('fDateIni').value = '{dt_min_iso}';
   document.getElementById('fDateFim').value = '{dt_max_iso}';
-  document.getElementById('fCat').value  = '';
-  document.getElementById('fVend').value = '';
   document.getElementById('filtroInfo').textContent = '';
   const tP = document.getElementById('tituloPonto');
   if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 {periodo}';
