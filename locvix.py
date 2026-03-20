@@ -1886,26 +1886,6 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
   </div><!-- /mod financeiro-kpi -->
 
   <div class="mod-section" data-mod="operacoes">
-  <!-- ── KPIs OS + CONTRATOS ── -->
-  <div class="section-title">🔧 Operações — OS & Contratos</div>
-  <div class="kpi-grid col4">
-    <div class="kpi-card blue">
-      <div class="kpi-label">OS Abertas</div>
-      <div class="kpi-value" id="kOsAbert">—</div>
-    </div>
-    <div class="kpi-card green">
-      <div class="kpi-label">OS Concluídas</div>
-      <div class="kpi-value" id="kOsConc">—</div>
-    </div>
-    <div class="kpi-card purple">
-      <div class="kpi-label">Contratos Ativos</div>
-      <div class="kpi-value" id="kContrAt">—</div>
-    </div>
-    <div class="kpi-card teal">
-      <div class="kpi-label">MRR (Recorrência)</div>
-      <div class="kpi-value small" id="kMRR">—</div>
-    </div>
-  </div><!-- /kpi OS -->
 
   <!-- ── BOLETINS DE MEDIÇÃO ── -->
   <div class="section-title" style="margin-top:28px;">📋 Boletins de Medição</div>
