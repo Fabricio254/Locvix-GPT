@@ -3380,7 +3380,7 @@ function mkMedicoes() {{
     const totNot$    = MEDICOES.reduce((s, r) => s + (r.valor_noturno || 0), 0);
     const totExt$    = MEDICOES.reduce((s, r) => s + (r.valor_extra   || 0), 0);
     tfoot.innerHTML = `<tr style="font-weight:700;background:#f0fdf4">
-      <td colspan="4">TOTAL (${{{totBoletins}}} boletim${{totBoletins!==1?'s':''}})</td>
+      <td colspan="4">TOTAL (${{totBoletins}} boletim${{totBoletins!==1?'s':''}})</td>
       <td class="num">${{totHrDia.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
       <td class="num">${{totHrNot.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
       <td class="num">${{totHrExt.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
