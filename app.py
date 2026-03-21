@@ -191,7 +191,7 @@ with st.sidebar:
 st.title("📊 Dashboard — LOCVIX")
 st.caption("Análise de Vendas · Financeiro · Clientes · OS · Contratos via GestãoClick ERP")
 
-HTML_KEY   = "locvix_html_v7"   # bump this when JS/HTML changes break cached output
+HTML_KEY   = "locvix_html_v8"   # bump this when JS/HTML changes break cached output
 STATUS_KEY = "locvix_status"
 TIME_KEY   = "locvix_time"
 PERIOD_KEY = "locvix_period"
@@ -200,13 +200,24 @@ _data_ini_str = data_ini_sel.strftime("%d/%m/%Y")
 _data_fim_str = data_fim_sel.strftime("%d/%m/%Y")
 _period_id    = f"{_data_ini_str}_{_data_fim_str}"
 
+# Compute a hash of locvix.py — if the source changed, invalidate the cache
+import hashlib as _hashlib, pathlib as _pathlib
+_src_hash = _hashlib.md5(
+    _pathlib.Path(__file__).with_name("locvix.py").read_bytes()
+).hexdigest()[:8]
+_CODE_VER_KEY = "locvix_code_ver"
+if st.session_state.get(_CODE_VER_KEY) != _src_hash:
+    st.session_state.pop(HTML_KEY, None)
+    st.session_state.pop(STATUS_KEY, None)
+    st.session_state[_CODE_VER_KEY] = _src_hash
+
 # Invalida cache se período mudou
 if st.session_state.get(PERIOD_KEY) != _period_id:
     st.session_state.pop(HTML_KEY, None)
     st.session_state.pop(STATUS_KEY, None)
 
 # Remove stale HTML from old key versions
-for _old_key in ["locvix_html", "locvix_html_v2", "locvix_html_v3", "locvix_html_v4", "locvix_html_v5", "locvix_html_v6"]:
+for _old_key in ["locvix_html", "locvix_html_v2", "locvix_html_v3", "locvix_html_v4", "locvix_html_v5", "locvix_html_v6", "locvix_html_v7"]:
     st.session_state.pop(_old_key, None)
 
 # ── Barra de ação ─────────────────────────────────────────────────
