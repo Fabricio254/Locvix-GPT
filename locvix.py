@@ -1653,7 +1653,14 @@ def gerar_dashboard_html(
     raw_med = medicoes or []    # já preparado em buscar_medicoes()
     raw_horas_app = horas_app or []  # registros do LocvixApp via Supabase
 
-    jv = lambda v: _json.dumps(v, ensure_ascii=False)
+    def _clean_surrogates(o):
+        """Remove lone surrogate characters that break UTF-8/JSON serialization."""
+        if isinstance(o, str):
+            return ''.join(c for c in o if not ('\ud800' <= c <= '\udfff'))
+        if isinstance(o, list):  return [_clean_surrogates(x) for x in o]
+        if isinstance(o, dict):  return {k: _clean_surrogates(v) for k, v in o.items()}
+        return o
+    jv = lambda v: _json.dumps(_clean_surrogates(v), ensure_ascii=False)
 
     # Ponto data
     ponto_func = (ponto_data or {}).get("funcionarios", [])
@@ -2422,7 +2429,7 @@ function filtrar() {{
   }});
   const fmtD = s => s ? s.split('-').reverse().join('/') : '?';
   const tP = document.getElementById('tituloPonto');
-  if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 ' + fmtD(ini) + ' a ' + fmtD(fim);
+  if (tP) tP.textContent = '🕐 Ponto Colaborador \u2014 ' + fmtD(ini) + ' a ' + fmtD(fim);
   const info = document.getElementById('filtroInfo');
   info.textContent = dadosFilt.length === VENDAS.length ? '' :
     `\u2714 ${{NUM(dadosFilt.length)}} de ${{NUM(VENDAS.length)}} itens filtrados`;
@@ -3476,19 +3483,19 @@ function mkMedicoes() {{
   const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
   const vazio  = document.getElementById('secMedicaoVazio');
   const kpis   = document.getElementById('secMedicaoKpis');
-  const charts = document.getElementById('secMedicaoCharts');
+  const secChartsMed = document.getElementById('secMedicaoCharts');
   const tabela = document.getElementById('secMedicaoTabela');
 
   if (!MEDICOES || !MEDICOES.length) {{
     if (vazio) vazio.style.display = '';
-    if (kpis)   kpis.style.display   = 'none';
-    if (charts) charts.style.display = 'none';
+    if (kpis)         kpis.style.display         = 'none';
+    if (secChartsMed) secChartsMed.style.display = 'none';
     if (tabela) tabela.style.display = 'none';
     return;
   }}
   if (vazio) vazio.style.display = 'none';
-  if (kpis)   kpis.style.display   = '';
-  if (charts) charts.style.display = '';
+  if (kpis)         kpis.style.display         = '';
+  if (secChartsMed) secChartsMed.style.display = '';
   if (tabela) tabela.style.display = '';
 
   // ── KPIs
@@ -3618,22 +3625,22 @@ function mkMedicoes() {{
 function mkHorasApp() {{
   try {{
   const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
-  const vazio  = document.getElementById('secHorasAppVazio');
-  const kpis   = document.getElementById('secHorasAppKpis');
-  const charts = document.getElementById('secHorasAppCharts');
-  const tabela = document.getElementById('secHorasAppTabela');
+  const vazio        = document.getElementById('secHorasAppVazio');
+  const kpis         = document.getElementById('secHorasAppKpis');
+  const secChartsApp = document.getElementById('secHorasAppCharts');
+  const tabela       = document.getElementById('secHorasAppTabela');
 
   if (!HORAS_APP || !HORAS_APP.length) {{
-    if (vazio)  vazio.style.display  = '';
-    if (kpis)   kpis.style.display   = 'none';
-    if (charts) charts.style.display = 'none';
-    if (tabela) tabela.style.display = 'none';
+    if (vazio)        vazio.style.display        = '';
+    if (kpis)         kpis.style.display         = 'none';
+    if (secChartsApp) secChartsApp.style.display = 'none';
+    if (tabela)       tabela.style.display       = 'none';
     return;
   }}
-  if (vazio)  vazio.style.display  = 'none';
-  if (kpis)   kpis.style.display   = '';
-  if (charts) charts.style.display = '';
-  if (tabela) tabela.style.display = '';
+  if (vazio)        vazio.style.display        = 'none';
+  if (kpis)         kpis.style.display         = '';
+  if (secChartsApp) secChartsApp.style.display = '';
+  if (tabela)       tabela.style.display       = '';
 
   // ── KPIs
   const totReg    = HORAS_APP.length;
@@ -3794,7 +3801,7 @@ function limparFiltros() {{
   document.getElementById('fDateFim').value = '{dt_max_iso}';
   document.getElementById('filtroInfo').textContent = '';
   const tP = document.getElementById('tituloPonto');
-  if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 {periodo}';
+  if (tP) tP.textContent = '🕐 Ponto Colaborador \u2014 {periodo}';
   dadosFilt     = VENDAS;
   pagarFilt     = PAGAR;
   pagarFiltFin  = PAGAR;
