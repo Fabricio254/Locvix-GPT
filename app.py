@@ -191,7 +191,7 @@ with st.sidebar:
 st.title("📊 Dashboard — LOCVIX")
 st.caption("Análise de Vendas · Financeiro · Clientes · OS · Contratos via GestãoClick ERP")
 
-HTML_KEY   = "locvix_html"
+HTML_KEY   = "locvix_html_v5"   # bump this when JS/HTML changes break cached output
 STATUS_KEY = "locvix_status"
 TIME_KEY   = "locvix_time"
 PERIOD_KEY = "locvix_period"
@@ -204,6 +204,10 @@ _period_id    = f"{_data_ini_str}_{_data_fim_str}"
 if st.session_state.get(PERIOD_KEY) != _period_id:
     st.session_state.pop(HTML_KEY, None)
     st.session_state.pop(STATUS_KEY, None)
+
+# Remove stale HTML from old key versions
+for _old_key in ["locvix_html", "locvix_html_v2", "locvix_html_v3", "locvix_html_v4"]:
+    st.session_state.pop(_old_key, None)
 
 # ── Barra de ação ─────────────────────────────────────────────────
 col1, col2 = st.columns([3, 1])
