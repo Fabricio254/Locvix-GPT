@@ -3616,6 +3616,7 @@ function mkMedicoes() {{
 //  HORAS REGISTRADAS PELO APP (Supabase)
 // ═══════════════════════════════════════════════
 function mkHorasApp() {{
+  try {{
   const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
   const vazio  = document.getElementById('secHorasAppVazio');
   const kpis   = document.getElementById('secHorasAppKpis');
@@ -3667,7 +3668,7 @@ function mkHorasApp() {{
         <td class="num">${{r.hora_fim || '—'}}</td>
         <td class="num"><strong>${{(parseFloat(r.horas_trabalhadas)||0).toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</strong></td>
         <td><span style="color:${{stClr}};font-weight:600">${{st}}</span></td>
-        <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${{r.observacoes||''}}">\n          ${{r.observacoes || ''}}</td>
+        <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${{r.observacoes||''}}">${{r.observacoes || ''}}</td>
       </tr>`;
     }}).join('');
   }}
@@ -3738,6 +3739,7 @@ function mkHorasApp() {{
       }}
     }});
   }}
+}} catch(e) {{ console.warn('mkHorasApp:', e); }}
 }}
 
 // ═══════════════════════════════════════════════
