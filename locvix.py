@@ -2783,7 +2783,7 @@ function mkPagarMensal() {{
   const vencido = {{}};
   const hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
   meses.forEach(m => {{ pago[m.key]=0; aVencer[m.key]=0; vencido[m.key]=0; }});
-  PAGAR_ALL.forEach(r => {{
+  pagarFiltFin.forEach(r => {{
     if (!r.venc) return;
     const mk = r.venc.slice(0,7);
     if (!Object.prototype.hasOwnProperty.call(pago, mk)) return;
