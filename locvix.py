@@ -2352,9 +2352,9 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
 <script type="application/json" id="_dHORAS_APP">{jv(raw_horas_app)}</script>
 
 <script>
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 //  DADOS BRUTOS (lidos via JSON.parse - nunca como JS literal)
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 function _pd(id) {{
   const el = document.getElementById(id);
   if (!el) return [];
@@ -2371,27 +2371,27 @@ const PONTO_MARC = _pd('_dPONTO_MARC');
 const ORCAMENTOS = _pd('_dORCAMENTOS');
 const MEDICOES   = _pd('_dMEDICOES');
 const HORAS_APP  = _pd('_dHORAS_APP');
-const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do período selecionado
+const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do per\u00EDodo selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
 
 const BRL = v => 'R$\u00a0' + v.toLocaleString('pt-BR',{{minimumFractionDigits:2,maximumFractionDigits:2}});
 const NUM = v => v.toLocaleString('pt-BR');
-const PCT = (a,b) => b > 0 ? (a/b*100).toFixed(1)+'%' : '—';
+const PCT = (a,b) => b > 0 ? (a/b*100).toFixed(1)+'%' : '\u2014';
 
-// ── Cores ──────────────────────────────────────
+// \u2500\u2500 Cores \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const CORES = ['#1a3a4a','#0891b2','#059669','#d97706','#7c3aed',
                '#2563eb','#dc2626','#0d9488','#65a30d','#ea580c',
                '#db2777','#6366f1','#78716c','#0369a1','#15803d'];
 
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 //  ESTADO DE FILTROS
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 let dadosFilt    = VENDAS;
 let pontoMarcFilt = PONTO_MARC;
 let pagarFilt    = PAGAR;
-let pagarFiltFin = PAGAR;  // filtro interno do módulo Financeiro (cat + cc)
+let pagarFiltFin = PAGAR;  // filtro interno do m\u00F3dulo Financeiro (cat + cc)
 
-// ── Popula os selects de filtro do módulo Financeiro
+// \u2500\u2500 Popula os selects de filtro do m\u00F3dulo Financeiro
 function _populaFiltrosFinanceiro() {{
   const cats = [...new Set(PAGAR.map(r => r.cat || '').filter(v => v))].sort();
   const ccs  = [...new Set(PAGAR.map(r => r.cc  || '').filter(v => v))].sort();
@@ -2439,7 +2439,7 @@ function filtrar() {{
     if (fim && r.venc > fim) return false;
     return true;
   }});
-  pagarFiltFin = pagarFilt;  // reseta filtro interno ao alterar período global
+  pagarFiltFin = pagarFilt;  // reseta filtro interno ao alterar per\u00EDodo global
   pontoMarcFilt = PONTO_MARC.filter(r => {{
     if (ini && r.data < ini) return false;
     if (fim && r.data > fim) return false;
@@ -2447,15 +2447,15 @@ function filtrar() {{
   }});
   const fmtD = s => s ? s.split('-').reverse().join('/') : '?';
   const tP = document.getElementById('tituloPonto');
-  if (tP) tP.textContent = '🕐 Ponto Colaborador \u2014 ' + fmtD(ini) + ' a ' + fmtD(fim);
+  if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 ' + fmtD(ini) + ' a ' + fmtD(fim);
   const info = document.getElementById('filtroInfo');
   info.textContent = dadosFilt.length === VENDAS.length ? '' :
     `\u2714 ${{NUM(dadosFilt.length)}} de ${{NUM(VENDAS.length)}} itens filtrados`;
 }}
 
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 //  CHARTS
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 const charts = {{}};
 function destroyChart(id) {{
   // 1) destroy via our registry
@@ -2484,7 +2484,7 @@ function mkMensal(rows) {{
     data: {{
       labels,
       datasets: [{{
-        label: 'Fat. Líquido',
+        label: 'Fat. L\u00EDquido',
         data: entries.map(e=>Math.round(e[1])),
         backgroundColor: '#0891b2', borderRadius: 5, borderSkipped: false,
       }}]
@@ -2591,7 +2591,7 @@ function mkDonut(id, entries, centerLabel) {{
     const msg = document.createElement('div');
     msg.id = id + '-nodata';
     msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:120px;color:#94a3b8;font-size:13px;text-align:center;';
-    msg.innerHTML = '⚠️ Módulo financeiro não disponível<br/>no plano atual da API';
+    msg.innerHTML = '\u26A0\uFE0F M\u00F3dulo financeiro n\u00E3o dispon\u00EDvel<br/>no plano atual da API';
     canvas.parentNode.insertBefore(msg, canvas.nextSibling);
     return;
   }}
@@ -2635,9 +2635,9 @@ function mkDonut(id, entries, centerLabel) {{
   }});
 }}
 
-// ═══════════════════════════════════════════════
-//  ATUALIZAÇÃO DOS KPIs
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  ATUALIZA\u00C7\u00C3O DOS KPIs
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 function atualizarKPIVendas(rows) {{
   const liq   = rows.reduce((s,r)=>s+r.liq,0);
   const bruto = rows.reduce((s,r)=>s+r.bruto,0);
@@ -2663,11 +2663,11 @@ function atualizarKPIFinanceiro() {{
 function atualizarKPIOS() {{
   const total   = OS_LIST.length;
   const abertas = OS_LIST.filter(o=>!['CONCLUIDO','FECHADA','CANCELADA'].includes(o.st)).length;
-  const conc    = OS_LIST.filter(o=>['CONCLUIDO','CONCLUÍDA','FECHADA'].includes(o.st)).length;
+  const conc    = OS_LIST.filter(o=>['CONCLUIDO','CONCLU\u00CDDA','FECHADA'].includes(o.st)).length;
   const contativos = CONTRATOS.filter(c=>c.st && !['CANCELADO','INATIVO'].includes(c.st.toUpperCase())).length;
   const mrr = CONTRATOS
     .filter(c=>c.st && !['CANCELADO','INATIVO'].includes(c.st.toUpperCase()))
-    .filter(c=>c.period && (c.period.includes('MENSAL') || c.period.includes('MÊS')))
+    .filter(c=>c.period && (c.period.includes('MENSAL') || c.period.includes('M\u00CAS')))
     .reduce((s,c)=>s+c.val,0);
   document.getElementById('kOsAbert').textContent  = NUM(abertas);
   document.getElementById('kOsConc').textContent   = NUM(conc);
@@ -2675,9 +2675,9 @@ function atualizarKPIOS() {{
   document.getElementById('kMRR').textContent      = BRL(mrr);
 }}
 
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 //  TABELAS
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 function renderTblProdutos(rows) {{
   const m = {{}};
   rows.forEach(r => {{
@@ -2690,8 +2690,8 @@ function renderTblProdutos(rows) {{
   let html = '';
   arr.forEach((r,i) => {{
     html += `<tr>
-      <td>${{i+1}}</td><td><code style="font-size:11px;color:#64748b">${{r.cod||'—'}}</code></td>
-      <td>${{r.prod||'—'}}</td><td>${{r.cat||'—'}}</td>
+      <td>${{i+1}}</td><td><code style="font-size:11px;color:#64748b">${{r.cod||'\u2014'}}</code></td>
+      <td>${{r.prod||'\u2014'}}</td><td>${{r.cat||'\u2014'}}</td>
       <td class="num">${{r.qtd.toLocaleString('pt-BR',{{maximumFractionDigits:0}})}}</td>
       <td class="num">${{BRL(r.bruto)}}</td><td class="num">${{BRL(r.desc)}}</td>
       <td class="num">${{BRL(r.liq)}}</td>
@@ -2721,7 +2721,7 @@ function renderTblClientes(rows) {{
   let html = '';
   arr.forEach((r,i) => {{
     html += `<tr>
-      <td>${{i+1}}</td><td>${{r.cli||'—'}}</td><td>${{r.vend||'—'}}</td>
+      <td>${{i+1}}</td><td>${{r.cli||'\u2014'}}</td><td>${{r.vend||'\u2014'}}</td>
       <td class="num">${{NUM(r.ids.size)}}</td>
       <td class="num">${{BRL(r.bruto)}}</td><td class="num">${{BRL(r.desc)}}</td>
       <td class="num">${{BRL(r.liq)}}</td>
@@ -2732,20 +2732,20 @@ function renderTblClientes(rows) {{
   const tTot = arr.reduce((s,r)=>s+r.bruto,0);
   const tDesc = arr.reduce((s,r)=>s+r.desc,0);
   document.getElementById('tblCliTotal').innerHTML =
-    `<td colspan="3">TOTAL (TOP 20)</td><td class="num">—</td>
+    `<td colspan="3">TOTAL (TOP 20)</td><td class="num">\u2014</td>
      <td class="num">${{BRL(tTot)}}</td><td class="num">${{BRL(tDesc)}}</td>
      <td class="num">${{BRL(totLiq)}}</td><td class="num">100%</td>`;
 }}
 
 function statusBadge(st) {{
   const s = (st||'').toUpperCase();
-  if (['PAGO','RECEBIDO','QUITADO','CONCLUIDO','CONCLUÍDA','ATIVO'].some(x=>s.includes(x)))
+  if (['PAGO','RECEBIDO','QUITADO','CONCLUIDO','CONCLU\u00CDDA','ATIVO'].some(x=>s.includes(x)))
     return `<span class="badge verde">${{st}}</span>`;
   if (['VENCIDO','INADIMPLENTE','ATRASADO','CANCELADO'].some(x=>s.includes(x)))
     return `<span class="badge vermelho">${{st}}</span>`;
   if (['ABERTO','PENDENTE','AGUARDANDO'].some(x=>s.includes(x)))
     return `<span class="badge amarelo">${{st}}</span>`;
-  return `<span class="badge cinza">${{st||'—'}}</span>`;
+  return `<span class="badge cinza">${{st||'\u2014'}}</span>`;
 }}
 
 function renderTblReceber() {{
@@ -2753,11 +2753,11 @@ function renderTblReceber() {{
   let html = '';
   sorted.forEach(r => {{
     html += `<tr>
-      <td>${{r.desc||'—'}}</td><td>${{r.pessoa||'—'}}</td>
+      <td>${{r.desc||'\u2014'}}</td><td>${{r.pessoa||'\u2014'}}</td>
       <td class="num">${{BRL(r.valor)}}</td>
       <td class="num">${{BRL(r.pago)}}</td>
       <td class="num" style="color:${{r.saldo>0?'#dc2626':'#059669'}}">${{BRL(r.saldo)}}</td>
-      <td>${{r.venc?r.venc.split('-').reverse().join('/'):'—'}}</td>
+      <td>${{r.venc?r.venc.split('-').reverse().join('/'):'\u2014'}}</td>
       <td>${{statusBadge(r.status)}}</td>
     </tr>`;
   }});
@@ -2769,9 +2769,9 @@ function renderTblOS() {{
   let html = '';
   sorted.forEach(r => {{
     html += `<tr>
-      <td>${{r.id||'—'}}</td>
-      <td>${{r.data?r.data.split('-').reverse().join('/'):'—'}}</td>
-      <td>${{r.cli||'—'}}</td><td>${{r.tec||'—'}}</td>
+      <td>${{r.id||'\u2014'}}</td>
+      <td>${{r.data?r.data.split('-').reverse().join('/'):'\u2014'}}</td>
+      <td>${{r.cli||'\u2014'}}</td><td>${{r.tec||'\u2014'}}</td>
       <td title="${{r.desc||''}}">${{(r.desc||'').substring(0,45)}}...</td>
       <td>${{statusBadge(r.st)}}</td>
       <td class="num">${{BRL(r.val)}}</td>
@@ -2780,9 +2780,9 @@ function renderTblOS() {{
   document.getElementById('tblOsCorpo').innerHTML = html;
 }}
 
-// ═══════════════════════════════════════════════
-//  GRÁFICOS FINANCEIROS
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  GR\u00C1FICOS FINANCEIROS
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 function mkFinanceiro() {{
   // Contas a pagar por categoria
   const mPag = {{}};
@@ -2800,18 +2800,18 @@ function mkResultadoMensal() {{
   const canvas = document.getElementById('chartResultado');
   if (!canvas) return;
 
-  // Coleta meses presentes nos dados FILTRADOS pelo período
+  // Coleta meses presentes nos dados FILTRADOS pelo per\u00EDodo
   const mesesSet = new Set();
   dadosFilt.forEach(r  => {{ if (r.data) mesesSet.add(r.data.slice(0,7)); }});
   pagarFiltFin.forEach(r => {{ if (r.venc) mesesSet.add(r.venc.slice(0,7)); }});
   if (!mesesSet.size) return;
-  // Filtra apenas meses dentro do período selecionado pelo usuário
+  // Filtra apenas meses dentro do per\u00EDodo selecionado pelo usu\u00E1rio
   const _mkIni = PERIODO_INI.slice(0,7);
   const _mkFim = PERIODO_FIM.slice(0,7);
   const meses = [...mesesSet].sort().filter(m => m >= _mkIni && m <= _mkFim);
   if (!meses.length) return;
 
-  // Agrupa receitas (vendas liq filtradas) por mês
+  // Agrupa receitas (vendas liq filtradas) por m\u00EAs
   const recMes = {{}};
   meses.forEach(m => recMes[m] = 0);
   dadosFilt.forEach(r => {{
@@ -2819,7 +2819,7 @@ function mkResultadoMensal() {{
     if (recMes[mk] !== undefined) recMes[mk] += (r.liq || 0);
   }});
 
-  // Agrupa despesas (pagar do período) por mês de vencimento
+  // Agrupa despesas (pagar do per\u00EDodo) por m\u00EAs de vencimento
   const despMes = {{}};
   meses.forEach(m => despMes[m] = 0);
   pagarFiltFin.forEach(r => {{
@@ -2985,13 +2985,13 @@ function mkPagarMensal() {{
   }});
 }}
 
-// ═══════════════════════════════════════════════
-//  MÓDULO PONTO COLABORADOR
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  M\u00D3DULO PONTO COLABORADOR
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 
-// Calcula horas trabalhadas por funcionário/dia pareando as batidas
+// Calcula horas trabalhadas por funcion\u00E1rio/dia pareando as batidas
 function calcJornadas(marc) {{
-  const LIMITE = 9 * 60; // 9h em minutos (07:00-17:00 ou 06:30-16:30, 1h almoço)
+  const LIMITE = 9 * 60; // 9h em minutos (07:00-17:00 ou 06:30-16:30, 1h almo\u00E7o)
   const byFD = {{}};
   marc.forEach(r => {{
     const k = r.funcionario + '|' + r.data;
@@ -3001,30 +3001,30 @@ function calcJornadas(marc) {{
   }});
   return Object.values(byFD).map(e => {{
     const pts = e.mins.slice().sort((a, b) => a - b);
-    // Detecção de turno noturno: span > 10h E primeira batida antes das 07:00
-    // Situação: saída da noite anterior (ex: 05:30) misturada com entrada da noite seguinte (ex: 19:30)
-    const SPAN_MAX    = 10 * 60; // 600 min — acima disso suspeito de mix noturno
-    const HORA_LIMITE =  7 * 60; // 07:00 — batida antes disso = fim de turno noturno
-    const HORA_NOITE  = 20 * 60; // 20:00 — turno noturno só se última batida for após 20h
+    // Detec\u00E7\u00E3o de turno noturno: span > 10h E primeira batida antes das 07:00
+    // Situa\u00E7\u00E3o: sa\u00EDda da noite anterior (ex: 05:30) misturada com entrada da noite seguinte (ex: 19:30)
+    const SPAN_MAX    = 10 * 60; // 600 min \u2014 acima disso suspeito de mix noturno
+    const HORA_LIMITE =  7 * 60; // 07:00 \u2014 batida antes disso = fim de turno noturno
+    const HORA_NOITE  = 20 * 60; // 20:00 \u2014 turno noturno s\u00F3 se \u00FAltima batida for ap\u00F3s 20h
     const span0 = pts.length >= 2 ? pts[pts.length - 1] - pts[0] : 0;
     let turnoFora = false;
     let ptsCalc   = pts;
-    // Só remove batidas madrugada se: span > 10h E primeiro < 07:00 E último > 20:00
-    // (trabalhadores diurnos que chegam cedo NÃO devem ser afetados)
+    // S\u00F3 remove batidas madrugada se: span > 10h E primeiro < 07:00 E \u00FAltimo > 20:00
+    // (trabalhadores diurnos que chegam cedo N\u00C3O devem ser afetados)
     if (span0 > SPAN_MAX && pts[0] < HORA_LIMITE && pts[pts.length - 1] > HORA_NOITE) {{
       turnoFora = true;
-      // Remove batidas da madrugada (fim do turno anterior) para não inflar HE
+      // Remove batidas da madrugada (fim do turno anterior) para n\u00E3o inflar HE
       ptsCalc = pts.filter(m => m >= HORA_LIMITE);
     }}
-    // Par a par: (saída_almoço - entrada) + (volta - saída_final) — exato com 4 batidas
+    // Par a par: (sa\u00EDda_almo\u00E7o - entrada) + (volta - sa\u00EDda_final) \u2014 exato com 4 batidas
     let minTrab = 0;
     if (ptsCalc.length >= 4) {{
-      // 4+ batidas: soma dos pares (entrada→saída, volta→saída)
+      // 4+ batidas: soma dos pares (entrada\u2192sa\u00EDda, volta\u2192sa\u00EDda)
       for (let i = 0; i + 1 < ptsCalc.length; i += 2) {{
         minTrab += ptsCalc[i + 1] - ptsCalc[i];
       }}
     }} else if (ptsCalc.length >= 2) {{
-      // 2 batidas: span - estimativa almoço
+      // 2 batidas: span - estimativa almo\u00E7o
       const span   = ptsCalc[ptsCalc.length - 1] - ptsCalc[0];
       const almoco = span > 240 ? 60 : 0;
       minTrab = Math.max(0, span - almoco);
@@ -3043,13 +3043,13 @@ function mkPontoAusencias(marc) {{
   const canvas = document.getElementById('chartPontoAus');
   if (!canvas) return;
 
-  // Apenas dias úteis (seg-sex) dentro do período
+  // Apenas dias \u00FAteis (seg-sex) dentro do per\u00EDodo
   const diasUteis = [...new Set(marc.map(r => r.data))]
     .filter(d => {{ const dow = new Date(d + 'T00:00:00').getDay(); return dow >= 1 && dow <= 5; }})
     .sort();
   if (!diasUteis.length || !PONTO_FUNC.length) return;
 
-  const JORNADA = 9; // horas esperadas por dia útil (07:00-17:00, 1h almoço)
+  const JORNADA = 9; // horas esperadas por dia \u00FAtil (07:00-17:00, 1h almo\u00E7o)
   const byFD = {{}};
   marc.forEach(r => {{
     const k = r.funcionario_id + '|' + r.data;
@@ -3063,7 +3063,7 @@ function mkPontoAusencias(marc) {{
     diasUteis.forEach(dia => {{
       const k = f.id + '|' + dia;
       if (!byFD[k]) {{
-        // Nenhuma batida no dia útil = falta completa
+        // Nenhuma batida no dia \u00FAtil = falta completa
         dFalta += 1;
       }} else {{
         const pts = byFD[k].slice().sort((a, b) => a - b);
@@ -3077,10 +3077,10 @@ function mkPontoAusencias(marc) {{
         const trab = minTrabAus / 60;
         const faltou = Math.max(0, JORNADA - trab);
         if (faltou >= JORNADA) {{
-          // Só 1 batida = dia incompleto → conta como saída antecipada
+          // S\u00F3 1 batida = dia incompleto \u2192 conta como sa\u00EDda antecipada
           dAntecip += 1;
         }} else if (faltou > 0.5) {{
-          // Trabalhou menos de 7.5h = saída antecipada
+          // Trabalhou menos de 7.5h = sa\u00EDda antecipada
           dAntecip += 1;
         }}
       }}
@@ -3102,7 +3102,7 @@ function mkPontoAusencias(marc) {{
       datasets: [
         {{ label: 'Falta completa', data: result.map(r=>r.dFalta),
            backgroundColor: '#ef4444', stack: 's', borderRadius: 0 }},
-        {{ label: 'Saída antecipada', data: result.map(r=>r.dAntecip),
+        {{ label: 'Sa\u00EDda antecipada', data: result.map(r=>r.dAntecip),
            backgroundColor: '#f59e0b', stack: 's', borderRadius: 4 }},
       ]
     }},
@@ -3110,7 +3110,7 @@ function mkPontoAusencias(marc) {{
       responsive: true, maintainAspectRatio: false, indexAxis: 'y',
       plugins: {{
         legend: {{ labels: {{ color:'#cbd5e1', font:{{size:11}}, boxWidth:12 }} }},
-        subtitle: {{ display:true, text:'Total: '+totalDias+' ocorrência(s) no período',
+        subtitle: {{ display:true, text:'Total: '+totalDias+' ocorr\u00EAncia(s) no per\u00EDodo',
           color:'#fca5a5', font:{{size:12,weight:'bold'}}, padding:{{bottom:6}} }},
         tooltip: {{ callbacks: {{ label: c => c.dataset.label+': '+c.raw+' dia(s)' }} }}
       }},
@@ -3154,7 +3154,7 @@ function mkPontoHoras(marc) {{
   if (!canvas) return;
   const jornadas = calcJornadas(marc);
   if (!jornadas.length) return;
-  // Agrega por funcionário: soma hReg e hExtra de todos os dias
+  // Agrega por funcion\u00E1rio: soma hReg e hExtra de todos os dias
   const byFunc = {{}};
   jornadas.forEach(j => {{
     if (!byFunc[j.func]) byFunc[j.func] = {{hReg: 0, hExtra: 0}};
@@ -3162,7 +3162,7 @@ function mkPontoHoras(marc) {{
     byFunc[j.func].hExtra += j.hExtra;
   }});
   const entries = Object.entries(byFunc).sort((a, b) => (b[1].hReg + b[1].hExtra) - (a[1].hReg + a[1].hExtra));
-  // Altura dinâmica: mín 260px, 40px por funcionário
+  // Altura din\u00E2mica: m\u00EDn 260px, 40px por funcion\u00E1rio
   const alturaHoras = Math.max(260, entries.length * 40);
   const wrapH = document.getElementById('wrapPontoHoras');
   if (wrapH) wrapH.style.height = alturaHoras + 'px';
@@ -3171,7 +3171,7 @@ function mkPontoHoras(marc) {{
     data: {{
       labels: entries.map(e => e[0].split(' ')[0]),
       datasets: [
-        {{ label: 'Regular (≤9h/dia)', data: entries.map(e => Math.round(e[1].hReg * 10) / 10),
+        {{ label: 'Regular (\u22649h/dia)', data: entries.map(e => Math.round(e[1].hReg * 10) / 10),
            backgroundColor: '#059669', stack: 's', borderRadius: 0 }},
         {{ label: 'Hora Extra (>9h/dia)', data: entries.map(e => Math.round(e[1].hExtra * 10) / 10),
            backgroundColor: '#f97316', stack: 's', borderRadius: 4 }},
@@ -3185,7 +3185,7 @@ function mkPontoHoras(marc) {{
       }},
       scales: {{
         x: {{ stacked: true, ticks: {{ color: '#cbd5e1', callback: v => v + 'h' }}, grid: {{ color: '#334155' }},
-              title: {{ display: true, text: 'Horas no Período', color: '#94a3b8' }} }},
+              title: {{ display: true, text: 'Horas no Per\u00EDodo', color: '#94a3b8' }} }},
         y: {{ stacked: true, ticks: {{ color: '#cbd5e1', font: {{ size: 10 }} }}, grid: {{ display: false }} }}
       }}
     }}
@@ -3241,13 +3241,13 @@ function mkPontoHoraExtra(marc) {{
       plugins: {{
         legend: {{ display: false }},
         subtitle: {{ display: true,
-          text: 'Total no período: ' + totalHE.toFixed(1) + 'h',
+          text: 'Total no per\u00EDodo: ' + totalHE.toFixed(1) + 'h',
           color: '#f97316', font: {{ size: 12, weight: 'bold' }}, padding: {{ bottom: 6 }} }},
         tooltip: {{ callbacks: {{ label: c => c.raw + 'h de HE' }} }}
       }},
       scales: {{
         x: {{ ticks: {{ color: '#cbd5e1', callback: v => v + 'h' }}, grid: {{ color: '#334155' }},
-             title: {{ display: true, text: 'Horas Extras no Período', color: '#94a3b8' }} }},
+             title: {{ display: true, text: 'Horas Extras no Per\u00EDodo', color: '#94a3b8' }} }},
         y: {{ ticks: {{ color: '#cbd5e1', font: {{ size: 10 }} }}, grid: {{ display: false }} }}
       }}
     }}
@@ -3255,15 +3255,15 @@ function mkPontoHoraExtra(marc) {{
 }}
 
 function renderTblPontoHoje(marc) {{
-  // Dia de referência = último dia do período filtrado (ou hoje se in range)
+  // Dia de refer\u00EAncia = \u00FAltimo dia do per\u00EDodo filtrado (ou hoje se in range)
   const hoje    = new Date().toISOString().substring(0,10);
   const diasMarc = [...new Set(marc.map(r=>r.data))].sort();
   const diaRef  = diasMarc.includes(hoje) ? hoje : (diasMarc[diasMarc.length-1] || hoje);
   const labelDia = diaRef.split('-').reverse().join('/');
-  // Atualiza título da tabela
+  // Atualiza t\u00EDtulo da tabela
   const th3 = document.querySelector('#tblPontoHoje')?.closest('.table-card')?.querySelector('h3');
-  if (th3) th3.textContent = 'Marcações de ' + labelDia + ' por funcionário';
-  // Pre-calcula horas por funcionário/dia via calcJornadas
+  if (th3) th3.textContent = 'Marca\u00E7\u00F5es de ' + labelDia + ' por funcion\u00E1rio';
+  // Pre-calcula horas por funcion\u00E1rio/dia via calcJornadas
   const jDia = {{}};
   calcJornadas(marc.filter(r => r.data === diaRef)).forEach(j => {{
     jDia[j.func] = j;
@@ -3283,17 +3283,17 @@ function renderTblPontoHoje(marc) {{
   arr.forEach((r,i) => {{
     const hrs     = r.horas.sort((a,b)=>a-b);
     const fmt     = m => Math.floor(m/60)+':'+String(m%60).padStart(2,'0');
-    const entrada     = hrs.length > 0 ? fmt(hrs[0]) : '—';
-    const saidaAlmoco = hrs.length >= 4 ? fmt(hrs[1]) : '—';
-    const retorno     = hrs.length >= 4 ? fmt(hrs[2]) : (hrs.length === 3 ? fmt(hrs[1]) : '—');
-    const saida       = hrs.length > 1 ? fmt(hrs[hrs.length-1]) : '—';
+    const entrada     = hrs.length > 0 ? fmt(hrs[0]) : '\u2014';
+    const saidaAlmoco = hrs.length >= 4 ? fmt(hrs[1]) : '\u2014';
+    const retorno     = hrs.length >= 4 ? fmt(hrs[2]) : (hrs.length === 3 ? fmt(hrs[1]) : '\u2014');
+    const saida       = hrs.length > 1 ? fmt(hrs[hrs.length-1]) : '\u2014';
     const jd      = jDia[r.func];
     const hTrabNum = jd ? jd.hTrab : 0;
     const hExtra  = jd ? jd.hExtra : 0;
-    let hTrabCell = '—';
+    let hTrabCell = '\u2014';
     if (hrs.length > 1) {{
       hTrabCell = `<span style="font-weight:700">${{hTrabNum.toFixed(1)}}h</span>`;
-      if (hExtra > 0) hTrabCell += ` <span style="color:#f97316;font-size:11px;font-weight:600">+${{hExtra.toFixed(1)}}h⏰</span>`;
+      if (hExtra > 0) hTrabCell += ` <span style="color:#f97316;font-size:11px;font-weight:600">+${{hExtra.toFixed(1)}}h\u23F0</span>`;
     }}
     const foraJornada = jd && jd.turnoFora;
     const heStyle = (!r.ausente && hExtra > 0) ? ' style="background:rgba(249,115,22,0.07)"'
@@ -3301,21 +3301,21 @@ function renderTblPontoHoje(marc) {{
     const heStatus = (!r.ausente && hExtra > 0)
       ? ' <span class="badge" style="background:#f97316;color:#fff;font-size:10px">HE</span>' : '';
     const foraStatus = foraJornada
-      ? ' <span class="badge" style="background:#6366f1;color:#fff;font-size:10px" title="Batidas fora do horário da jornada cadastrada">🌙 Fora Jornada</span>' : '';
+      ? ' <span class="badge" style="background:#6366f1;color:#fff;font-size:10px" title="Batidas fora do hor\u00E1rio da jornada cadastrada">\uD83C\uDF19 Fora Jornada</span>' : '';
     const status  = r.ausente
       ? '<span class="badge vermelho">SEM REGISTRO</span>'
       : hrs.length >= 4 ? `<span class="badge verde">COMPLETO</span>${{heStatus}}${{foraStatus}}`
       : hrs.length >= 2 ? `<span class="badge amarelo">PARCIAL</span>${{heStatus}}${{foraStatus}}`
       : `<span class="badge amarelo">ENTRADA</span>${{foraStatus}}`;
-    const origemCell = r.ausente ? '—'
-      : r.manuais > 0 ? `<span style="color:#f59e0b;font-weight:600">✏️ Manual (${{r.manuais}})</span>`
-      : '<span style="color:#94a3b8;font-size:11px">Automático</span>';
+    const origemCell = r.ausente ? '\u2014'
+      : r.manuais > 0 ? `<span style="color:#f59e0b;font-weight:600">\u270F\uFE0F Manual (${{r.manuais}})</span>`
+      : '<span style="color:#94a3b8;font-size:11px">Autom\u00E1tico</span>';
     html += `<tr${{heStyle}}><td>${{i+1}}</td><td>${{r.func}}</td>
       <td class="num">${{entrada}}</td><td class="num" style="color:#94a3b8">${{saidaAlmoco}}</td><td class="num" style="color:#94a3b8">${{retorno}}</td><td class="num">${{saida}}</td>
       <td class="num">${{hTrabCell}}</td><td>${{status}}</td><td>${{origemCell}}</td></tr>`;
   }});
   const el = document.getElementById('tblPontoHoje');
-  if (el) el.innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:#94a3b8">Sem dados de ponto disponíveis para hoje</td></tr>';
+  if (el) el.innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:#94a3b8">Sem dados de ponto dispon\u00EDveis para hoje</td></tr>';
 }}
 
 function renderTblPontoUlt(marc) {{
@@ -3327,12 +3327,12 @@ function renderTblPontoUlt(marc) {{
   arr.forEach(r => {{
     const isManual = r.origem_id === 2;
     const origemCell = isManual
-      ? `<span style="color:#f59e0b;font-weight:600">✏️ Manual<br><span style="font-size:10px;font-weight:400;color:#fcd34d">${{r.descricao||''}}</span></span>`
-      : `<span style="color:#94a3b8;font-size:11px">${{r.origem||'Automático'}}</span>`;
-    html += `<tr${{isManual?' style="background:rgba(245,158,11,0.07)"':''}}>\n      <td>${{r.data?r.data.split('-').reverse().join('/'):'—'}}</td>\n      <td>${{r.funcionario||'—'}}</td>\n      <td class="num" style="font-weight:700;color:#38bdf8">${{r.hora||'—'}}</td>\n      <td>${{origemCell}}</td>\n    </tr>`;
+      ? `<span style="color:#f59e0b;font-weight:600">\u270F\uFE0F Manual<br><span style="font-size:10px;font-weight:400;color:#fcd34d">${{r.descricao||''}}</span></span>`
+      : `<span style="color:#94a3b8;font-size:11px">${{r.origem||'Autom\u00E1tico'}}</span>`;
+    html += `<tr${{isManual?' style="background:rgba(245,158,11,0.07)"':''}}>\n      <td>${{r.data?r.data.split('-').reverse().join('/'):'\u2014'}}</td>\n      <td>${{r.funcionario||'\u2014'}}</td>\n      <td class="num" style="font-weight:700;color:#38bdf8">${{r.hora||'\u2014'}}</td>\n      <td>${{origemCell}}</td>\n    </tr>`;
   }});
   const el = document.getElementById('tblPontoUlt');
-  if (el) el.innerHTML = html || '<tr><td colspan="4" style="text-align:center;color:#94a3b8">Sem marcações no período selecionado</td></tr>';
+  if (el) el.innerHTML = html || '<tr><td colspan="4" style="text-align:center;color:#94a3b8">Sem marca\u00E7\u00F5es no per\u00EDodo selecionado</td></tr>';
 }}
 
 function renderTblPontoJustif(marc) {{
@@ -3340,7 +3340,7 @@ function renderTblPontoJustif(marc) {{
   const el = document.getElementById('tblPontoJustif');
   if (!el) return;
   if (!manuais.length) {{
-    el.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8">Nenhum ajuste manual com justificativa no período</td></tr>';
+    el.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8">Nenhum ajuste manual com justificativa no per\u00EDodo</td></tr>';
     return;
   }}
   const grouped = {{}};
@@ -3363,7 +3363,7 @@ function renderTblPontoJustif(marc) {{
 
 function initPonto(marc) {{
   marc = marc || PONTO_MARC;
-  // Dia de referência = último dia do período filtrado (ou hoje se in range)
+  // Dia de refer\u00EAncia = \u00FAltimo dia do per\u00EDodo filtrado (ou hoje se in range)
   const hoje    = new Date().toISOString().substring(0,10);
   const diasMarc = [...new Set(marc.map(r=>r.data))].sort();
   const diaRef   = diasMarc.includes(hoje) ? hoje : (diasMarc[diasMarc.length-1] || hoje);
@@ -3387,9 +3387,9 @@ function initPonto(marc) {{
   renderTblPontoJustif(marc);
 }}
 
-// ═══════════════════════════════════════════════
-//  MÓDULO ORÇAMENTO
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  M\u00D3DULO OR\u00C7AMENTO
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 let _orcFiltro = 'todos';
 
 function filtrarOrc(btn) {{
@@ -3411,20 +3411,20 @@ function renderTblOrc() {{
   }});
   tbody.innerHTML = sorted.map((r, i) => {{
     const badge = r.status === 'fechada'
-      ? '<span class="badge green">✅ Fechada</span>'
-      : '<span class="badge red">❌ Perdida</span>';
-    const val = r.valor > 0 ? BRL(r.valor) : '—';
-    const mat = (r.material || '—').replace(/Locação (de )?/gi,'').trim() || '—';
+      ? '<span class="badge green">\u2705 Fechada</span>'
+      : '<span class="badge red">\u274C Perdida</span>';
+    const val = r.valor > 0 ? BRL(r.valor) : '\u2014';
+    const mat = (r.material || '\u2014').replace(/Loca\u00E7\u00E3o (de )?/gi,'').trim() || '\u2014';
     return `<tr>
       <td>${{i+1}}</td>
-      <td style="white-space:nowrap">${{r.data || '—'}}</td>
+      <td style="white-space:nowrap">${{r.data || '\u2014'}}</td>
       <td style="font-size:11px;color:#94a3b8">${{r.numero}}</td>
-      <td><strong>${{r.cliente || '—'}}</strong></td>
-      <td style="font-size:12px">${{r.vendedor || '—'}}</td>
+      <td><strong>${{r.cliente || '\u2014'}}</strong></td>
+      <td style="font-size:12px">${{r.vendedor || '\u2014'}}</td>
       <td style="font-size:12px;max-width:220px">${{mat}}</td>
       <td class="num">${{val}}</td>
-      <td style="font-size:12px">${{r.contato || '—'}}</td>
-      <td style="font-size:12px;white-space:nowrap">${{r.fone || '—'}}</td>
+      <td style="font-size:12px">${{r.contato || '\u2014'}}</td>
+      <td style="font-size:12px;white-space:nowrap">${{r.fone || '\u2014'}}</td>
       <td>${{badge}}</td>
     </tr>`;
   }}).join('') || '<tr><td colspan="10" style="text-align:center;color:#94a3b8">Nenhuma proposta</td></tr>';
@@ -3437,7 +3437,7 @@ function mkOrcamento() {{
   const valFech  = fechadas.reduce((s, r) => s + (r.valor || 0), 0);
   const valPerd  = perdidas.reduce((s, r) => s + (r.valor || 0), 0);
   const taxa     = ORCAMENTOS.length > 0
-    ? (fechadas.length / ORCAMENTOS.length * 100).toFixed(1) + '%' : '—';
+    ? (fechadas.length / ORCAMENTOS.length * 100).toFixed(1) + '%' : '\u2014';
 
   const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
   _set('kOrcTotal',   NUM(ORCAMENTOS.length));
@@ -3449,7 +3449,7 @@ function mkOrcamento() {{
 
   renderTblOrc();
 
-  // ── Gráfico: propostas por vendedor (fechadas vs perdidas)
+  // \u2500\u2500 Gr\u00E1fico: propostas por vendedor (fechadas vs perdidas)
   destroyChart('chartOrcVendedor');
   const cv = document.getElementById('chartOrcVendedor');
   if (cv) {{
@@ -3462,8 +3462,8 @@ function mkOrcamento() {{
       data: {{
         labels: vends,
         datasets: [
-          {{ label: '✅ Fechadas', data: vends.map(v => fechadas.filter(r => (r.vendedor||'Sem Vendedor')===v).length), backgroundColor: '#059669' }},
-          {{ label: '❌ Perdidas', data: vends.map(v => perdidas.filter(r => (r.vendedor||'Sem Vendedor')===v).length), backgroundColor: '#ef4444' }},
+          {{ label: '\u2705 Fechadas', data: vends.map(v => fechadas.filter(r => (r.vendedor||'Sem Vendedor')===v).length), backgroundColor: '#059669' }},
+          {{ label: '\u274C Perdidas', data: vends.map(v => perdidas.filter(r => (r.vendedor||'Sem Vendedor')===v).length), backgroundColor: '#ef4444' }},
         ]
       }},
       options: {{
@@ -3477,7 +3477,7 @@ function mkOrcamento() {{
     }});
   }}
 
-  // ── Gráfico: donut taxa de conversão
+  // \u2500\u2500 Gr\u00E1fico: donut taxa de convers\u00E3o
   destroyChart('chartOrcTaxa');
   const ct = document.getElementById('chartOrcTaxa');
   if (ct) {{
@@ -3500,9 +3500,9 @@ function mkOrcamento() {{
   }}
 }}
 
-// ═══════════════════════════════════════════════
-//  BOLETINS DE MEDIÇÃO
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  BOLETINS DE MEDI\u00C7\u00C3O
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 function mkMedicoes() {{
   const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
   const vazio  = document.getElementById('secMedicaoVazio');
@@ -3522,7 +3522,7 @@ function mkMedicoes() {{
   if (secChartsMed) secChartsMed.style.display = '';
   if (tabela) tabela.style.display = '';
 
-  // ── KPIs
+  // \u2500\u2500 KPIs
   const totBoletins  = MEDICOES.length;
   const totHrDia     = MEDICOES.reduce((s, r) => s + (r.horas_diurno  || 0), 0);
   const totHrNot     = MEDICOES.reduce((s, r) => s + (r.horas_noturno || 0), 0);
@@ -3535,16 +3535,16 @@ function mkMedicoes() {{
   _set('kMedHrExt',   totHrExt.toLocaleString('pt-BR', {{maximumFractionDigits:1}}) + 'h');
   _set('kMedTotal$',  BRL(totFaturado));
 
-  // ── Tabela
+  // \u2500\u2500 Tabela
   const tbody = document.getElementById('tblMedicoesBdy');
   const tfoot = document.getElementById('tblMedicoesFoot');
   if (tbody) {{
     tbody.innerHTML = MEDICOES.map(r => `
       <tr>
-        <td><strong>${{r.numero || '—'}}</strong></td>
-        <td>${{r.equipamento || '—'}}</td>
-        <td>${{r.cliente || '—'}}</td>
-        <td style="white-space:nowrap">${{r.periodo || '—'}}</td>
+        <td><strong>${{r.numero || '\u2014'}}</strong></td>
+        <td>${{r.equipamento || '\u2014'}}</td>
+        <td>${{r.cliente || '\u2014'}}</td>
+        <td style="white-space:nowrap">${{r.periodo || '\u2014'}}</td>
         <td class="num">${{(r.horas_diurno  || 0).toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
         <td class="num">${{(r.horas_noturno || 0).toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
         <td class="num">${{(r.horas_extra   || 0).toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
@@ -3569,7 +3569,7 @@ function mkMedicoes() {{
       <td class="num">${{totHrDia.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
       <td class="num">${{totHrNot.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
       <td class="num">${{totHrExt.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
-      <td class="num">—</td><td class="num">—</td>
+      <td class="num">\u2014</td><td class="num">\u2014</td>
       <td class="num">${{BRL(totDia$)}}</td>
       <td class="num">${{BRL(totNot$)}}</td>
       <td class="num">${{BRL(totExt$)}}</td>
@@ -3583,19 +3583,19 @@ function mkMedicoes() {{
   const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
   const gridClr = isDark ? '#334155' : '#e2e8f0';
 
-  // ── Gráfico: Horas por Equipamento (diurno vs noturno)
+  // \u2500\u2500 Gr\u00E1fico: Horas por Equipamento (diurno vs noturno)
   destroyChart('chartMedHoras');
   const cvH = document.getElementById('chartMedHoras');
   if (cvH) {{
-    const labels = MEDICOES.map(r => (r.equipamento || r.numero || r.arquivo || '—').replace(/\d+\/\d+T$/,'').trim());
+    const labels = MEDICOES.map(r => (r.equipamento || r.numero || r.arquivo || '\u2014').replace(/\d+\/\d+T$/,'').trim());
     charts['chartMedHoras'] = new Chart(cvH, {{
       type: 'bar',
       data: {{
         labels,
         datasets: [
-          {{ label: '☀️ Diurno',  data: MEDICOES.map(r => r.horas_diurno  || 0), backgroundColor: '#0891b2', borderRadius: 4 }},
-          {{ label: '🌙 Noturno', data: MEDICOES.map(r => r.horas_noturno || 0), backgroundColor: '#7c3aed', borderRadius: 4 }},
-          {{ label: '⚡ Extra',   data: MEDICOES.map(r => r.horas_extra   || 0), backgroundColor: '#f59e0b', borderRadius: 4 }},
+          {{ label: '\u2600\uFE0F Diurno',  data: MEDICOES.map(r => r.horas_diurno  || 0), backgroundColor: '#0891b2', borderRadius: 4 }},
+          {{ label: '\uD83C\uDF19 Noturno', data: MEDICOES.map(r => r.horas_noturno || 0), backgroundColor: '#7c3aed', borderRadius: 4 }},
+          {{ label: '\u26A1 Extra',   data: MEDICOES.map(r => r.horas_extra   || 0), backgroundColor: '#f59e0b', borderRadius: 4 }},
         ]
       }},
       options: {{
@@ -3612,11 +3612,11 @@ function mkMedicoes() {{
     }});
   }}
 
-  // ── Gráfico: Faturamento por Boletim
+  // \u2500\u2500 Gr\u00E1fico: Faturamento por Boletim
   destroyChart('chartMedFat');
   const cvF = document.getElementById('chartMedFat');
   if (cvF) {{
-    const labels = MEDICOES.map(r => 'Nº ' + (r.numero || r.arquivo?.slice(0,12) || '—'));
+    const labels = MEDICOES.map(r => 'N\u00BA ' + (r.numero || r.arquivo?.slice(0,12) || '\u2014'));
     const cores = MEDICOES.map((_, i) => CORES[i % CORES.length]);
     charts['chartMedFat'] = new Chart(cvF, {{
       type: 'bar',
@@ -3643,9 +3643,9 @@ function mkMedicoes() {{
   }}
 }}
 
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 //  HORAS REGISTRADAS PELO APP (Supabase)
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 function mkHorasApp() {{
   try {{
   const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
@@ -3666,7 +3666,7 @@ function mkHorasApp() {{
   if (secChartsApp) secChartsApp.style.display = '';
   if (tabela)       tabela.style.display       = '';
 
-  // ── KPIs
+  // \u2500\u2500 KPIs
   const totReg    = HORAS_APP.length;
   const totHoras  = HORAS_APP.reduce((s, r) => s + (parseFloat(r.horas_trabalhadas) || 0), 0);
   const hrsDiurno = HORAS_APP.filter(r => (r.turno || '').toUpperCase() === 'DIURNO')
@@ -3681,7 +3681,7 @@ function mkHorasApp() {{
   _set('kAppNoturno',   hrsNot.toLocaleString('pt-BR', {{maximumFractionDigits:1}}) + 'h');
   _set('kAppOperadores', NUM(operadores.size));
 
-  // ── Tabela
+  // \u2500\u2500 Tabela
   const tbody = document.getElementById('tblHorasAppBdy');
   const tfoot = document.getElementById('tblHorasAppFoot');
   if (tbody) {{
@@ -3689,14 +3689,14 @@ function mkHorasApp() {{
       const st = (r.status || 'pendente');
       const stClr = st === 'aprovado' ? '#059669' : '#d97706';
       return `<tr>
-        <td style="white-space:nowrap">${{r.data || '—'}}</td>
-        <td><strong>${{r.equipamento || '—'}}</strong></td>
-        <td>${{r.placa || '—'}}</td>
-        <td>${{r.cliente || '—'}}</td>
-        <td>${{r.operador || '—'}}</td>
-        <td><span style="color:${{(r.turno||'').toUpperCase()==='NOTURNO'?'#7c3aed':'#0891b2'}};font-weight:600">${{r.turno || '—'}}</span></td>
-        <td class="num">${{r.hora_inicio || '—'}}</td>
-        <td class="num">${{r.hora_fim || '—'}}</td>
+        <td style="white-space:nowrap">${{r.data || '\u2014'}}</td>
+        <td><strong>${{r.equipamento || '\u2014'}}</strong></td>
+        <td>${{r.placa || '\u2014'}}</td>
+        <td>${{r.cliente || '\u2014'}}</td>
+        <td>${{r.operador || '\u2014'}}</td>
+        <td><span style="color:${{(r.turno||'').toUpperCase()==='NOTURNO'?'#7c3aed':'#0891b2'}};font-weight:600">${{r.turno || '\u2014'}}</span></td>
+        <td class="num">${{r.hora_inicio || '\u2014'}}</td>
+        <td class="num">${{r.hora_fim || '\u2014'}}</td>
         <td class="num"><strong>${{(parseFloat(r.horas_trabalhadas)||0).toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</strong></td>
         <td><span style="color:${{stClr}};font-weight:600">${{st}}</span></td>
         <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${{r.observacoes||''}}">${{r.observacoes || ''}}</td>
@@ -3715,7 +3715,7 @@ function mkHorasApp() {{
   const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
   const gridClr = isDark ? '#334155' : '#e2e8f0';
 
-  // ── Gráfico: Horas por Equipamento
+  // \u2500\u2500 Gr\u00E1fico: Horas por Equipamento
   destroyChart('chartAppEquip');
   const cvE = document.getElementById('chartAppEquip');
   if (cvE) {{
@@ -3743,7 +3743,7 @@ function mkHorasApp() {{
     }});
   }}
 
-  // ── Gráfico: Horas por Operador
+  // \u2500\u2500 Gr\u00E1fico: Horas por Operador
   destroyChart('chartAppOper');
   const cvO = document.getElementById('chartAppOper');
   if (cvO) {{
@@ -3773,9 +3773,9 @@ function mkHorasApp() {{
 }} catch(e) {{ console.warn('mkHorasApp:', e); }}
 }}
 
-// ═══════════════════════════════════════════════
-//  NAVEGAÇÃO POR MÓDULOS
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  NAVEGA\u00C7\u00C3O POR M\u00D3DULOS
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 function setModulo(m) {{
   document.querySelectorAll('.mod-section').forEach(el => {{
     el.style.display = (m === 'geral' || el.dataset.mod === m) ? '' : 'none';
@@ -3786,16 +3786,16 @@ function setModulo(m) {{
   try {{ localStorage.setItem('locvix-modulo', m); }} catch(e) {{}}
 }}
 
-// ═══════════════════════════════════════════════
-//  ATUALIZAÇÃO GERAL
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  ATUALIZA\u00C7\u00C3O GERAL
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 function atualizar() {{
   const rows = dadosFilt;
   try {{ atualizarKPIVendas(rows); }} catch(e) {{ console.warn('KPIVendas:', e); }}
   try {{ atualizarKPIFinanceiro(); }} catch(e) {{ console.warn('KPIFin:', e); }}
-  // atualizarKPIOS() removido — elementos HTML foram removidos do módulo Operações
+  // atualizarKPIOS() removido \u2014 elementos HTML foram removidos do m\u00F3dulo Opera\u00E7\u00F5es
 
-  // Gráficos de vendas
+  // Gr\u00E1ficos de vendas
   try {{ mkMensal(rows); }} catch(e) {{ console.warn('mkMensal:', e); }}
   try {{ mkCategoria(rows); }} catch(e) {{ console.warn('mkCategoria:', e); }}
 
@@ -3825,7 +3825,7 @@ function limparFiltros() {{
   document.getElementById('fDateFim').value = '{dt_max_iso}';
   document.getElementById('filtroInfo').textContent = '';
   const tP = document.getElementById('tituloPonto');
-  if (tP) tP.textContent = '🕐 Ponto Colaborador \u2014 {periodo}';
+  if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 {periodo}';
   dadosFilt     = VENDAS;
   pagarFilt     = PAGAR;
   pagarFiltFin  = PAGAR;
@@ -3833,9 +3833,9 @@ function limparFiltros() {{
   atualizar();
 }}
 
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 //  DARK MODE
-// ═══════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 function toggleTheme() {{
   const body = document.body;
   const isDark = body.getAttribute('data-theme') === 'dark';
@@ -3866,7 +3866,7 @@ function abrirTelaCheia() {{
     const url  = URL.createObjectURL(blob);
     window.open(url, '_blank');
   }} catch(e) {{
-    alert('Não foi possível abrir em tela cheia: ' + e.message);
+    alert('N\u00E3o foi poss\u00EDvel abrir em tela cheia: ' + e.message);
   }}
 }}
 
@@ -3882,12 +3882,12 @@ document.addEventListener('DOMContentLoaded', () => {{
   }} catch(e) {{}}
 }});
 
-// ─── Init ───────────────────────────────────────
+// \u2500\u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 Chart.defaults.font.family = "'Segoe UI', Arial, sans-serif";
 Chart.defaults.font.size   = 12;
 Chart.defaults.color       = '#cbd5e1';
 dadosFilt = VENDAS;
-// Sincroniza pontoMarcFilt com o período do ponto (independente do range de vendas)
+// Sincroniza pontoMarcFilt com o per\u00EDodo do ponto (independente do range de vendas)
 (function() {{
   const ini = '{ponto_d_ini_iso}';
   const fim = '{ponto_d_fim_iso}';
