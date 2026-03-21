@@ -2213,6 +2213,7 @@ const CORES = ['#1a3a4a','#0891b2','#059669','#d97706','#7c3aed',
 // ═══════════════════════════════════════════════
 let dadosFilt    = VENDAS;
 let pontoMarcFilt = PONTO_MARC;
+let pagarFilt    = PAGAR;
 
 function filtrar() {{
   const ini  = document.getElementById('fDateIni').value;
@@ -2220,6 +2221,12 @@ function filtrar() {{
   dadosFilt = VENDAS.filter(r => {{
     if (ini && r.data < ini) return false;
     if (fim && r.data > fim) return false;
+    return true;
+  }});
+  pagarFilt = PAGAR.filter(r => {{
+    if (!r.venc) return true;
+    if (ini && r.venc < ini) return false;
+    if (fim && r.venc > fim) return false;
     return true;
   }});
   pontoMarcFilt = PONTO_MARC.filter(r => {{
@@ -2430,8 +2437,8 @@ function atualizarKPIVendas(rows) {{
 }}
 
 function atualizarKPIFinanceiro() {{
-  const pagTot  = PAGAR.reduce((s,r)=>s+r.valor,0);
-  const pagPago = PAGAR.reduce((s,r)=>s+r.pago,0);
+  const pagTot  = pagarFilt.reduce((s,r)=>s+r.valor,0);
+  const pagPago = pagarFilt.reduce((s,r)=>s+r.pago,0);
   document.getElementById('kPagTotal').textContent = BRL(pagTot);
   document.getElementById('kPagPago').textContent  = BRL(pagPago);
 }}
@@ -2562,9 +2569,9 @@ function renderTblOS() {{
 function mkFinanceiro() {{
   // Contas a pagar por categoria
   const mPag = {{}};
-  PAGAR.forEach(r => {{ mPag[r.cat||'OUTROS'] = (mPag[r.cat||'OUTROS']||0)+r.valor; }});
+  pagarFilt.forEach(r => {{ mPag[r.cat||'OUTROS'] = (mPag[r.cat||'OUTROS']||0)+r.valor; }});
   const pagEntries = Object.entries(mPag).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const totalPagar = PAGAR.reduce((s,r)=>s+r.valor, 0);
+  const totalPagar = pagarFilt.reduce((s,r)=>s+r.valor, 0);
   mkDonut('chartPagar', pagEntries, BRL(totalPagar));
   mkPagarMensal();
   mkPagarCentroCusto();
@@ -2579,7 +2586,7 @@ function mkResultadoMensal() {{
   // Coleta meses presentes nos dados FILTRADOS pelo período
   const mesesSet = new Set();
   dadosFilt.forEach(r  => {{ if (r.data) mesesSet.add(r.data.slice(0,7)); }});
-  PAGAR.forEach(r => {{ if (r.venc) mesesSet.add(r.venc.slice(0,7)); }});
+  pagarFilt.forEach(r => {{ if (r.venc) mesesSet.add(r.venc.slice(0,7)); }});
   if (!mesesSet.size) return;
   // Filtra apenas meses dentro do período selecionado pelo usuário
   const _mkIni = PERIODO_INI.slice(0,7);
@@ -2598,7 +2605,7 @@ function mkResultadoMensal() {{
   // Agrupa despesas (pagar do período) por mês de vencimento
   const despMes = {{}};
   meses.forEach(m => despMes[m] = 0);
-  PAGAR.forEach(r => {{
+  pagarFilt.forEach(r => {{
     const mk = (r.venc || '').slice(0,7);
     if (despMes[mk] !== undefined) despMes[mk] += (r.valor || 0);
   }});
@@ -2663,7 +2670,7 @@ function mkPagarCentroCusto() {{
   const canvas = document.getElementById('chartPagarCC');
   if (!canvas) return;
   const mCC = {{}};
-  PAGAR.forEach(r => {{
+  pagarFilt.forEach(r => {{
     const cc = (r.cc || '').trim() || 'SEM CENTRO DE CUSTO';
     mCC[cc] = (mCC[cc] || 0) + r.valor;
   }});
@@ -3472,6 +3479,7 @@ function limparFiltros() {{
   const tP = document.getElementById('tituloPonto');
   if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 {periodo}';
   dadosFilt     = VENDAS;
+  pagarFilt     = PAGAR;
   pontoMarcFilt = PONTO_MARC.filter(r => r.data >= '{ponto_d_ini_iso}' && r.data <= '{ponto_d_fim_iso}');
   atualizar();
 }}
