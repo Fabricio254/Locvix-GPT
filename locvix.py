@@ -48,6 +48,10 @@ DIXI_EMAIL   = os.getenv("DIXI_EMAIL",   "")
 DIXI_SENHA   = os.getenv("DIXI_SENHA",   "")
 DIXI_UNIDADE = os.getenv("DIXI_UNIDADE", "locacao-guindastes")
 
+# ── Credenciais Supabase (LocvixApp — Horas) ─────────────────────────────────
+SUPABASE_URL  = os.getenv("SUPABASE_URL",  "https://fjgugglxqyhlyxwzvdts.supabase.co")
+SUPABASE_ANON = os.getenv("SUPABASE_ANON", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqZ3VnZ2x4cXlobHl4d3p2ZHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzODI4NzQsImV4cCI6MjA3NTk1ODg3NH0.YGQIfxghu4yK58iVoklI1YkwwH6aoprZ06LUsWzcYPk")
+
 # Período padrão (últimos 12 meses)
 _hoje       = datetime.now()
 _12m_atras  = _hoje.replace(year=_hoje.year - 1) if _hoje.month > 0 else _hoje
@@ -1224,6 +1228,63 @@ def buscar_ponto(data_ini: str, data_fim: str) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════
+#  BUSCA DE DADOS — HORAS REGISTRADAS PELO APP (Supabase)
+# ══════════════════════════════════════════════════════════════════
+def buscar_horas_app(data_ini: str, data_fim: str) -> list[dict]:
+    """
+    Busca registros de horas do LocvixApp via Supabase REST API.
+    Retorna lista de medições registradas pelo app mobile.
+    Campos: id, data, hora_inicio, hora_fim, horas_trabalhadas, turno,
+            equipamento, placa, cliente, operador, status, observacoes
+    """
+    _prog(0.815, "Buscando horas do app (Supabase)...")
+    try:
+        chave  = f"horas_app|{data_ini}|{data_fim}"
+        cached = _cache_load(chave, _TTL_OUTROS)
+        if cached is not None:
+            print(f"  ✔ Horas App (cache): {len(cached)} registros")
+            _prog(0.82, f"Horas App: {len(cached)} registros (cache)")
+            return cached
+
+        if not SUPABASE_URL or not SUPABASE_ANON:
+            return []
+
+        d_ini_iso = datetime.strptime(data_ini, "%d/%m/%Y").date().isoformat()
+        d_fim_iso = datetime.strptime(data_fim, "%d/%m/%Y").date().isoformat()
+
+        hdrs = {
+            "apikey":        SUPABASE_ANON,
+            "Authorization": f"Bearer {SUPABASE_ANON}",
+        }
+        params = {
+            "data":   f"gte.{d_ini_iso}",
+            "order":  "data.asc,hora_inicio.asc",
+            "select": "id,data,hora_inicio,hora_fim,horas_trabalhadas,turno,"
+                      "equipamento,placa,marca,modelo,cliente,operador,"
+                      "observacoes,status",
+        }
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/medicoes_horas",
+            headers=hdrs, params=params, timeout=15
+        )
+        resp.raise_for_status()
+        raw = resp.json()
+
+        # Supabase retorna todos os registros >= data_ini; filtramos até data_fim
+        registros = [rec for rec in raw if rec.get("data", "") <= d_fim_iso]
+
+        _cache_save(chave, registros)
+        print(f"  ✔ Horas App: {len(registros)} registros")
+        _prog(0.82, f"Horas App: {len(registros)} registros carregados")
+        return registros
+
+    except Exception as e:
+        print(f"  [AVISO] Horas App (Supabase): {e}")
+        _prog(0.82, "Horas App: não disponível")
+        return []
+
+
+# ══════════════════════════════════════════════════════════════════
 #  GERADOR DE EXCEL
 # ══════════════════════════════════════════════════════════════════
 COR_HD   = "1F4E79"
@@ -1453,6 +1514,7 @@ def gerar_dashboard_html(
     ponto_data: dict | None = None,
     orcamentos: list | None = None,
     medicoes:   list | None = None,
+    horas_app:  list | None = None,
 ) -> str:
     """Gera dashboard HTML interativo completo para Locvix."""
     import json as _json
@@ -1589,6 +1651,7 @@ def gerar_dashboard_html(
     } for c in contratos]
     raw_orc = orcamentos or []  # já preparado em buscar_orcamentos()
     raw_med = medicoes or []    # já preparado em buscar_medicoes()
+    raw_horas_app = horas_app or []  # registros do LocvixApp via Supabase
 
     jv = lambda v: _json.dumps(v, ensure_ascii=False)
 
@@ -1942,6 +2005,72 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
     📂 Nenhum boletim de medição encontrado na pasta <code>MEDIÇÃO/</code>
   </div>
 
+  <!-- ── HORAS REGISTRADAS PELO APP ── -->
+  <div class="section-title" style="margin-top:36px;">📱 Horas Registradas pelo App</div>
+
+  <!-- KPIs Horas App -->
+  <div class="kpi-grid col5" id="secHorasAppKpis">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Registros</div>
+      <div class="kpi-value" id="kAppTotal">—</div>
+    </div>
+    <div class="kpi-card teal">
+      <div class="kpi-label">Total de Horas</div>
+      <div class="kpi-value small" id="kAppHoras">—</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Turno Diurno</div>
+      <div class="kpi-value small" id="kAppDiurno">—</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Turno Noturno</div>
+      <div class="kpi-value small" id="kAppNoturno">—</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Operadores</div>
+      <div class="kpi-value" id="kAppOperadores">—</div>
+    </div>
+  </div>
+
+  <!-- Gráficos Horas App -->
+  <div class="chart-row col2" style="align-items:start;margin-top:16px;" id="secHorasAppCharts">
+    <div class="chart-card">
+      <h3>🛠️ Horas por Equipamento</h3>
+      <div style="position:relative;height:240px;">
+        <canvas id="chartAppEquip"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>👷 Horas por Operador</h3>
+      <div style="position:relative;height:240px;">
+        <canvas id="chartAppOper"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela Horas App -->
+  <div class="table-card" style="margin-top:16px;" id="secHorasAppTabela">
+    <h3>🗓️ Detalhe dos Registros</h3>
+    <div style="overflow-x:auto;">
+      <table class="data-tbl" id="tblHorasApp">
+        <thead>
+          <tr>
+            <th>Data</th><th>Equipamento</th><th>Placa</th><th>Cliente</th>
+            <th>Operador</th><th>Turno</th>
+            <th class="num">Entrada</th><th class="num">Saída</th>
+            <th class="num">Horas</th><th>Status</th><th>Observações</th>
+          </tr>
+        </thead>
+        <tbody id="tblHorasAppBdy"></tbody>
+        <tfoot id="tblHorasAppFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div id="secHorasAppVazio" style="display:none;padding:32px;text-align:center;color:#94a3b8;font-size:15px;">
+    📱 Nenhum registro de horas encontrado para o período selecionado.
+  </div>
+
   </div><!-- /mod operacoes -->
 
   <div class="mod-section" data-mod="vendas">
@@ -2216,6 +2345,7 @@ const PONTO_FUNC = {jv(ponto_func)};
 const PONTO_MARC = {jv(ponto_marc)};
 const ORCAMENTOS = {jv(raw_orc)};
 const MEDICOES   = {jv(raw_med)};
+const HORAS_APP  = {jv(raw_horas_app)};
 const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do período selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
 
@@ -3483,6 +3613,134 @@ function mkMedicoes() {{
 }}
 
 // ═══════════════════════════════════════════════
+//  HORAS REGISTRADAS PELO APP (Supabase)
+// ═══════════════════════════════════════════════
+function mkHorasApp() {{
+  const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
+  const vazio  = document.getElementById('secHorasAppVazio');
+  const kpis   = document.getElementById('secHorasAppKpis');
+  const charts = document.getElementById('secHorasAppCharts');
+  const tabela = document.getElementById('secHorasAppTabela');
+
+  if (!HORAS_APP || !HORAS_APP.length) {{
+    if (vazio)  vazio.style.display  = '';
+    if (kpis)   kpis.style.display   = 'none';
+    if (charts) charts.style.display = 'none';
+    if (tabela) tabela.style.display = 'none';
+    return;
+  }}
+  if (vazio)  vazio.style.display  = 'none';
+  if (kpis)   kpis.style.display   = '';
+  if (charts) charts.style.display = '';
+  if (tabela) tabela.style.display = '';
+
+  // ── KPIs
+  const totReg    = HORAS_APP.length;
+  const totHoras  = HORAS_APP.reduce((s, r) => s + (parseFloat(r.horas_trabalhadas) || 0), 0);
+  const hrsDiurno = HORAS_APP.filter(r => (r.turno || '').toUpperCase() === 'DIURNO')
+                             .reduce((s, r) => s + (parseFloat(r.horas_trabalhadas) || 0), 0);
+  const hrsNot    = HORAS_APP.filter(r => (r.turno || '').toUpperCase() === 'NOTURNO')
+                             .reduce((s, r) => s + (parseFloat(r.horas_trabalhadas) || 0), 0);
+  const operadores = new Set(HORAS_APP.map(r => r.operador).filter(Boolean));
+
+  _set('kAppTotal',     NUM(totReg));
+  _set('kAppHoras',     totHoras.toLocaleString('pt-BR', {{maximumFractionDigits:1}}) + 'h');
+  _set('kAppDiurno',    hrsDiurno.toLocaleString('pt-BR', {{maximumFractionDigits:1}}) + 'h');
+  _set('kAppNoturno',   hrsNot.toLocaleString('pt-BR', {{maximumFractionDigits:1}}) + 'h');
+  _set('kAppOperadores', NUM(operadores.size));
+
+  // ── Tabela
+  const tbody = document.getElementById('tblHorasAppBdy');
+  const tfoot = document.getElementById('tblHorasAppFoot');
+  if (tbody) {{
+    tbody.innerHTML = HORAS_APP.map(r => {{
+      const st = (r.status || 'pendente');
+      const stClr = st === 'aprovado' ? '#059669' : '#d97706';
+      return `<tr>
+        <td style="white-space:nowrap">${{r.data || '—'}}</td>
+        <td><strong>${{r.equipamento || '—'}}</strong></td>
+        <td>${{r.placa || '—'}}</td>
+        <td>${{r.cliente || '—'}}</td>
+        <td>${{r.operador || '—'}}</td>
+        <td><span style="color:${{(r.turno||'').toUpperCase()==='NOTURNO'?'#7c3aed':'#0891b2'}};font-weight:600">${{r.turno || '—'}}</span></td>
+        <td class="num">${{r.hora_inicio || '—'}}</td>
+        <td class="num">${{r.hora_fim || '—'}}</td>
+        <td class="num"><strong>${{(parseFloat(r.horas_trabalhadas)||0).toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</strong></td>
+        <td><span style="color:${{stClr}};font-weight:600">${{st}}</span></td>
+        <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${{r.observacoes||''}}">\n          ${{r.observacoes || ''}}</td>
+      </tr>`;
+    }}).join('');
+  }}
+  if (tfoot) {{
+    tfoot.innerHTML = `<tr style="font-weight:700;background:#f0fdf4">
+      <td colspan="8">TOTAL (${{totReg}} registro${{totReg!==1?'s':''}})</td>
+      <td class="num">${{totHoras.toLocaleString('pt-BR',{{maximumFractionDigits:1}})}}h</td>
+      <td colspan="2"></td>
+    </tr>`;
+  }}
+
+  const isDark  = document.body.getAttribute('data-theme') !== 'light';
+  const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
+  const gridClr = isDark ? '#334155' : '#e2e8f0';
+
+  // ── Gráfico: Horas por Equipamento
+  destroyChart('chartAppEquip');
+  const cvE = document.getElementById('chartAppEquip');
+  if (cvE) {{
+    const mapE = {{}};
+    HORAS_APP.forEach(r => {{
+      const k = r.equipamento || 'Sem equipamento';
+      mapE[k] = (mapE[k] || 0) + (parseFloat(r.horas_trabalhadas) || 0);
+    }});
+    const sorted = Object.entries(mapE).sort((a,b) => b[1]-a[1]).slice(0,10);
+    charts['chartAppEquip'] = new Chart(cvE, {{
+      type: 'bar',
+      data: {{
+        labels: sorted.map(e => e[0]),
+        datasets: [{{ label: 'Horas', data: sorted.map(e => +e[1].toFixed(1)),
+          backgroundColor: '#0891b2', borderRadius: 4 }}]
+      }},
+      options: {{
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: {{ legend: {{ display: false }}, tooltip: {{ callbacks: {{ label: c => c.raw + 'h' }} }} }},
+        scales: {{
+          x: {{ ticks: {{ color: txtClr, callback: v => v + 'h' }}, grid: {{ color: gridClr }}, beginAtZero: true }},
+          y: {{ ticks: {{ color: txtClr }}, grid: {{ color: gridClr }} }}
+        }}
+      }}
+    }});
+  }}
+
+  // ── Gráfico: Horas por Operador
+  destroyChart('chartAppOper');
+  const cvO = document.getElementById('chartAppOper');
+  if (cvO) {{
+    const mapO = {{}};
+    HORAS_APP.forEach(r => {{
+      const k = r.operador || 'Sem operador';
+      mapO[k] = (mapO[k] || 0) + (parseFloat(r.horas_trabalhadas) || 0);
+    }});
+    const sorted = Object.entries(mapO).sort((a,b) => b[1]-a[1]);
+    const cores  = sorted.map((_,i) => CORES[i % CORES.length]);
+    charts['chartAppOper'] = new Chart(cvO, {{
+      type: 'doughnut',
+      data: {{
+        labels: sorted.map(e => e[0]),
+        datasets: [{{ data: sorted.map(e => +e[1].toFixed(1)),
+          backgroundColor: cores, borderWidth: 2 }}]
+      }},
+      options: {{
+        responsive: true, maintainAspectRatio: false,
+        plugins: {{
+          legend: {{ position: 'right', labels: {{ color: txtClr, boxWidth: 10 }} }},
+          tooltip: {{ callbacks: {{ label: c => c.label + ': ' + c.raw + 'h' }} }}
+        }}
+      }}
+    }});
+  }}
+}}
+
+// ═══════════════════════════════════════════════
 //  NAVEGAÇÃO POR MÓDULOS
 // ═══════════════════════════════════════════════
 function setModulo(m) {{
@@ -3525,6 +3783,7 @@ function atualizar() {{
   initPonto(pontoMarcFilt);
   mkOrcamento();
   mkMedicoes();
+  mkHorasApp();
 }}
 
 function aplicarFiltros() {{ filtrar(); atualizar(); }}
@@ -3690,6 +3949,7 @@ def main(
     contratos = buscar_contratos()
     orcamentos = buscar_orcamentos()
     medicoes   = buscar_medicoes()
+    horas_app  = buscar_horas_app(d_ini, d_fim)
     os_list   = buscar_ordens_servico(d_ini, d_fim)
     ponto_data = buscar_ponto(d_ini, d_fim)
 
@@ -3722,6 +3982,7 @@ def main(
         os_list=os_list, contratos=contratos,
         caminho=h_path, data_ini=d_ini, data_fim=d_fim,
         ponto_data=ponto_data, orcamentos=orcamentos, medicoes=medicoes,
+        horas_app=horas_app,
     )
 
     _prog(1.0, "✔ Concluído!")
