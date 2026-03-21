@@ -1660,7 +1660,7 @@ def gerar_dashboard_html(
         if isinstance(o, list):  return [_clean_surrogates(x) for x in o]
         if isinstance(o, dict):  return {k: _clean_surrogates(v) for k, v in o.items()}
         return o
-    jv = lambda v: _json.dumps(_clean_surrogates(v), ensure_ascii=False)
+    jv = lambda v: _json.dumps(_clean_surrogates(v), ensure_ascii=True)
 
     # Ponto data
     ponto_func = (ponto_data or {}).get("funcionarios", [])
@@ -3880,12 +3880,12 @@ try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }
 </body>
 </html>"""
 
-    # sanitize surrogates that Windows may inject
+    # sanitize any remaining problematic chars before returning to Streamlit
     html_clean = html.encode("utf-8", errors="xmlcharrefreplace").decode("utf-8")
     with open(caminho, "w", encoding="utf-8") as f:
         f.write(html_clean)
     print(f"  OK Dashboard HTML salvo: {caminho}")
-    return html
+    return html_clean
 
 
 # ══════════════════════════════════════════════════════════════════
