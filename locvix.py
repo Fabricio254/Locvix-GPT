@@ -1660,7 +1660,7 @@ def gerar_dashboard_html(
         if isinstance(o, list):  return [_clean_surrogates(x) for x in o]
         if isinstance(o, dict):  return {k: _clean_surrogates(v) for k, v in o.items()}
         return o
-    jv = lambda v: _json.dumps(_clean_surrogates(v), ensure_ascii=True)
+    jv = lambda v: _json.dumps(_clean_surrogates(v), ensure_ascii=True).replace('</', r'<\/')
 
     # Ponto data
     ponto_func = (ponto_data or {}).get("funcionarios", [])
@@ -2439,7 +2439,13 @@ function filtrar() {{
 //  CHARTS
 // ═══════════════════════════════════════════════
 const charts = {{}};
-function destroyChart(id) {{ if(charts[id]) {{ charts[id].destroy(); delete charts[id]; }} }}
+function destroyChart(id) {{
+  // 1) destroy via our registry
+  if (charts[id]) {{ try {{ charts[id].destroy(); }} catch(e){{}} delete charts[id]; }}
+  // 2) destroy via Chart.js native registry (catches orphaned charts after iframe re-render)
+  const el = document.getElementById(id);
+  if (el) {{ try {{ const c = Chart.getChart(el); if (c) c.destroy(); }} catch(e){{}} }}
+}}
 
 function mkMensal(rows) {{
   const m = {{}};
@@ -3767,32 +3773,32 @@ function setModulo(m) {{
 // ═══════════════════════════════════════════════
 function atualizar() {{
   const rows = dadosFilt;
-  atualizarKPIVendas(rows);
-  atualizarKPIFinanceiro();
+  try {{ atualizarKPIVendas(rows); }} catch(e) {{ console.warn('KPIVendas:', e); }}
+  try {{ atualizarKPIFinanceiro(); }} catch(e) {{ console.warn('KPIFin:', e); }}
   // atualizarKPIOS() removido — elementos HTML foram removidos do módulo Operações
 
   // Gráficos de vendas
-  mkMensal(rows);
-  mkCategoria(rows);
+  try {{ mkMensal(rows); }} catch(e) {{ console.warn('mkMensal:', e); }}
+  try {{ mkCategoria(rows); }} catch(e) {{ console.warn('mkCategoria:', e); }}
 
   // Top 10 produtos e clientes
   const mProd = {{}};
   rows.forEach(r=>{{ const k=r.cod||r.produto;
     if(!mProd[k]) mProd[k]=[r.produto,0]; mProd[k][1]+=r.liq; }});
-  mkHorizBar('chartProdutos', Object.values(mProd).sort((a,b)=>b[1]-a[1]).slice(0,10));
+  try {{ mkHorizBar('chartProdutos', Object.values(mProd).sort((a,b)=>b[1]-a[1]).slice(0,10)); }} catch(e) {{ console.warn('chartProdutos:', e); }}
 
   const mCli = {{}};
   rows.forEach(r=>{{ mCli[r.cliente]=(mCli[r.cliente]||0)+r.liq; }});
-  mkHorizBar('chartClientes', Object.entries(mCli).sort((a,b)=>b[1]-a[1]).slice(0,10));
+  try {{ mkHorizBar('chartClientes', Object.entries(mCli).sort((a,b)=>b[1]-a[1]).slice(0,10)); }} catch(e) {{ console.warn('chartClientes:', e); }}
 
   // Tabelas
-  renderTblProdutos(rows);
-  renderTblClientes(rows);
-  mkFinanceiro();
-  initPonto(pontoMarcFilt);
-  mkOrcamento();
-  mkMedicoes();
-  mkHorasApp();
+  try {{ renderTblProdutos(rows); }} catch(e) {{ console.warn('tblProdutos:', e); }}
+  try {{ renderTblClientes(rows); }} catch(e) {{ console.warn('tblClientes:', e); }}
+  try {{ mkFinanceiro(); }} catch(e) {{ console.warn('mkFinanceiro:', e); }}
+  try {{ initPonto(pontoMarcFilt); }} catch(e) {{ console.warn('initPonto:', e); }}
+  try {{ mkOrcamento(); }} catch(e) {{ console.warn('mkOrcamento:', e); }}
+  try {{ mkMedicoes(); }} catch(e) {{ console.warn('mkMedicoes:', e); }}
+  try {{ mkHorasApp(); }} catch(e) {{ console.warn('mkHorasApp:', e); }}
 }}
 
 function aplicarFiltros() {{ filtrar(); atualizar(); }}
