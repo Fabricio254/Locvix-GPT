@@ -138,7 +138,7 @@ with st.sidebar:
             "Fim",
             value=_hoje,
             min_value=date(2020, 1, 1),
-            max_value=_hoje,
+            max_value=date(2099, 12, 31),
             format="DD/MM/YYYY",
             key="periodo_fim",
         )
