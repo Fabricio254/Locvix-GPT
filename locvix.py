@@ -2338,21 +2338,39 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
   </div>
 </div>
 
+<!-- dados embutidos como JSON puro — nunca executados como JavaScript -->
+<script type="application/json" id="_dVENDAS">{jv(raw_vendas)}</script>
+<script type="application/json" id="_dRECEBER">{jv(raw_rec)}</script>
+<script type="application/json" id="_dPAGAR">{jv(raw_pag)}</script>
+<script type="application/json" id="_dPAGAR_ALL">{jv(raw_pag_all)}</script>
+<script type="application/json" id="_dOS_LIST">{jv(raw_os)}</script>
+<script type="application/json" id="_dCONTRATOS">{jv(raw_contr)}</script>
+<script type="application/json" id="_dPONTO_FUNC">{jv(ponto_func)}</script>
+<script type="application/json" id="_dPONTO_MARC">{jv(ponto_marc)}</script>
+<script type="application/json" id="_dORCAMENTOS">{jv(raw_orc)}</script>
+<script type="application/json" id="_dMEDICOES">{jv(raw_med)}</script>
+<script type="application/json" id="_dHORAS_APP">{jv(raw_horas_app)}</script>
+
 <script>
 // ═══════════════════════════════════════════════
-//  DADOS BRUTOS
+//  DADOS BRUTOS (lidos via JSON.parse - nunca como JS literal)
 // ═══════════════════════════════════════════════
-const VENDAS    = {jv(raw_vendas)};
-const RECEBER   = {jv(raw_rec)};
-const PAGAR     = {jv(raw_pag)};
-const PAGAR_ALL = {jv(raw_pag_all)};
-const OS_LIST   = {jv(raw_os)};
-const CONTRATOS = {jv(raw_contr)};
-const PONTO_FUNC = {jv(ponto_func)};
-const PONTO_MARC = {jv(ponto_marc)};
-const ORCAMENTOS = {jv(raw_orc)};
-const MEDICOES   = {jv(raw_med)};
-const HORAS_APP  = {jv(raw_horas_app)};
+function _pd(id) {{
+  const el = document.getElementById(id);
+  if (!el) return [];
+  try {{ return JSON.parse(el.textContent); }} catch(e) {{ console.warn('_pd', id, e); return []; }}
+}}
+const VENDAS    = _pd('_dVENDAS');
+const RECEBER   = _pd('_dRECEBER');
+const PAGAR     = _pd('_dPAGAR');
+const PAGAR_ALL = _pd('_dPAGAR_ALL');
+const OS_LIST   = _pd('_dOS_LIST');
+const CONTRATOS = _pd('_dCONTRATOS');
+const PONTO_FUNC = _pd('_dPONTO_FUNC');
+const PONTO_MARC = _pd('_dPONTO_MARC');
+const ORCAMENTOS = _pd('_dORCAMENTOS');
+const MEDICOES   = _pd('_dMEDICOES');
+const HORAS_APP  = _pd('_dHORAS_APP');
 const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do período selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
 
