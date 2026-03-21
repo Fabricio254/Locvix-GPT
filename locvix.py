@@ -3904,6 +3904,32 @@ try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }
 </body>
 </html>"""
 
+    # Escape ALL non-ASCII chars inside executable <script> blocks to \uXXXX sequences.
+    # This prevents any emoji / special char in JS string literals from corrupting the
+    # JS parser when Streamlit embeds the HTML in a srcdoc iframe.
+    # <script type="application/json"> data islands are intentionally left untouched.
+    import re as _re
+
+    def _escape_js_block(m):
+        attrs, body = m.group(1), m.group(2)
+        # leave data islands and external scripts untouched
+        if "application/json" in attrs or "src=" in attrs:
+            return m.group(0)
+        out = []
+        for ch in body:
+            cp = ord(ch)
+            if cp <= 127:
+                out.append(ch)
+            elif cp <= 0xFFFF:
+                out.append(f"\\u{cp:04X}")
+            else:
+                # surrogate pair for chars outside BMP (e.g. emoji U+1F550)
+                cp -= 0x10000
+                out.append(f"\\u{0xD800 | (cp >> 10):04X}\\u{0xDC00 | (cp & 0x3FF):04X}")
+        return f"<script{attrs}>" + "".join(out) + "</script>"
+
+    html = _re.sub(r"<script([^>]*)>(.*?)</script>", _escape_js_block, html, flags=_re.DOTALL)
+
     # sanitize any remaining problematic chars before returning to Streamlit
     html_clean = html.encode("utf-8", errors="xmlcharrefreplace").decode("utf-8")
     with open(caminho, "w", encoding="utf-8") as f:
