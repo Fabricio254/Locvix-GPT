@@ -1641,6 +1641,11 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1e293b;f
 .btn-clear:hover{{background:#cbd5e0;}}
 .filter-info{{font-size:12px;color:#059669;font-weight:600;margin-left:auto;align-self:center;white-space:nowrap;}}
 
+/* ── FILTROS INTERNOS DE MÓDULO ── */
+.fin-filter-bar{{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;
+  padding:12px 18px;margin-bottom:18px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;}}
+body[data-theme="dark"] .fin-filter-bar{{background:#1e293b;border-color:#334155;}}
+
 /* ── LAYOUT ── */
 .container{{max-width:1520px;margin:0 auto;padding:22px 20px;}}
 .section-title{{font-size:14px;font-weight:800;color:#1a3a4a;margin:26px 0 11px;
@@ -1974,8 +1979,23 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
   </div><!-- /mod vendas-charts -->
 
   <div class="mod-section" data-mod="financeiro">
-  <!-- ── GRÁFICOS FINANCEIROS ── -->
+  <!-- ── FILTROS FINANCEIRO ── -->
   <div class="section-title">💳 Financeiro</div>
+  <div class="fin-filter-bar" id="finFilterBar">
+    <div class="filter-group">
+      <label>🏷 Categoria</label>
+      <select id="fFinCat" onchange="aplicarFiltrosFinanceiro()">
+        <option value="">— Todas —</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>🏢 Centro de Custo</label>
+      <select id="fFinCC" onchange="aplicarFiltrosFinanceiro()">
+        <option value="">— Todos —</option>
+      </select>
+    </div>
+    <button class="btn btn-clear" style="align-self:flex-end" onclick="limparFiltrosFinanceiro()">✕ Limpar</button>
+  </div>
   <div class="chart-row col2" style="align-items:start;">
     <div class="chart-card">
       <h3> Contas a Pagar por Categoria</h3>
@@ -2214,6 +2234,41 @@ const CORES = ['#1a3a4a','#0891b2','#059669','#d97706','#7c3aed',
 let dadosFilt    = VENDAS;
 let pontoMarcFilt = PONTO_MARC;
 let pagarFilt    = PAGAR;
+let pagarFiltFin = PAGAR;  // filtro interno do módulo Financeiro (cat + cc)
+
+// ── Popula os selects de filtro do módulo Financeiro
+function _populaFiltrosFinanceiro() {{
+  const cats = [...new Set(PAGAR.map(r => r.cat || '').filter(v => v))].sort();
+  const ccs  = [...new Set(PAGAR.map(r => r.cc  || '').filter(v => v))].sort();
+  const elCat = document.getElementById('fFinCat');
+  const elCC  = document.getElementById('fFinCC');
+  if (elCat && elCat.options.length <= 1) {{
+    cats.forEach(c => {{ const o = new Option(c, c); elCat.add(o); }});
+  }}
+  if (elCC && elCC.options.length <= 1) {{
+    ccs.forEach(c => {{ const o = new Option(c, c); elCC.add(o); }});
+  }}
+}}
+
+function aplicarFiltrosFinanceiro() {{
+  const cat = (document.getElementById('fFinCat')?.value  || '').trim();
+  const cc  = (document.getElementById('fFinCC')?.value   || '').trim();
+  pagarFiltFin = pagarFilt.filter(r => {{
+    if (cat && (r.cat || '') !== cat) return false;
+    if (cc  && (r.cc  || '') !== cc)  return false;
+    return true;
+  }});
+  mkFinanceiro();
+}}
+
+function limparFiltrosFinanceiro() {{
+  const elCat = document.getElementById('fFinCat');
+  const elCC  = document.getElementById('fFinCC');
+  if (elCat) elCat.value = '';
+  if (elCC)  elCC.value  = '';
+  pagarFiltFin = pagarFilt;
+  mkFinanceiro();
+}}
 
 function filtrar() {{
   const ini  = document.getElementById('fDateIni').value;
@@ -2229,6 +2284,7 @@ function filtrar() {{
     if (fim && r.venc > fim) return false;
     return true;
   }});
+  pagarFiltFin = pagarFilt;  // reseta filtro interno ao alterar período global
   pontoMarcFilt = PONTO_MARC.filter(r => {{
     if (ini && r.data < ini) return false;
     if (fim && r.data > fim) return false;
@@ -2569,9 +2625,9 @@ function renderTblOS() {{
 function mkFinanceiro() {{
   // Contas a pagar por categoria
   const mPag = {{}};
-  pagarFilt.forEach(r => {{ mPag[r.cat||'OUTROS'] = (mPag[r.cat||'OUTROS']||0)+r.valor; }});
+  pagarFiltFin.forEach(r => {{ mPag[r.cat||'OUTROS'] = (mPag[r.cat||'OUTROS']||0)+r.valor; }});
   const pagEntries = Object.entries(mPag).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const totalPagar = pagarFilt.reduce((s,r)=>s+r.valor, 0);
+  const totalPagar = pagarFiltFin.reduce((s,r)=>s+r.valor, 0);
   mkDonut('chartPagar', pagEntries, BRL(totalPagar));
   mkPagarMensal();
   mkPagarCentroCusto();
@@ -2586,7 +2642,7 @@ function mkResultadoMensal() {{
   // Coleta meses presentes nos dados FILTRADOS pelo período
   const mesesSet = new Set();
   dadosFilt.forEach(r  => {{ if (r.data) mesesSet.add(r.data.slice(0,7)); }});
-  pagarFilt.forEach(r => {{ if (r.venc) mesesSet.add(r.venc.slice(0,7)); }});
+  pagarFiltFin.forEach(r => {{ if (r.venc) mesesSet.add(r.venc.slice(0,7)); }});
   if (!mesesSet.size) return;
   // Filtra apenas meses dentro do período selecionado pelo usuário
   const _mkIni = PERIODO_INI.slice(0,7);
@@ -2605,7 +2661,7 @@ function mkResultadoMensal() {{
   // Agrupa despesas (pagar do período) por mês de vencimento
   const despMes = {{}};
   meses.forEach(m => despMes[m] = 0);
-  pagarFilt.forEach(r => {{
+  pagarFiltFin.forEach(r => {{
     const mk = (r.venc || '').slice(0,7);
     if (despMes[mk] !== undefined) despMes[mk] += (r.valor || 0);
   }});
@@ -2670,7 +2726,7 @@ function mkPagarCentroCusto() {{
   const canvas = document.getElementById('chartPagarCC');
   if (!canvas) return;
   const mCC = {{}};
-  pagarFilt.forEach(r => {{
+  pagarFiltFin.forEach(r => {{
     const cc = (r.cc || '').trim() || 'SEM CENTRO DE CUSTO';
     mCC[cc] = (mCC[cc] || 0) + r.valor;
   }});
@@ -3480,6 +3536,7 @@ function limparFiltros() {{
   if (tP) tP.textContent = '\uD83D\uDD50 Ponto Colaborador \u2014 {periodo}';
   dadosFilt     = VENDAS;
   pagarFilt     = PAGAR;
+  pagarFiltFin  = PAGAR;
   pontoMarcFilt = PONTO_MARC.filter(r => r.data >= '{ponto_d_ini_iso}' && r.data <= '{ponto_d_fim_iso}');
   atualizar();
 }}
@@ -3548,6 +3605,7 @@ dadosFilt = VENDAS;
     return true;
   }});
 }})();
+_populaFiltrosFinanceiro();
 atualizar();
 try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }} catch(e){{}}
 </script>
