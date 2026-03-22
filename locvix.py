@@ -75,6 +75,7 @@ os.makedirs(_CACHE_DIR, exist_ok=True)
 # TTL de cache (em segundos)
 _TTL_VENDAS    = 1800   # 30 min
 _TTL_OUTROS    = 86400  # 24 h
+_TTL_SUPABASE  = 300    # 5 min para dados operacionais do app
 
 # Callback de progresso (usado pelo Streamlit ou similar)
 _progresso = None
@@ -1240,17 +1241,18 @@ def buscar_horas_app(data_ini: str, data_fim: str) -> list[dict]:
     _prog(0.815, "Buscando horas do app (Supabase)...")
     try:
         chave  = f"horas_app|{data_ini}|{data_fim}"
-        cached = _cache_load(chave, _TTL_OUTROS)
-        if cached is not None:
-            print(f"  ✔ Horas App (cache): {len(cached)} registros")
-            _prog(0.82, f"Horas App: {len(cached)} registros (cache)")
-            return cached
-
-        if not SUPABASE_URL or not SUPABASE_ANON:
-            return []
-
         d_ini_iso = datetime.strptime(data_ini, "%d/%m/%Y").date().isoformat()
         d_fim_iso = datetime.strptime(data_fim, "%d/%m/%Y").date().isoformat()
+      inclui_hoje = d_fim_iso >= date.today().isoformat()
+
+      cached = None if inclui_hoje else _cache_load(chave, _TTL_SUPABASE)
+      if cached is not None:
+        print(f"  ✔ Horas App (cache): {len(cached)} registros")
+        _prog(0.82, f"Horas App: {len(cached)} registros (cache)")
+        return cached
+
+      if not SUPABASE_URL or not SUPABASE_ANON:
+        return []
 
         hdrs = {
             "apikey":        SUPABASE_ANON,

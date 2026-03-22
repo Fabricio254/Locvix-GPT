@@ -20,6 +20,41 @@ import base64
 import streamlit as st
 import streamlit.components.v1 as components
 
+_ALL_MODULES = ["geral", "vendas", "financeiro", "operacoes", "ponto", "orcamento"]
+
+
+def _secrets_get(*keys, default=None):
+    current = st.secrets
+    try:
+        for key in keys:
+            current = current[key]
+        return current
+    except Exception:
+        return default
+
+
+def _load_users():
+    users = {}
+    raw_users = _secrets_get("users", default={}) or {}
+    for username in raw_users:
+        item = raw_users[username]
+        modules = [m for m in list(item.get("modules", [])) if m in _ALL_MODULES]
+        users[username.lower()] = {
+            "name": item.get("name", username.title()),
+            "password": str(item.get("password", "")),
+            "modules": modules or list(_ALL_MODULES),
+        }
+
+    legacy_password = _secrets_get("auth", "password")
+    legacy_username = _secrets_get("auth", "username")
+    if legacy_password and legacy_username:
+        users.setdefault(str(legacy_username).lower(), {
+            "name": str(legacy_username),
+            "password": str(legacy_password),
+            "modules": list(_ALL_MODULES),
+        })
+    return users
+
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
     page_title="Dashboard Locvix",
@@ -61,7 +96,7 @@ def _logo_path():
     return None
 
 # ─── Tela de login ────────────────────────────────────────────────
-_SENHA_CORRETA = "zampa254"
+_USERS = _load_users()
 
 if not st.session_state.get("_autenticado"):
     _lp = _logo_path()
@@ -81,30 +116,44 @@ if not st.session_state.get("_autenticado"):
             unsafe_allow_html=True,
         )
         with st.form("_login_form"):
+            usuario = st.text_input("Usuário")
             senha = st.text_input("Senha de acesso", type="password")
             submitted = st.form_submit_button("Entrar", use_container_width=True, type="primary")
         if submitted:
-            if senha == _SENHA_CORRETA:
+            user_cfg = _USERS.get(usuario.strip().lower())
+            if user_cfg and senha == user_cfg["password"]:
                 st.session_state["_autenticado"] = True
+                st.session_state["_usuario_login"] = usuario.strip().lower()
+                st.session_state["_usuario_nome"] = user_cfg["name"]
+                st.session_state["_usuario_modulos"] = list(user_cfg["modules"])
                 st.rerun()
             else:
-                st.error("Senha incorreta.")
+                st.error("Usuário ou senha incorretos.")
     st.stop()
 
 # ─── Injeta credenciais GestãoClick via st.secrets ────────────────
 # Quando rodando no Streamlit Cloud, usa .streamlit/secrets.toml.
 # Localmente usa as variáveis de ambiente (ou placeholder no locvix.py).
 try:
-    if "GCK_ACCESS_TOKEN" in st.secrets:
-        os.environ["GCK_ACCESS_TOKEN"] = st.secrets["GCK_ACCESS_TOKEN"]
-    if "GCK_SECRET_TOKEN" in st.secrets:
-        os.environ["GCK_SECRET_TOKEN"] = st.secrets["GCK_SECRET_TOKEN"]
-    if "SUPABASE_URL" in st.secrets:
-        os.environ["SUPABASE_URL"] = st.secrets["SUPABASE_URL"]
-    if "SUPABASE_ANON" in st.secrets:
-        os.environ["SUPABASE_ANON"] = st.secrets["SUPABASE_ANON"]
+    _gck_access = _secrets_get("GCK_ACCESS_TOKEN") or _secrets_get("credentials", "GCK_ACCESS_TOKEN")
+    _gck_secret = _secrets_get("GCK_SECRET_TOKEN") or _secrets_get("credentials", "GCK_SECRET_TOKEN")
+    _supabase_url = _secrets_get("SUPABASE_URL") or _secrets_get("credentials", "SUPABASE_URL")
+    _supabase_anon = _secrets_get("SUPABASE_ANON") or _secrets_get("credentials", "SUPABASE_ANON")
+    if _gck_access:
+        os.environ["GCK_ACCESS_TOKEN"] = _gck_access
+    if _gck_secret:
+        os.environ["GCK_SECRET_TOKEN"] = _gck_secret
+    if _supabase_url:
+        os.environ["SUPABASE_URL"] = _supabase_url
+    if _supabase_anon:
+        os.environ["SUPABASE_ANON"] = _supabase_anon
 except Exception:
     pass
+
+_usuario_nome = st.session_state.get("_usuario_nome", "Usuário")
+_usuario_modulos = [m for m in st.session_state.get("_usuario_modulos", list(_ALL_MODULES)) if m in _ALL_MODULES]
+if not _usuario_modulos:
+    _usuario_modulos = ["geral"]
 
 # ─── Sidebar ──────────────────────────────────────────────────────
 with st.sidebar:
@@ -114,6 +163,11 @@ with st.sidebar:
         with _cl:
             st.image(_lp, width=150)
     st.markdown("## 📊 Dashboard LOCVIX")
+    st.caption(f"👤 {_usuario_nome}")
+    if st.button("🚪 Sair", use_container_width=True):
+        for _k in ["_autenticado", "_usuario_login", "_usuario_nome", "_usuario_modulos", "modulo_ativo"]:
+            st.session_state.pop(_k, None)
+        st.rerun()
     st.markdown("---")
     st.markdown("##### 🌐 ERP GestãoClick")
     st.markdown(
@@ -159,9 +213,14 @@ with st.sidebar:
         "ponto":       "🕐 Ponto Colaborador",
         "orcamento":   "📋 Orçamento",
     }
+    _modulos_permitidos = [m for m in modulos if m in _usuario_modulos]
+    if not _modulos_permitidos:
+        _modulos_permitidos = ["geral"]
+    if st.session_state.get("modulo_ativo") not in _modulos_permitidos:
+        st.session_state["modulo_ativo"] = _modulos_permitidos[0]
     modulo_sel = st.radio(
         "Selecionar módulo",
-        options=list(modulos.keys()),
+        options=_modulos_permitidos,
         format_func=lambda k: modulos[k],
         label_visibility="collapsed",
         key="modulo_ativo",
@@ -366,9 +425,9 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
 
     # Inject module-activation script based on sidebar selection
     _modulo_sel = st.session_state.get("modulo_ativo", "geral")
-    _allowed    = {"geral", "vendas", "financeiro", "operacoes", "ponto", "orcamento"}
+    _allowed    = set(_usuario_modulos)
     if _modulo_sel not in _allowed:
-        _modulo_sel = "geral"
+        _modulo_sel = next(iter(_allowed), "geral")
     _inject = (
         f"<script>(function(){{function _am(){{if(typeof setModulo==='function')"
         f"setModulo('{_modulo_sel}');else setTimeout(_am,80);}}"
