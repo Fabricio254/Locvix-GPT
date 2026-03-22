@@ -257,8 +257,7 @@ PERIOD_KEY = "locvix_period"
 
 _data_ini_str = data_ini_sel.strftime("%d/%m/%Y")
 _data_fim_str = data_fim_sel.strftime("%d/%m/%Y")
-_loja_id_str  = st.session_state.get("loja_filtro", "ambas")
-_period_id    = f"{_data_ini_str}_{_data_fim_str}_{_loja_id_str}"
+_period_id    = f"{_data_ini_str}_{_data_fim_str}"
 
 # Compute a hash of locvix.py — if the source changed, invalidate the cache
 import hashlib as _hashlib, pathlib as _pathlib
@@ -281,30 +280,16 @@ for _old_key in ["locvix_html", "locvix_html_v2", "locvix_html_v3", "locvix_html
     st.session_state.pop(_old_key, None)
 
 # ── Barra de ação ─────────────────────────────────────────────────
-col_loja, col_spacer, col_btn = st.columns([2, 1, 1])
-with col_loja:
-    st.markdown("**🏪 Loja:**")
-    _loja_opcoes = {
-        "ambas":  "🏪 Ambas (G&J + W&A)",
-        "521831": "G & J",
-        "65731":  "W & A",
-    }
-    loja_sel = st.radio(
-        "Loja",
-        options=list(_loja_opcoes.keys()),
-        format_func=lambda k: _loja_opcoes[k],
-        index=0,
-        horizontal=True,
-        label_visibility="collapsed",
-        key="loja_filtro",
-    )
-    _loja_filtro = None if loja_sel == "ambas" else loja_sel
-with col_btn:
+col1, col2 = st.columns([3, 1])
+with col2:
     btn_atualizar = st.button(
         "🔄 Atualizar Dados",
         use_container_width=True,
         type="primary",
     )
+
+# Sempre carrega as duas lojas; seleção de loja fica dentro do HTML
+_loja_filtro = "ambas"
 
 # ── Executa coleta ────────────────────────────────────────────────
 if btn_atualizar or HTML_KEY not in st.session_state:
