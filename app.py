@@ -242,25 +242,6 @@ with st.sidebar:
         st.info("Planilhas: CONTROLE CONTAS A RECEBER 2025 e 2026")
 
     st.markdown("---")
-
-    # ── Filtro de Loja ─────────────────────────────────────
-    st.markdown("##### 🏪 Loja")
-    loja_opcoes = {
-        "ambas":  "🏪 Ambas as Lojas",
-        "521831": "G & J",
-        "65731":  "W & A",
-    }
-    loja_sel = st.radio(
-        "Loja",
-        options=list(loja_opcoes.keys()),
-        format_func=lambda k: loja_opcoes[k],
-        index=0,
-        label_visibility="collapsed",
-        key="loja_filtro",
-    )
-    _loja_filtro = None if loja_sel == "ambas" else loja_sel
-
-    st.markdown("---")
     st.caption(f"Última execução: {datetime.now(_BRT).strftime('%d/%m/%Y %H:%M')}")
 
 # ═══════════════════════════════════════════════════════════════════
@@ -300,8 +281,25 @@ for _old_key in ["locvix_html", "locvix_html_v2", "locvix_html_v3", "locvix_html
     st.session_state.pop(_old_key, None)
 
 # ── Barra de ação ─────────────────────────────────────────────────
-col1, col2 = st.columns([3, 1])
-with col2:
+col_loja, col_spacer, col_btn = st.columns([2, 1, 1])
+with col_loja:
+    st.markdown("**🏪 Loja:**")
+    _loja_opcoes = {
+        "ambas":  "🏪 Ambas (G&J + W&A)",
+        "521831": "G & J",
+        "65731":  "W & A",
+    }
+    loja_sel = st.radio(
+        "Loja",
+        options=list(_loja_opcoes.keys()),
+        format_func=lambda k: _loja_opcoes[k],
+        index=0,
+        horizontal=True,
+        label_visibility="collapsed",
+        key="loja_filtro",
+    )
+    _loja_filtro = None if loja_sel == "ambas" else loja_sel
+with col_btn:
     btn_atualizar = st.button(
         "🔄 Atualizar Dados",
         use_container_width=True,
