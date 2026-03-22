@@ -362,7 +362,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         )
     st.success("✅ Dashboard gerado com sucesso!")
 
-    _html_safe = st.session_state[HTML_KEY].encode("utf-8", errors="replace").decode("utf-8")
+    _html_safe = st.session_state[HTML_KEY].encode("ascii", errors="xmlcharrefreplace").decode("ascii")
 
     # Inject module-activation script based on sidebar selection
     _modulo_sel = st.session_state.get("modulo_ativo", "geral")
