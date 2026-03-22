@@ -43,6 +43,12 @@ GCK_SECRET_TOKEN  = os.getenv("GCK_SECRET_TOKEN",  "SEU_SECRET_TOKEN_AQUI")
 # URL base da API GestãoClick
 GCK_BASE_URL = "https://api.beteltecnologia.net/api"
 
+# ── Lojas cadastradas no GestãoClick ─────────────────────────────────────────
+LOJA_GJ_ID  = "521831"   # G & J (loja padrão)
+LOJA_WA_ID  = "65731"    # W & A
+# LOJA_FILTRO: None = padrão da API | "521831" | "65731" | "ambas"
+LOJA_FILTRO: str | None = None
+
 # ── Credenciais Dixiponto (Ponto Colaborador) ──────────────────────────────
 DIXI_EMAIL   = os.getenv("DIXI_EMAIL",   "")
 DIXI_SENHA   = os.getenv("DIXI_SENHA",   "")
@@ -298,6 +304,28 @@ def _gck() -> GCKClient:
     return _client
 
 
+def _paginar_lojas(endpoint: str, params: dict | None = None) -> list[dict]:
+    """Busca dados respeitando LOJA_FILTRO global.
+    None = padrão API | 'ambas' = W&A + G&J merged | id = loja específica.
+    """
+    p = dict(params or {})
+    if LOJA_FILTRO == "ambas":
+        r1 = _gck().paginar(endpoint, {**p, "loja_id": LOJA_GJ_ID})
+        r2 = _gck().paginar(endpoint, {**p, "loja_id": LOJA_WA_ID})
+        return r1 + r2
+    elif LOJA_FILTRO:
+        return _gck().paginar(endpoint, {**p, "loja_id": LOJA_FILTRO})
+    else:
+        return _gck().paginar(endpoint, p)
+
+
+def _chave_loja(chave: str) -> str:
+    """Adiciona sufixo da loja à chave de cache para evitar mistura de dados."""
+    if LOJA_FILTRO:
+        return f"{chave}|loja:{LOJA_FILTRO}"
+    return chave
+
+
 # ══════════════════════════════════════════════════════════════════
 #  CACHE EM DISCO
 # ══════════════════════════════════════════════════════════════════
@@ -337,7 +365,7 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
     Campos normalizados: id, data, cliente, status, produto, qtd, v_bruto, v_desc, v_liq, vendedor, categoria
     """
     _prog(0.05, "Buscando vendas...")
-    chave = f"vendas|{data_ini}|{data_fim}"
+    chave = _chave_loja(f"vendas|{data_ini}|{data_fim}")
     cached = _cache_load(chave, _TTL_VENDAS)
     if cached is not None:
         print(f"  ✔ Vendas (cache): {len(cached)} registros")
@@ -358,7 +386,7 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
 
     # Tenta endpoint /vendas; se falhar, tenta /pedidos
     for endpoint in ["vendas", "pedidos"]:
-        raw = _gck().paginar(endpoint, params)
+        raw = _paginar_lojas(endpoint, params)
         if raw:
             break
 
@@ -590,14 +618,14 @@ def buscar_financeiro(data_ini: str, data_fim: str) -> dict:
     ]
 
     for tipo, endpoint in endpoints_map:
-        chave  = f"{endpoint}|{data_ini}|{data_fim}"
+        chave  = _chave_loja(f"{endpoint}|{data_ini}|{data_fim}")
         cached = _cache_load(chave, _TTL_VENDAS)
         if cached is not None:
             resultado[tipo] = cached
             print(f"  ✔ {tipo} (cache): {len(cached)} registros")
             continue
 
-        raw = _gck().paginar(endpoint, params)
+        raw = _paginar_lojas(endpoint, params)
         normalizado = []
         for c in raw:
             def _float(k, _c=c):
@@ -651,12 +679,12 @@ def buscar_financeiro(data_ini: str, data_fim: str) -> dict:
 def buscar_clientes() -> list[dict]:
     """Lista de clientes cadastrados."""
     _prog(0.47, "Buscando clientes...")
-    chave  = "clientes"
+    chave  = _chave_loja("clientes")
     cached = _cache_load(chave, _TTL_OUTROS)
     if cached:
         print(f"  ✔ Clientes (cache): {len(cached)}")
         return cached
-    raw = _gck().paginar("clientes")
+    raw = _paginar_lojas("clientes")
     normalizado = []
     for c in raw:
         enderecos = c.get("enderecos") or []
@@ -683,12 +711,12 @@ def buscar_clientes() -> list[dict]:
 def buscar_produtos() -> list[dict]:
     """Catálogo de produtos com estoque."""
     _prog(0.53, "Buscando produtos...")
-    chave  = "produtos"
+    chave  = _chave_loja("produtos")
     cached = _cache_load(chave, _TTL_OUTROS)
     if cached:
         print(f"  ✔ Produtos (cache): {len(cached)}")
         return cached
-    raw = _gck().paginar("produtos")
+    raw = _paginar_lojas("produtos")
     normalizado = []
     for p in raw:
         def _float(k):
@@ -717,12 +745,12 @@ def buscar_produtos() -> list[dict]:
 def buscar_contratos() -> list[dict]:
     """Contratos ativos (recorrência)."""
     _prog(0.61, "Buscando contratos...")
-    chave  = "contratos"
+    chave  = _chave_loja("contratos")
     cached = _cache_load(chave, _TTL_OUTROS)
     if cached:
         print(f"  ✔ Contratos (cache): {len(cached)}")
         return cached
-    raw = _gck().paginar("contratos")
+    raw = _paginar_lojas("contratos")
     normalizado = []
     for c in raw:
         def _float(k):
@@ -1108,7 +1136,7 @@ def buscar_medicoes() -> list[dict]:
 def buscar_ordens_servico(data_ini: str, data_fim: str) -> list[dict]:
     """Ordens de serviço no período."""
     _prog(0.70, "Buscando ordens de serviço...")
-    chave  = f"os|{data_ini}|{data_fim}"
+    chave  = _chave_loja(f"os|{data_ini}|{data_fim}")
     cached = _cache_load(chave, _TTL_VENDAS)
     if cached:
         print(f"  ✔ OS (cache): {len(cached)}")
@@ -1120,7 +1148,7 @@ def buscar_ordens_servico(data_ini: str, data_fim: str) -> list[dict]:
         except: return d
 
     params = {"data_inicio": br_to_iso(data_ini), "data_fim": br_to_iso(data_fim)}
-    raw = _gck().paginar("ordens_servicos", params)
+    raw = _paginar_lojas("ordens_servicos", params)
 
     normalizado = []
     for o in raw:
@@ -3991,6 +4019,7 @@ def main(
     data_ini:     str | None = None,
     data_fim:     str | None = None,
     fonte_vendas: str        = "api",   # "api" = GestãoClick  |  "excel" = planilha manual
+    loja_filtro:  str | None = None,    # None | "ambas" | "521831" (G&J) | "65731" (W&A)
 ) -> str | None:
     """
     Executa a coleta completa de dados e gera Excel + Dashboard HTML.
@@ -4005,7 +4034,9 @@ def main(
 
     Retorna o conteúdo HTML como string (útil para Streamlit).
     """
-    global _client
+    global _client, LOJA_FILTRO
+
+    LOJA_FILTRO = loja_filtro
 
     d_ini  = data_ini  or DATA_INI
     d_fim  = data_fim  or DATA_FIM

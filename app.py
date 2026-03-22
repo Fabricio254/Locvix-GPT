@@ -242,6 +242,25 @@ with st.sidebar:
         st.info("Planilhas: CONTROLE CONTAS A RECEBER 2025 e 2026")
 
     st.markdown("---")
+
+    # ── Filtro de Loja ─────────────────────────────────────
+    st.markdown("##### 🏪 Loja")
+    loja_opcoes = {
+        "ambas":  "🏪 Ambas as Lojas",
+        "521831": "G & J",
+        "65731":  "W & A",
+    }
+    loja_sel = st.radio(
+        "Loja",
+        options=list(loja_opcoes.keys()),
+        format_func=lambda k: loja_opcoes[k],
+        index=0,
+        label_visibility="collapsed",
+        key="loja_filtro",
+    )
+    _loja_filtro = None if loja_sel == "ambas" else loja_sel
+
+    st.markdown("---")
     st.caption(f"Última execução: {datetime.now(_BRT).strftime('%d/%m/%Y %H:%M')}")
 
 # ═══════════════════════════════════════════════════════════════════
@@ -257,7 +276,8 @@ PERIOD_KEY = "locvix_period"
 
 _data_ini_str = data_ini_sel.strftime("%d/%m/%Y")
 _data_fim_str = data_fim_sel.strftime("%d/%m/%Y")
-_period_id    = f"{_data_ini_str}_{_data_fim_str}"
+_loja_id_str  = st.session_state.get("loja_filtro", "ambas")
+_period_id    = f"{_data_ini_str}_{_data_fim_str}_{_loja_id_str}"
 
 # Compute a hash of locvix.py — if the source changed, invalidate the cache
 import hashlib as _hashlib, pathlib as _pathlib
@@ -346,6 +366,7 @@ if btn_atualizar or HTML_KEY not in st.session_state:
                     data_ini=_data_ini_str,
                     data_fim=_data_fim_str,
                     fonte_vendas=_fonte_vendas,
+                    loja_filtro=_loja_filtro,
                 )
         except Exception as exc:
             _result[1] = exc
