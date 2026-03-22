@@ -1853,65 +1853,6 @@ body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
 <button id="btn-theme" onclick="toggleTheme()" title="Alternar modo claro/escuro">🌙</button>
 <button id="btn-fullscreen" onclick="abrirTelaCheia()" title="Abrir em tela cheia">&#x26F6;</button>
 
-<div id="_locvix_diag" style="position:fixed;top:10px;left:10px;z-index:99999;max-width:420px;background:rgba(15,23,42,.92);color:#e2e8f0;padding:10px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.35);box-shadow:0 10px 30px rgba(0,0,0,.28);font:12px/1.45 Consolas,'Courier New',monospace;white-space:pre-wrap;pointer-events:none;">LOCVIX DIAG: carregando...</div>
-<script>
-(function() {{
-  function diag(text) {{
-    var el = document.getElementById('_locvix_diag');
-    if (el) el.textContent = text;
-  }}
-
-  function jsonCount(id) {{
-    try {{
-      var el = document.getElementById(id);
-      if (!el) return 'missing';
-      var value = JSON.parse(el.textContent || '[]');
-      return Array.isArray(value) ? value.length : 'obj';
-    }} catch (err) {{
-      return 'err';
-    }}
-  }}
-
-  window.__locvixDiag = {{
-    setReady: function(extra) {{
-      diag('LOCVIX DIAG | main_js: ok | ' + extra);
-    }},
-    setError: function(msg) {{
-      diag('LOCVIX DIAG | main_js: error | ' + msg);
-    }}
-  }};
-
-  window.addEventListener('error', function(ev) {{
-    var msg = String((ev && ev.message) || 'erro desconhecido');
-    var src = String((ev && ev.filename) || '');
-    var line = ev && ev.lineno ? String(ev.lineno) : '?';
-    if (!src || src.indexOf('srcdoc') >= 0 || src.indexOf('about:srcdoc') >= 0) {{
-      window.__locvixDiag.setError('syntax: ' + msg + ' @L' + line);
-    }}
-  }});
-
-  window.addEventListener('unhandledrejection', function(ev) {{
-    var reason = ev && ev.reason ? String(ev.reason) : 'promise rejection';
-    window.__locvixDiag.setError('promise: ' + reason);
-  }});
-
-  window.addEventListener('load', function() {{
-    var counts = [
-      'V=' + jsonCount('_dVENDAS'),
-      'R=' + jsonCount('_dRECEBER'),
-      'P=' + jsonCount('_dPONTO_MARC'),
-      'H=' + jsonCount('_dHORAS_APP')
-    ].join(' ');
-    diag('LOCVIX DIAG | main_js: aguardando | ' + counts);
-    setTimeout(function() {{
-      var text = document.getElementById('_locvix_diag');
-      if (text && text.textContent.indexOf('aguardando') >= 0) {{
-        diag('LOCVIX DIAG | main_js: NAO INICIALIZOU | ' + counts);
-      }}
-    }}, 1200);
-  }});
-}})();
-</script>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -3960,13 +3901,6 @@ dadosFilt = VENDAS;
 _populaFiltrosFinanceiro();
 atualizar();
 try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }} catch(e){{}}
-try {{
-  if (window.__locvixDiag) {{
-    window.__locvixDiag.setReady(
-      'V=' + VENDAS.length + ' R=' + RECEBER.length + ' P=' + PONTO_MARC.length + ' H=' + HORAS_APP.length
-    );
-  }}
-}} catch(e){{}}
 </script>
 </body>
 </html>"""
