@@ -1846,6 +1846,33 @@ body[data-theme="dark"] .nav-tab{{color:#94a3b8;}}
 body[data-theme="dark"] .nav-tab:hover{{color:#e2e8f0;background:#334155;}}
 body[data-theme="dark"] .nav-tab.active{{background:#3b82f6;color:#fff;}}
 
+/* ── MOBILE ── */
+html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
+@media(max-width:640px){{
+  .topbar{{padding:10px 12px;gap:8px;flex-wrap:wrap;}}
+  .topbar-title{{font-size:15px;}}
+  .topbar .periodo{{text-align:left;width:100%;}}
+  .container{{padding:10px 8px;}}
+  .filter-bar{{padding:8px 10px;gap:8px;}}
+  .filter-group input[type=date],
+  .filter-group select{{min-width:100px;font-size:12px;padding:6px 8px;}}
+  .section-title{{font-size:12px;margin:14px 0 7px;}}
+  .mod-nav{{padding:6px 8px;gap:3px;}}
+  .nav-tab{{padding:7px 9px;font-size:11px;}}
+  .kpi-card{{padding:10px 8px;}}
+  .kpi-value{{font-size:16px;}}
+  .kpi-label{{font-size:10px;}}
+  .chart-card{{padding:12px 10px;}}
+  .table-card{{padding:10px 6px;}}
+  table.data-tbl{{font-size:11px;}}
+  table.data-tbl thead th,
+  table.data-tbl tbody td,
+  table.data-tbl tfoot td{{padding:5px 7px;}}
+  #btn-theme{{width:40px;height:40px;font-size:16px;bottom:12px;right:12px;}}
+  #btn-fullscreen{{width:40px;height:40px;font-size:14px;bottom:12px;right:60px;}}
+  .filter-info{{font-size:11px;}}
+}}
+
 </style>
 </head>
 <body data-theme="dark">
@@ -3901,6 +3928,19 @@ dadosFilt = VENDAS;
 _populaFiltrosFinanceiro();
 atualizar();
 try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }} catch(e){{}}
+// Auto-resize iframe para mobile (Streamlit component resize protocol)
+(function() {{
+  function _sendH() {{
+    var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 600);
+    try {{ window.parent.postMessage({{type:'streamlit:setFrameHeight', height:h}}, '*'); }} catch(e){{}}
+  }}
+  if (typeof ResizeObserver !== 'undefined') {{
+    new ResizeObserver(_sendH).observe(document.body);
+  }}
+  window.addEventListener('load', _sendH);
+  setTimeout(_sendH, 600);
+  setTimeout(_sendH, 1500);
+}})();
 </script>
 </body>
 </html>"""

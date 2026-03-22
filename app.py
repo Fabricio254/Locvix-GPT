@@ -379,7 +379,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
 
     components.html(
         _html_safe,
-        height=980,
+        height=1600,
         scrolling=True,
     )
 
