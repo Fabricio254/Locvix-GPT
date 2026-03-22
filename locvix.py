@@ -1243,16 +1243,16 @@ def buscar_horas_app(data_ini: str, data_fim: str) -> list[dict]:
         chave  = f"horas_app|{data_ini}|{data_fim}"
         d_ini_iso = datetime.strptime(data_ini, "%d/%m/%Y").date().isoformat()
         d_fim_iso = datetime.strptime(data_fim, "%d/%m/%Y").date().isoformat()
-      inclui_hoje = d_fim_iso >= date.today().isoformat()
+        inclui_hoje = d_fim_iso >= date.today().isoformat()
 
-      cached = None if inclui_hoje else _cache_load(chave, _TTL_SUPABASE)
-      if cached is not None:
-        print(f"  ✔ Horas App (cache): {len(cached)} registros")
-        _prog(0.82, f"Horas App: {len(cached)} registros (cache)")
-        return cached
+        cached = None if inclui_hoje else _cache_load(chave, _TTL_SUPABASE)
+        if cached is not None:
+            print(f"  ✔ Horas App (cache): {len(cached)} registros")
+            _prog(0.82, f"Horas App: {len(cached)} registros (cache)")
+            return cached
 
-      if not SUPABASE_URL or not SUPABASE_ANON:
-        return []
+        if not SUPABASE_URL or not SUPABASE_ANON:
+            return []
 
         hdrs = {
             "apikey":        SUPABASE_ANON,
