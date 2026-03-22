@@ -1,4 +1,4 @@
-"""
+﻿"""
 Dashboard de Análise de Dados — Locvix
 ERP: GestãoClick via API REST
 Gera relatório Excel + Dashboard HTML interativo
@@ -314,6 +314,8 @@ def _paginar_lojas(endpoint: str, params: dict | None = None) -> list[dict]:
     if LOJA_FILTRO == "ambas":
         r1 = _gck().paginar(endpoint, {**p, "loja_id": LOJA_GJ_ID})
         r2 = _gck().paginar(endpoint, {**p, "loja_id": LOJA_WA_ID})
+        for row in r1: row["_loja"] = "GJ"
+        for row in r2: row["_loja"] = "WA"
         return r1 + r2
     elif LOJA_FILTRO:
         return _gck().paginar(endpoint, {**p, "loja_id": LOJA_FILTRO})
@@ -448,6 +450,7 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
                     "Vlr Bruto":    v_bruto,
                     "Desconto":     v_desc,
                     "Vlr Líquido":  v_bruto - v_desc,
+                    "Loja":         v.get("_loja", ""),
                 })
         else:
             # Venda sem detalhamento de itens — registra a venda como um todo
@@ -471,6 +474,7 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
                 "Vlr Bruto":    v_bruto,
                 "Desconto":     v_desc,
                 "Vlr Líquido":  v_bruto - v_desc,
+                "Loja":         v.get("_loja", ""),
             })
 
     _cache_save(chave, [
@@ -661,6 +665,7 @@ def buscar_financeiro(data_ini: str, data_fim: str) -> dict:
                 "Status":       status,
                 "Categoria":    categoria.upper(),
                 "Centro Custo": (c.get("nome_centro_custo") or c.get("centro_custo") or "").upper(),
+                "Loja":         c.get("_loja", ""),
             })
 
         _cache_save(chave, [
@@ -1622,6 +1627,7 @@ def gerar_dashboard_html(
                 "bruto":     round(float(r.get("Vlr Bruto",0) or 0), 2),
                 "desc":      round(float(r.get("Desconto",0) or 0), 2),
                 "liq":       round(float(r.get("Vlr Líquido",0) or 0), 2),
+                "loja":      str(r.get("Loja","") or ""),
             })
         return rows
 
@@ -1646,6 +1652,7 @@ def gerar_dashboard_html(
                 "cat":      r.get("Categoria",""),
                 "cc":       r.get("Centro Custo",""),
                 "tipo":     tipo,
+                "loja":     r.get("Loja",""),
             })
         return rows
 
@@ -1742,6 +1749,11 @@ body{{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1e293b;f
 .btn-clear{{background:#e2e8f0;color:#4a5568;}}
 .btn-clear:hover{{background:#cbd5e0;}}
 .filter-info{{font-size:12px;color:#059669;font-weight:600;margin-left:auto;align-self:center;white-space:nowrap;}}
+.loja-pills{{display:flex;gap:5px;}}
+.loja-pill{{background:#e2e8f0;color:#4a5568;border:1px solid #cbd5e0;border-radius:6px;
+  padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;}}
+.loja-pill:hover{{background:#1a3a4a;color:#fff;border-color:#1a3a4a;}}
+.loja-pill.active{{background:#1a3a4a;color:#fff;border-color:#1a3a4a;}}
 
 /* ── FILTROS INTERNOS DE MÓDULO ── */
 .fin-filter-bar{{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;
@@ -1942,6 +1954,15 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
   <div class="filter-sep"></div>
   <button class="btn btn-apply" onclick="aplicarFiltros()">▶ Aplicar</button>
   <button class="btn btn-clear" onclick="limparFiltros()">✕ Limpar</button>
+  <div class="filter-sep"></div>
+  <div class="filter-group">
+    <label>🏪 Empresa</label>
+    <div class="loja-pills">
+      <button class="loja-pill active" data-loja="ambas" onclick="setLoja('ambas')">Ambas</button>
+      <button class="loja-pill" data-loja="GJ" onclick="setLoja('GJ')">G&amp;J</button>
+      <button class="loja-pill" data-loja="WA" onclick="setLoja('WA')">W&amp;A</button>
+    </div>
+  </div>
   <div class="filter-info" id="filtroInfo"></div>
 </div>
 
@@ -2450,6 +2471,16 @@ let dadosFilt    = VENDAS;
 let pontoMarcFilt = PONTO_MARC;
 let pagarFilt    = PAGAR;
 let pagarFiltFin = PAGAR;  // filtro interno do m\u00F3dulo Financeiro (cat + cc)
+let lojaFiltAtivo = 'ambas';  // 'ambas' | 'GJ' | 'WA'
+
+function setLoja(loja) {{
+  lojaFiltAtivo = loja;
+  document.querySelectorAll('.loja-pill').forEach(b => {{
+    b.classList.toggle('active', b.dataset.loja === loja);
+  }});
+  filtrar();
+  atualizar();
+}}
 
 // \u2500\u2500 Popula os selects de filtro do m\u00F3dulo Financeiro
 function _populaFiltrosFinanceiro() {{
@@ -2491,12 +2522,14 @@ function filtrar() {{
   dadosFilt = VENDAS.filter(r => {{
     if (ini && r.data < ini) return false;
     if (fim && r.data > fim) return false;
+    if (lojaFiltAtivo !== 'ambas' && r.loja && r.loja !== lojaFiltAtivo) return false;
     return true;
   }});
   pagarFilt = PAGAR.filter(r => {{
     if (!r.venc) return true;
     if (ini && r.venc < ini) return false;
     if (fim && r.venc > fim) return false;
+    if (lojaFiltAtivo !== 'ambas' && r.loja && r.loja !== lojaFiltAtivo) return false;
     return true;
   }});
   pagarFiltFin = pagarFilt;  // reseta filtro interno ao alterar per\u00EDodo global
@@ -3890,6 +3923,10 @@ function limparFiltros() {{
   pagarFilt     = PAGAR;
   pagarFiltFin  = PAGAR;
   pontoMarcFilt = PONTO_MARC.filter(r => r.data >= '{ponto_d_ini_iso}' && r.data <= '{ponto_d_fim_iso}');
+  lojaFiltAtivo = 'ambas';
+  document.querySelectorAll('.loja-pill').forEach(b => {{
+    b.classList.toggle('active', b.dataset.loja === 'ambas');
+  }});
   atualizar();
 }}
 
