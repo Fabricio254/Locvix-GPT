@@ -333,8 +333,10 @@ def _chave_loja(chave: str) -> str:
 # ══════════════════════════════════════════════════════════════════
 #  CACHE EM DISCO
 # ══════════════════════════════════════════════════════════════════
+_CACHE_SCHEMA = "3"  # incremente quando o esquema de dados mudar (invalida cache antigo)
+
 def _cache_path(chave: str) -> str:
-    h = hashlib.md5(chave.encode()).hexdigest()
+    h = hashlib.md5(f"{_CACHE_SCHEMA}|{chave}".encode()).hexdigest()
     return os.path.join(_CACHE_DIR, f"{h}.json")
 
 def _cache_load(chave: str, ttl: int) -> list | dict | None:
