@@ -177,6 +177,8 @@ class GCKClient:
                 todos.extend(items)
             meta = resp.get("meta", {})
             tot_pags = meta.get("last_page", meta.get("ultima_pagina", meta.get("total_paginas", 1)))
+            if tot_pags is None:
+                tot_pags = 1
             total    = meta.get("total", meta.get("total_registros", "?"))
             if pag == 1:
                 print(f"  {endpoint}: {total} registros ({tot_pags} pág.)")
