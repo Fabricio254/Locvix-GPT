@@ -1792,6 +1792,53 @@ body[data-theme="dark"] .fin-filter-bar{{background:#1e293b;border-color:#334155
 .btn-filter-orc.active{{background:#2563eb;color:#fff;border-color:#2563eb;}}
 /* ── BADGE STATUS ── */
 .badge{{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;}}
+/* ── MODAL AJUDA ── */
+.fab-help{{position:fixed;bottom:28px;right:28px;width:46px;height:46px;border-radius:50%;
+  background:#1a3a4a;color:#fff;border:2px solid #334155;font-size:20px;font-weight:800;
+  cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:900;transition:background .15s;}}
+.fab-help:hover{{background:#2563eb;border-color:#2563eb;}}
+.help-overlay{{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
+  justify-content:center;align-items:center;z-index:1000;padding:16px;}}
+.help-overlay.open{{display:flex;}}
+.help-modal{{background:#1e293b;border-radius:14px;width:100%;max-width:680px;
+  max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6);
+  animation:hmFade .2s ease;}}
+@keyframes hmFade{{from{{opacity:0;transform:translateY(10px)}}to{{opacity:1;transform:none}}}}
+.hm-header{{display:flex;align-items:center;justify-content:space-between;
+  padding:18px 22px 14px;border-bottom:1px solid #334155;}}
+.hm-header h2{{color:#f1f5f9;font-size:16px;margin:0;}}
+.hm-header small{{font-size:12px;color:#94a3b8;margin-left:8px;}}
+.hm-close{{background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;
+  padding:4px 8px;border-radius:6px;line-height:1;}}
+.hm-close:hover{{background:#334155;color:#f1f5f9;}}
+.hm-tabs{{display:flex;gap:3px;padding:10px 22px 0;flex-wrap:wrap;border-bottom:1px solid #334155;}}
+.hm-tab{{padding:6px 12px;border-radius:7px 7px 0 0;font-size:12px;font-weight:600;
+  cursor:pointer;color:#94a3b8;background:none;border:none;
+  border-bottom:2px solid transparent;transition:all .15s;}}
+.hm-tab:hover{{color:#f1f5f9;background:#334155;}}
+.hm-tab.active{{color:#38bdf8;border-bottom-color:#38bdf8;}}
+.hm-body{{overflow-y:auto;padding:20px 22px;flex:1;}}
+.hm-panel{{display:none;}}.hm-panel.active{{display:block;}}
+.hm-body h3{{color:#38bdf8;font-size:14px;margin:0 0 10px;display:flex;align-items:center;gap:7px;}}
+.hm-body p{{color:#cbd5e1;font-size:13px;line-height:1.7;margin-bottom:10px;}}
+.hm-body ul{{padding-left:17px;margin-bottom:12px;}}
+.hm-body li{{color:#cbd5e1;font-size:13px;line-height:1.85;}}
+.hm-body li strong{{color:#f1f5f9;}}
+.hm-tip{{background:#0f2d3d;border-left:3px solid #0891b2;border-radius:0 7px 7px 0;
+  padding:9px 13px;margin:12px 0;font-size:12.5px;color:#7dd3fc;}}
+.hm-tip strong{{color:#38bdf8;}}
+.hm-step{{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;}}
+.hm-snum{{background:#1a3a4a;color:#38bdf8;border-radius:50%;width:26px;height:26px;
+  min-width:26px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;}}
+.hm-stxt{{color:#cbd5e1;font-size:13px;line-height:1.7;padding-top:3px;}}
+.hm-stxt strong{{color:#f1f5f9;}}
+.hm-hr{{border:none;border-top:1px solid #334155;margin:14px 0;}}
+.hm-footer{{padding:12px 22px;border-top:1px solid #334155;
+  display:flex;justify-content:space-between;align-items:center;}}
+.hm-footer span{{font-size:11px;color:#64748b;}}
+.hm-btn{{background:#1a3a4a;color:#fff;border:none;border-radius:7px;
+  padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s;}}
+.hm-btn:hover{{background:#2563eb;}}
 .badge.green{{background:#dcfce7;color:#166534;}}
 .badge.red{{background:#fee2e2;color:#991b1b;}}
 .kpi-label{{font-size:11px;color:#718096;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}}
@@ -1966,6 +2013,127 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
     </div>
   </div>
   <div class="filter-info" id="filtroInfo"></div>
+</div>
+
+<!-- Botão flutuante de Ajuda -->
+<button class="fab-help" onclick="abrirAjuda()" title="Ajuda">?</button>
+
+<!-- Modal de Ajuda -->
+<div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)fecharAjuda()">
+  <div class="help-modal">
+    <div class="hm-header">
+      <div><h2>&#128218; Guia de Uso — Dashboard LOCVIX</h2><small>Aprenda a usar cada módulo</small></div>
+      <button class="hm-close" onclick="fecharAjuda()">&#10005;</button>
+    </div>
+    <div class="hm-tabs">
+      <button class="hm-tab active" onclick="setHmTab('inicio')">&#127968; Início</button>
+      <button class="hm-tab" onclick="setHmTab('filtros')">&#128269; Filtros</button>
+      <button class="hm-tab" onclick="setHmTab('vendas')">&#128176; Vendas</button>
+      <button class="hm-tab" onclick="setHmTab('financeiro')">&#128179; Financeiro</button>
+      <button class="hm-tab" onclick="setHmTab('operacoes')">&#128295; Operações</button>
+      <button class="hm-tab" onclick="setHmTab('ponto')">&#128336; Ponto</button>
+      <button class="hm-tab" onclick="setHmTab('orcamento')">&#128203; Orçamento</button>
+    </div>
+    <div class="hm-body">
+
+      <div class="hm-panel active" id="hmp-inicio">
+        <h3>&#127968; Bem-vindo ao Dashboard LOCVIX</h3>
+        <p>Este painel centraliza todos os dados operacionais e financeiros da Locvix, integrado em tempo real com o ERP <strong>GestãoClick</strong>.</p>
+        <div class="hm-step"><div class="hm-snum">1</div><div class="hm-stxt"><strong>Defina o período</strong> — Na barra lateral esquerda do Streamlit, escolha a Data Início e Data Fim para analisar.</div></div>
+        <div class="hm-step"><div class="hm-snum">2</div><div class="hm-stxt"><strong>Clique em “Atualizar Dados”</strong> — O sistema busca os dados mais recentes do GestãoClick. Aguarde o carregamento.</div></div>
+        <div class="hm-step"><div class="hm-snum">3</div><div class="hm-stxt"><strong>Escolha o módulo</strong> — Navegue pelas abas no topo do dashboard: Vendas, Financeiro, Operações, Ponto, Orçamento.</div></div>
+        <div class="hm-step"><div class="hm-snum">4</div><div class="hm-stxt"><strong>Use os filtros</strong> — Ajuste datas e empresa na barra superior para refinar os dados exibidos.</div></div>
+        <div class="hm-tip"><strong>&#128161; Dica:</strong> Use os botões <strong>G&amp;J</strong> / <strong>W&amp;A</strong> / <strong>Ambas</strong> para ver os dados de cada empresa separadamente ou consolidados.</div>
+      </div>
+
+      <div class="hm-panel" id="hmp-filtros">
+        <h3>&#128269; Como usar os Filtros</h3>
+        <p>A <strong>barra de filtros</strong> fica fixada no topo e afeta todos os módulos ao mesmo tempo.</p>
+        <ul>
+          <li><strong>&#128197; Data Início / Data Fim</strong> — Define o período de análise. Após alterar, clique em <em>“&#9654; Aplicar”</em>.</li>
+          <li><strong>&#9654; Aplicar</strong> — Confirma os filtros e recalcula gráficos e tabelas.</li>
+          <li><strong>&#10005; Limpar</strong> — Restaura o período original carregado.</li>
+          <li><strong>&#127978; Empresa</strong> — Filtra por empresa: <em>Ambas</em> consolida G&amp;J e W&amp;A.</li>
+        </ul>
+        <hr class="hm-hr"/>
+        <h3>Como atualizar os dados</h3>
+        <p>Na tela principal, clique em <strong>“&#128260; Atualizar Dados”</strong>. Isso força nova busca na API, ignorando o cache local.</p>
+        <div class="hm-tip"><strong>&#9203; Tempo:</strong> O carregamento pode levar de 30 segundos a 2 minutos dependendo do volume de dados.</div>
+      </div>
+
+      <div class="hm-panel" id="hmp-vendas">
+        <h3>&#128176; Módulo Vendas</h3>
+        <p>Exibe todas as vendas (pedidos/NFs) registradas no GestãoClick no período selecionado.</p>
+        <ul>
+          <li><strong>Fat. Líquido</strong> — Valor após descontos.</li>
+          <li><strong>Fat. Bruto</strong> — Valor antes dos descontos.</li>
+          <li><strong>Desconto Total</strong> — Soma de todos os descontos aplicados.</li>
+          <li><strong>Qtd Vendida</strong> — Total de itens/serviços vendidos.</li>
+          <li><strong>Clientes Ativos</strong> — Quantidade de clientes distintos com venda.</li>
+          <li><strong>Pedidos / NFs</strong> — Número de documentos emitidos.</li>
+        </ul>
+        <hr class="hm-hr"/>
+        <p>Gráficos disponíveis: <strong>Faturamento Mensal</strong>, <strong>por Categoria</strong>, <strong>Top 10 Produtos</strong> e <strong>Top 10 Clientes</strong>.</p>
+        <div class="hm-tip"><strong>&#128161; Dica:</strong> Clique em uma barra do gráfico de Categorias para filtrar a tabela por aquela categoria.</div>
+      </div>
+
+      <div class="hm-panel" id="hmp-financeiro">
+        <h3>&#128179; Módulo Financeiro</h3>
+        <p>Exibe as <strong>Contas a Pagar</strong> com análise por categoria e centro de custo.</p>
+        <ul>
+          <li><strong>A Pagar (Total)</strong> — Soma de todos os valores a pagar no período.</li>
+          <li><strong>A Pagar (Pago)</strong> — Parcela já liquidada.</li>
+        </ul>
+        <p>Filtros adicionais: <strong>Categoria</strong> (plano de contas) e <strong>Centro de Custo</strong> (departamento/projeto).</p>
+        <p>Gráficos: <strong>Distribuição por Categoria</strong> (donut), <strong>Despesas Mensais</strong> e <strong>Resultado Mensal</strong> (receitas vs. despesas).</p>
+        <div class="hm-tip"><strong>&#128161; Dica:</strong> Use o filtro de Centro de Custo para identificar quais setores estão gerando mais despesas.</div>
+      </div>
+
+      <div class="hm-panel" id="hmp-operacoes">
+        <h3>&#128295; Módulo Operações</h3>
+        <p>Concentra as informações operacionais: <strong>Ordens de Serviço</strong>, <strong>Contratos</strong>, <strong>Boletins de Medição</strong> e <strong>Horas do App</strong>.</p>
+        <ul>
+          <li><strong>Ordens de Serviço (OS)</strong> — Lista OS abertas e concluídas, com técnico, status e valor.</li>
+          <li><strong>Contratos</strong> — Contratos ativos: cliente, valor e vigência.</li>
+          <li><strong>Boletins de Medição</strong> — Registro das medições de serviços executados.</li>
+          <li><strong>Horas do App</strong> — Horas registradas via app mobile pelos operadores.</li>
+        </ul>
+        <div class="hm-tip"><strong>&#128161; Dica:</strong> O status das OS usa cores: <span style="color:#059669">&#9632;</span> Concluída, <span style="color:#d97706">&#9632;</span> Em andamento, <span style="color:#dc2626">&#9632;</span> Cancelada.</div>
+      </div>
+
+      <div class="hm-panel" id="hmp-ponto">
+        <h3>&#128336; Módulo Ponto Colaborador</h3>
+        <p>Exibe os registros de ponto integrados ao sistema <strong>DixiPonto</strong>.</p>
+        <ul>
+          <li><strong>Listagem por Colaborador</strong> — Entradas, saídas e total de horas por dia.</li>
+          <li><strong>Filtro por Nome</strong> — Digite o nome do colaborador para filtrar.</li>
+          <li><strong>Total de Horas</strong> — Somatório de horas trabalhadas no período.</li>
+        </ul>
+        <div class="hm-step"><div class="hm-snum">1</div><div class="hm-stxt">Ajuste o <strong>período nas datas</strong> da barra superior.</div></div>
+        <div class="hm-step"><div class="hm-snum">2</div><div class="hm-stxt">Use o campo de busca para <strong>filtrar por colaborador</strong>.</div></div>
+        <div class="hm-step"><div class="hm-snum">3</div><div class="hm-stxt">A tabela mostra <strong>data, entrada, saída e total de horas</strong>.</div></div>
+        <div class="hm-tip"><strong>&#9888; Atenção:</strong> Se não aparecer nada, verifique se o período selecionado possui registros no DixiPonto.</div>
+      </div>
+
+      <div class="hm-panel" id="hmp-orcamento">
+        <h3>&#128203; Módulo Orçamento</h3>
+        <p>Exibe todas as <strong>Propostas Comerciais</strong> com análise de conversão e valores.</p>
+        <ul>
+          <li><strong>Total de Propostas</strong> — Quantidade emitida no período.</li>
+          <li><strong>Valor Total</strong> — Soma de todos os orçamentos.</li>
+          <li><strong>Aprovadas</strong> — Propostas com status “Aprovado”.</li>
+          <li><strong>Taxa de Conversão</strong> — % de propostas aprovadas sobre o total.</li>
+        </ul>
+        <p>Filtros rápidos por status: <strong>Todos / Aprovados / Reprovados / Em Aberto</strong>.</p>
+        <div class="hm-tip"><strong>&#128161; Dica:</strong> Compare propostas abertas vs. aprovadas para entender o pipeline comercial em andamento.</div>
+      </div>
+
+    </div>
+    <div class="hm-footer">
+      <span>Dashboard LOCVIX — Sistema integrado GestãoClick</span>
+      <button class="hm-btn" onclick="fecharAjuda()">Fechar</button>
+    </div>
+  </div>
 </div>
 
 <div class="container">
@@ -4012,6 +4180,18 @@ try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }
   setTimeout(_sendH, 600);
   setTimeout(_sendH, 1500);
 }})();
+
+function abrirAjuda() {{ document.getElementById('helpOverlay').classList.add('open'); }}
+function fecharAjuda() {{ document.getElementById('helpOverlay').classList.remove('open'); }}
+function setHmTab(id) {{
+  document.querySelectorAll('.hm-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.hm-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.hm-tab').forEach(t => {{
+    if (t.getAttribute('onclick') === "setHmTab('" + id + "')") t.classList.add('active');
+  }});
+  document.getElementById('hmp-' + id).classList.add('active');
+}}
+document.addEventListener('keydown', e => {{ if(e.key==='Escape') fecharAjuda(); }});
 </script>
 </body>
 </html>"""
