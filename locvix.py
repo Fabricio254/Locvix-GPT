@@ -2386,7 +2386,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
   </div>
   <div class="chart-row col2" style="align-items:start;">
     <div class="chart-card">
-      <h3> Contas a Pagar por Categoria</h3>
+      <h3> Contas a Pagar por Plano de Contas</h3>
       <div style="position:relative;height:260px;">
         <canvas id="chartPagar"></canvas>
       </div>
