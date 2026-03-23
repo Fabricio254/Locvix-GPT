@@ -179,7 +179,8 @@ with st.sidebar:
     # ── Período ───────────────────────────────────────────────────
     st.markdown("### 📅 Período")
     _hoje    = date.today()
-    _ini_def = date(_hoje.year - 1, 1, 1)
+    _ini_def = date(2025, 1, 1)
+    _fim_def = date(2026, 12, 31)
 
     col_d1, col_d2 = st.columns(2)
     with col_d1:
@@ -187,14 +188,14 @@ with st.sidebar:
             "Início",
             value=_ini_def,
             min_value=date(2020, 1, 1),
-            max_value=_hoje,
+            max_value=date(2099, 12, 31),
             format="DD/MM/YYYY",
             key="periodo_ini",
         )
     with col_d2:
         data_fim_sel = st.date_input(
             "Fim",
-            value=_hoje,
+            value=_fim_def,
             min_value=date(2020, 1, 1),
             max_value=date(2099, 12, 31),
             format="DD/MM/YYYY",
