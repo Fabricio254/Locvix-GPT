@@ -2085,7 +2085,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
           <li><strong>A Pagar (Total)</strong> — Soma de todos os valores a pagar no período.</li>
           <li><strong>A Pagar (Pago)</strong> — Parcela já liquidada.</li>
         </ul>
-        <p>Filtros adicionais: <strong>Categoria</strong> (plano de contas) e <strong>Centro de Custo</strong> (departamento/projeto).</p>
+        <p>Filtros adicionais: <strong>Plano de Contas</strong> e <strong>Centro de Custo</strong> (departamento/projeto).</p>
         <p>Gráficos: <strong>Distribuição por Categoria</strong> (donut), <strong>Despesas Mensais</strong> e <strong>Resultado Mensal</strong> (receitas vs. despesas).</p>
         <div class="hm-tip"><strong>&#128161; Dica:</strong> Use o filtro de Centro de Custo para identificar quais setores estão gerando mais despesas.</div>
       </div>
@@ -2371,7 +2371,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
   <div class="section-title">💳 Financeiro</div>
   <div class="fin-filter-bar" id="finFilterBar">
     <div class="filter-group">
-      <label>🏷 Categoria</label>
+      <label>🏷 Plano de Contas</label>
       <select id="fFinCat" onchange="aplicarFiltrosFinanceiro()">
         <option value="">— Todas —</option>
       </select>
