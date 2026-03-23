@@ -1799,7 +1799,7 @@ body[data-theme="dark"] .fin-filter-bar{{background:#1e293b;border-color:#334155
   display:flex;align-items:center;justify-content:center;line-height:1;}}
 .fab-help:hover{{transform:scale(1.12);}}
 .help-overlay{{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
-  justify-content:center;align-items:center;z-index:1000;padding:16px;}}
+  justify-content:center;align-items:center;z-index:20000;padding:16px;}}
 .help-overlay.open{{display:flex;}}
 .help-modal{{background:#1e293b;border-radius:14px;width:100%;max-width:680px;
   max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6);
@@ -4182,7 +4182,13 @@ try {{ const sm = localStorage.getItem('locvix-modulo'); if(sm) setModulo(sm); }
   setTimeout(_sendH, 1500);
 }})();
 
-function abrirAjuda() {{ document.getElementById('helpOverlay').classList.add('open'); }}
+function abrirAjuda() {{
+  document.getElementById('helpOverlay').classList.add('open');
+  try {{
+    var r = window.frameElement.getBoundingClientRect();
+    window.parent.scrollTo({{top: window.parent.pageYOffset + r.top, behavior:'smooth'}});
+  }} catch(e) {{}}
+}}
 function fecharAjuda() {{ document.getElementById('helpOverlay').classList.remove('open'); }}
 function setHmTab(id) {{
   document.querySelectorAll('.hm-tab').forEach(t => t.classList.remove('active'));
