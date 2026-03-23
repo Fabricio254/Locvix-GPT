@@ -1793,10 +1793,11 @@ body[data-theme="dark"] .fin-filter-bar{{background:#1e293b;border-color:#334155
 /* ── BADGE STATUS ── */
 .badge{{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;}}
 /* ── MODAL AJUDA ── */
-.fab-help{{position:fixed;bottom:28px;right:28px;width:46px;height:46px;border-radius:50%;
-  background:#1a3a4a;color:#fff;border:2px solid #334155;font-size:20px;font-weight:800;
-  cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:900;transition:background .15s;}}
-.fab-help:hover{{background:#2563eb;border-color:#2563eb;}}
+.fab-help{{position:fixed;bottom:24px;right:136px;width:48px;height:48px;border-radius:50%;
+  background:#1a3a4a;color:#fff;border:2px solid rgba(255,255,255,.18);font-size:20px;font-weight:800;
+  cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.35);z-index:10000;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;line-height:1;}}
+.fab-help:hover{{transform:scale(1.12);}}
 .help-overlay{{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
   justify-content:center;align-items:center;z-index:1000;padding:16px;}}
 .help-overlay.open{{display:flex;}}
