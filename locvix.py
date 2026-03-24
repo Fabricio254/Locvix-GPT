@@ -2341,10 +2341,12 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
   </div><!-- /mod operacoes -->
 
   <div class="mod-section" data-mod="manutencao">
-    <div class="section-title">🛠 Manutenção</div>
-    <div style="display:flex;align-items:center;justify-content:center;padding:80px 24px;color:#94a3b8;font-size:15px;gap:12px;">
-      <span style="font-size:36px;">🛠</span>
-      <span>Módulo de Manutenção em desenvolvimento. Em breve disponível.</span>
+    <div class="section-title">🛠 Manutenção — Despesas por Equipamento</div>
+    <div class="chart-row" style="align-items:start;">
+      <div class="chart-card" style="flex:1;">
+        <h3>🏷️ Despesas por Centro de Custo (Equipamentos)</h3>
+        <div id="wrapManutCC" style="position:relative;height:320px;"><canvas id="chartManutCC"></canvas></div>
+      </div>
     </div>
   </div><!-- /mod manutencao -->
 
@@ -3157,6 +3159,108 @@ function mkResultadoMensal() {{
           position: 'right', grid: {{ display: false }},
           ticks: {{ color: '#f59e0b', callback: v => v>=1000?'R$'+(v/1000).toFixed(0)+'k':'R$'+v }}
         }}
+      }}
+    }}
+  }});
+}}
+
+function mkManutencaoCC() {{
+  destroyChart('chartManutCC');
+  const canvas = document.getElementById('chartManutCC');
+  if (!canvas) return;
+  const EXCLUIR = ['ADM/FINANCEIRO','SUBLOCAÇÕES - TERCEIROS','SEM CENTRO DE CUSTO','MANUTENÇÃO'];
+  const mCC = {{}};
+  pagarFiltFin.forEach(r => {{
+    const cc = (r.cc || '').trim() || 'SEM CENTRO DE CUSTO';
+    if (EXCLUIR.includes(cc.toUpperCase())) return;
+    mCC[cc] = (mCC[cc] || 0) + r.valor;
+  }});
+  const entries = Object.entries(mCC).sort((a, b) => b[1] - a[1]);
+  const wrap = document.getElementById('wrapManutCC');
+  if (!entries.length) {{
+    if (wrap) wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:14px;">Nenhuma despesa de equipamento no período</div>';
+    return;
+  }}
+  const total = entries.reduce((s, e) => s + e[1], 0);
+  const altura = Math.max(320, entries.length * 44);
+  if (wrap) wrap.style.height = altura + 'px';
+  const isDark = document.body.getAttribute('data-theme') !== 'light';
+  const gridClr = isDark ? '#334155' : '#e2e8f0';
+  const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
+  const CORES = ['#f59e0b','#f97316','#ef4444','#eab308','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#d946ef'];
+  charts['chartManutCC'] = new Chart(canvas, {{
+    type: 'bar',
+    data: {{
+      labels: entries.map(e => e[0]),
+      datasets: [{{
+        label: 'Despesas',
+        data: entries.map(e => Math.round(e[1] * 100) / 100),
+        backgroundColor: entries.map((_, i) => CORES[i % CORES.length]),
+        borderRadius: 4, borderSkipped: false
+      }}]
+    }},
+    options: {{
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {{
+        legend: {{ display: false }},
+        subtitle: {{ display: true, text: 'Total: ' + BRL(total),
+          color: '#f59e0b', font: {{ size: 12, weight: 'bold' }}, padding: {{ bottom: 6 }} }},
+        tooltip: {{ callbacks: {{ label: c => BRL(c.raw) + ' (' + ((c.raw / total) * 100).toFixed(1) + '%)' }} }}
+      }},
+      scales: {{
+        x: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr, callback: v => v >= 1000 ? 'R$' + (v/1000).toFixed(0) + 'k' : 'R$' + v }} }},
+        y: {{ grid: {{ display: false }}, ticks: {{ color: txtClr, font: {{ size: 10 }} }} }}
+      }}
+    }}
+  }});
+}}
+
+function mkManutencaoCC() {{
+  destroyChart('chartManutCC');
+  const canvas = document.getElementById('chartManutCC');
+  if (!canvas) return;
+  const EXCLUIR = ['ADM/FINANCEIRO','SUBLOCAÇÕES - TERCEIROS','SEM CENTRO DE CUSTO','MANUTENÇÃO'];
+  const mCC = {{}};
+  pagarFiltFin.forEach(r => {{
+    const cc = (r.cc || '').trim() || 'SEM CENTRO DE CUSTO';
+    if (EXCLUIR.includes(cc.toUpperCase())) return;
+    mCC[cc] = (mCC[cc] || 0) + r.valor;
+  }});
+  const entries = Object.entries(mCC).sort((a, b) => b[1] - a[1]);
+  const wrap = document.getElementById('wrapManutCC');
+  if (!entries.length) {{
+    if (wrap) wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:14px;">Nenhuma despesa de equipamento no per\u00EDodo</div>';
+    return;
+  }}
+  const total = entries.reduce((s, e) => s + e[1], 0);
+  const altura = Math.max(320, entries.length * 44);
+  if (wrap) wrap.style.height = altura + 'px';
+  const isDark = document.body.getAttribute('data-theme') !== 'light';
+  const gridClr = isDark ? '#334155' : '#e2e8f0';
+  const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
+  const CORES = ['#f59e0b','#f97316','#ef4444','#eab308','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#d946ef'];
+  charts['chartManutCC'] = new Chart(canvas, {{
+    type: 'bar',
+    data: {{
+      labels: entries.map(e => e[0]),
+      datasets: [{{
+        label: 'Despesas',
+        data: entries.map(e => Math.round(e[1] * 100) / 100),
+        backgroundColor: entries.map((_, i) => CORES[i % CORES.length]),
+        borderRadius: 4, borderSkipped: false
+      }}]
+    }},
+    options: {{
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {{
+        legend: {{ display: false }},
+        subtitle: {{ display: true, text: 'Total: ' + BRL(total),
+          color: '#f59e0b', font: {{ size: 12, weight: 'bold' }}, padding: {{ bottom: 6 }} }},
+        tooltip: {{ callbacks: {{ label: c => BRL(c.raw) + ' (' + ((c.raw / total) * 100).toFixed(1) + '%)' }} }}
+      }},
+      scales: {{
+        x: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr, callback: v => v >= 1000 ? 'R$' + (v/1000).toFixed(0) + 'k' : 'R$' + v }} }},
+        y: {{ grid: {{ display: false }}, ticks: {{ color: txtClr, font: {{ size: 10 }} }} }}
       }}
     }}
   }});
@@ -4095,6 +4199,7 @@ function atualizar() {{
   try {{ mkFinanceiro(); }} catch(e) {{ console.warn('mkFinanceiro:', e); }}
   try {{ initPonto(pontoMarcFilt); }} catch(e) {{ console.warn('initPonto:', e); }}
   try {{ mkOrcamento(); }} catch(e) {{ console.warn('mkOrcamento:', e); }}
+  try {{ mkManutencaoCC(); }} catch(e) {{ console.warn('mkManutencaoCC:', e); }}
   try {{ mkMedicoes(); }} catch(e) {{ console.warn('mkMedicoes:', e); }}
   try {{ mkHorasApp(); }} catch(e) {{ console.warn('mkHorasApp:', e); }}
 }}
