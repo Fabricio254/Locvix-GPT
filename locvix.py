@@ -883,13 +883,13 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
         p = str(dt).split("-")
         return f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else str(dt)
 
-    # ── paleta corporativa ─────────────────────────────────────────
-    NAVY     = _rlcolors.HexColor("#1e3a5f")   # azul escuro — cabeçalho
-    NAVY_T   = _rlcolors.HexColor("#2d5a9b")   # azul médio — col headers
-    NAVY_CUI = _rlcolors.HexColor("#3a6db5")   # azul claro — "aos cuidados"
-    ROW_ALT  = _rlcolors.HexColor("#f1f5f9")   # cinza muito claro — linha par
-    ROW_TOT  = _rlcolors.HexColor("#dbeafe")   # azul pastel — linha TOTAL
-    BDR      = _rlcolors.HexColor("#94a3b8")   # cinza — bordas
+    # ── paleta corporativa Locvix (laranja + azul escuro) ───────────
+    NAVY     = _rlcolors.HexColor("#1e3a5f")   # azul escuro — cabeçalho principal
+    NAVY_T   = _rlcolors.HexColor("#e87722")   # laranja Locvix — col headers / info bar
+    NAVY_CUI = _rlcolors.HexColor("#f59e42")   # laranja claro — "aos cuidados"
+    ROW_ALT  = _rlcolors.HexColor("#fff7ed")   # laranja pastel muito claro — linha par
+    ROW_TOT  = _rlcolors.HexColor("#fed7aa")   # laranja pastel — linha TOTAL
+    BDR      = _rlcolors.HexColor("#fdba74")   # laranja bordas
     PRETO    = _rlcolors.black
     BRANCO   = _rlcolors.white
     CINZA_L  = _rlcolors.HexColor("#475569")   # texto label (cinza escuro)
@@ -901,29 +901,29 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     st_emp  = _PS("em", fontSize=15, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAC, spaceAfter=8)
     st_esub = _PS("es", fontSize=8,  fontName="Helvetica",      textColor=BRANCO, alignment=_TAC, leading=11, spaceBefore=4)
     st_pnum = _PS("pn", fontSize=11, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAC, spaceBefore=4)
-    # Barra de info
-    st_bl   = _PS("bl", fontSize=8,  fontName="Helvetica-Bold", textColor=BRANCO, spaceAfter=1)
-    st_bv   = _PS("bv", fontSize=8,  fontName="Helvetica",      textColor=BRANCO)
-    # Seção
-    st_sec  = _PS("sc", fontSize=9,  fontName="Helvetica-Bold", textColor=BRANCO)
+    # Barra de info (preto em laranja)
+    st_bl   = _PS("bl", fontSize=8,  fontName="Helvetica-Bold", textColor=PRETO, spaceAfter=1)
+    st_bv   = _PS("bv", fontSize=8,  fontName="Helvetica",      textColor=PRETO)
+    # Seção (preto em laranja)
+    st_sec  = _PS("sc", fontSize=9,  fontName="Helvetica-Bold", textColor=PRETO)
     # Campos do cliente
     st_lbl  = _PS("lb", fontSize=8,  fontName="Helvetica-Bold", textColor=CINZA_L)
     st_val  = _PS("vl", fontSize=8,  fontName="Helvetica",      textColor=PRETO)
-    # Cabeçalho de colunas (branco em NAVY_T)
-    st_th   = _PS("th", fontSize=8,  fontName="Helvetica-Bold", textColor=BRANCO)
-    st_th_c = _PS("tc", fontSize=8,  fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAC)
-    st_th_r = _PS("tr", fontSize=8,  fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAR)
+    # Cabeçalho de colunas (preto em laranja)
+    st_th   = _PS("th", fontSize=8,  fontName="Helvetica-Bold", textColor=PRETO)
+    st_th_c = _PS("tc", fontSize=8,  fontName="Helvetica-Bold", textColor=PRETO,  alignment=_TAC)
+    st_th_r = _PS("tr", fontSize=8,  fontName="Helvetica-Bold", textColor=PRETO,  alignment=_TAR)
     # Dados das linhas
     st_td   = _PS("td", fontSize=8,  fontName="Helvetica",      textColor=PRETO)
     st_td_c = _PS("dc", fontSize=8,  fontName="Helvetica",      textColor=PRETO,  alignment=_TAC)
     st_td_r = _PS("dr", fontSize=8,  fontName="Helvetica",      textColor=PRETO,  alignment=_TAR)
-    # Linha TOTAL nas tabelas
-    st_tt   = _PS("tt", fontSize=8,  fontName="Helvetica-Bold", textColor=NAVY,   alignment=_TAR)
-    st_tr   = _PS("tor",fontSize=8,  fontName="Helvetica-Bold", textColor=NAVY,   alignment=_TAR)
+    # Linha TOTAL nas tabelas (preto no fundo laranja pastel)
+    st_tt   = _PS("tt", fontSize=8,  fontName="Helvetica-Bold", textColor=PRETO,  alignment=_TAR)
+    st_tr   = _PS("tor",fontSize=8,  fontName="Helvetica-Bold", textColor=PRETO,  alignment=_TAR)
     # Subtotais (caixa de totais)
     st_sl   = _PS("sl", fontSize=9,  fontName="Helvetica",      textColor=PRETO,  alignment=_TAR)
     st_sv   = _PS("sv", fontSize=9,  fontName="Helvetica",      textColor=PRETO,  alignment=_TAR)
-    # Linha TOTAL GERAL (navy, branco)
+    # Linha TOTAL GERAL (azul escuro, branco) — mantém destaque forte
     st_fl   = _PS("fl", fontSize=10, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAR)
     st_fv   = _PS("fv", fontSize=11, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAR)
     # Termos
@@ -943,8 +943,8 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     def _sec_hdr(txt):
         t = _RLTable([[_Para(txt, st_sec)]], colWidths=[CW])
         t.setStyle(_RLTableStyle([
-            ("BACKGROUND",    (0,0),(-1,-1), NAVY),
-            ("BOX",           (0,0),(-1,-1), 0, NAVY),
+            ("BACKGROUND",    (0,0),(-1,-1), NAVY_T),
+            ("BOX",           (0,0),(-1,-1), 0, NAVY_T),
             ("TOPPADDING",    (0,0),(-1,-1), 5),
             ("BOTTOMPADDING", (0,0),(-1,-1), 5),
             ("LEFTPADDING",   (0,0),(-1,-1), 7),
