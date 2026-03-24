@@ -999,18 +999,12 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
 
     # ══ BARRA DE INFORMAÇÕES ══════════════════════════════════════
     data_orc = _fdate(d.get("data",""))
-    validade = d.get("validade","") or "10 DIAS"
-    previsao = _fdate(d.get("previsao_entrega",""))
-    situacao = d.get("nome_situacao","") or "Em aberto"
     cuidados = (d.get("aos_cuidados_de","") or "").strip()
 
     bar_data = [[
-        [_Para("Data:", st_bl),               _Para(data_orc,  st_bv)],
-        [_Para("Validade:", st_bl),            _Para(validade,  st_bv)],
-        [_Para("Previsão de Entrega:", st_bl), _Para(previsao,  st_bv)],
-        [_Para("Situação:", st_bl),            _Para(situacao,  st_bv)],
+        [_Para("Data:", st_bl), _Para(data_orc, st_bv)],
     ]]
-    bar_t = _RLTable(bar_data, colWidths=[CW/4]*4)
+    bar_t = _RLTable(bar_data, colWidths=[CW])
     bar_t.setStyle(_RLTableStyle([
         ("BACKGROUND",    (0,0),(-1,-1), NAVY_T),
         ("BOX",           (0,0),(-1,-1), 0.4, BDR),
