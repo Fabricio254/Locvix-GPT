@@ -7,3 +7,10 @@ venv/
 *.log
 .streamlit/secrets.toml
 _cache_gck/
+
+# Arquivos gerados/locais
+Dashboard_Locvix_*.html
+Relatorio_Locvix_*.xlsx
+help_preview.html
+orcamento_*.pdf
+*.zip

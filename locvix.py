@@ -796,129 +796,32 @@ def buscar_contratos() -> list[dict]:
 # ══════════════════════════════════════════════════════════════════
 def buscar_orcamentos() -> list[dict]:
     """
-    Lê PDFs das pastas 'PROPOSTA PERDIDAS' e 'PROPOSTAS FECHADAS' e extrai:
-    número, data, cliente, vendedor, material, valor, contato, fone, status.
+    Busca orçamentos da API GestãoClick (GET /orcamentos).
+    Retorna lista com: codigo, data, cliente, vendedor, situacao, valor,
+    centro_custo, loja, id.
     """
-    import os as _os
-    import re as _re
-
-    try:
-        import pdfplumber as _pl
-    except ImportError:
-        print("  [AVISO] pdfplumber não instalado — módulo Orçamento indisponível")
-        return []
-
-    _prog(0.69, "Lendo propostas PDF...")
-    base_dir = _os.path.dirname(_os.path.abspath(__file__))
-
-    pastas = [
-        (_os.path.join(base_dir, "PROPOSTA PERDIDAS"),  "perdida"),
-        (_os.path.join(base_dir, "PROPOSTAS FECHADAS"), "fechada"),
-    ]
-
+    _prog(0.69, "Buscando orçamentos GestãoClick...")
+    raw = _paginar_lojas("orcamentos")
     registros: list[dict] = []
-
-    for pasta, status in pastas:
-        if not _os.path.exists(pasta):
-            continue
-        for nome_arq in sorted(_os.listdir(pasta)):
-            if not nome_arq.lower().endswith(".pdf"):
-                continue
-            caminho = _os.path.join(pasta, nome_arq)
-            try:
-                with _pl.open(caminho) as pdf:
-                    texto = "\n".join(p.extract_text() or "" for p in pdf.pages[:4])
-            except Exception as e:
-                print(f"  [AVISO] Erro ao ler {nome_arq}: {e}")
-                continue
-
-            # ── Número da proposta
-            m = _re.search(r'PROPOSTA\s+COMERCIAL\s+N[ºo°]?\s*(\w+)', texto, _re.IGNORECASE)
-            numero = m.group(1) if m else nome_arq[:20]
-
-            # ── Data: extraída do sufixo do nome  (YYYYDDMMHHMM)
-            m = _re.search(r'(\d{4})(\d{2})(\d{2})\d{4}(?:REV\d+)?\.pdf', nome_arq, _re.IGNORECASE)
-            if m:
-                data_str = f"{m.group(2)}/{m.group(3)}/{m.group(1)}"
-            else:
-                data_str = ""
-
-            # ── Bloco CONTRATADA (de onde tiramos o vendedor)
-            m_c = _re.search(r'CONTRATADA\s*\n(.*?)(?=\nCONTRATANTE)', texto, _re.DOTALL)
-            bloco_contratada = m_c.group(1) if m_c else ""
-
-            # ── Bloco CONTRATANTE (cliente, fone, contato)
-            m_ct = _re.search(r'CONTRATANTE\s*\n(.*?)(?=\nAtendendo|\nEQUIPAMENTOS)', texto, _re.DOTALL)
-            bloco_contratante = m_ct.group(1) if m_ct else ""
-
-            # ── Vendedor (Contato: no bloco da CONTRATADA)
-            m = _re.search(r'Contato:\s*(.+)', bloco_contratada)
-            vendedor = m.group(1).strip() if m else ""
-
-            # ── Cliente (1ª linha não-CNPJ do bloco CONTRATANTE)
-            cliente = ""
-            for linha in bloco_contratante.split("\n"):
-                linha = linha.strip()
-                if linha and not _re.match(r'(CNPJ|Fone|E-mail|Contato)', linha, _re.IGNORECASE):
-                    cliente = linha
-                    break
-
-            # ── Fone do contratante
-            m = _re.search(r'Fone:\s*(.+)', bloco_contratante)
-            fone = m.group(1).strip() if m else ""
-
-            # ── Contato do contratante
-            m = _re.search(r'Contato:\s*(.+)', bloco_contratante)
-            contato = m.group(1).strip() if m else ""
-
-            # ── Equipamentos / Material e Valor
-            m_eq = _re.search(
-                r'EQUIPAMENTOS PARA LOC[AÇA]+[ÃA]O E PRE[ÇC]O\s*\n(.*?)(?=\n\d+\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕ]|\Z)',
-                texto, _re.DOTALL | _re.IGNORECASE
-            )
-            bloco_eq = m_eq.group(1) if m_eq else texto
-
-            equips = _re.findall(
-                r'(Loca[çc][ãa]o\s+(?:de\s+)?[A-Za-zÀ-ÿ0-9\s]+?)\s+R\$\s*([\d.,]+)',
-                bloco_eq, _re.IGNORECASE
-            )
-
-            if equips:
-                # Nomes únicos dos equipamentos
-                nomes = sorted(set(
-                    _re.sub(r'\s+', ' ', e[0].strip()) for e in equips
-                ))
-                material = " / ".join(nomes)
-                # Maior valor da tabela = valor mensal/diário principal
-                vals_n = []
-                for _, v in equips:
-                    try:
-                        vals_n.append(float(v.replace(".", "").replace(",", ".")))
-                    except Exception:
-                        pass
-                valor = max(vals_n) if vals_n else 0.0
-            else:
-                material = ""
-                vals_txt = _re.findall(r'R\$\s*([\d.,]+)', bloco_eq)
-                try:
-                    valor = max(float(v.replace(".", "").replace(",", ".")) for v in vals_txt) if vals_txt else 0.0
-                except Exception:
-                    valor = 0.0
-
-            registros.append({
-                "numero":   numero,
-                "data":     data_str,
-                "status":   status,
-                "cliente":  cliente,
-                "vendedor": vendedor,
-                "material": material,
-                "valor":    round(valor, 2),
-                "contato":  contato,
-                "fone":     fone,
-                "arquivo":  nome_arq,
-            })
-
-    print(f"  ✔ {len(registros)} propostas lidas ({sum(1 for r in registros if r['status']=='fechada')} fechadas)")
+    for o in raw:
+        dt = o.get("data", "") or ""
+        if dt and "-" in dt:
+            p = dt.split("-")
+            dt = f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else dt
+        sit = (o.get("nome_situacao") or "Em aberto").strip()
+        registros.append({
+            "id":            o.get("id", ""),
+            "codigo":        o.get("codigo", ""),
+            "data":          dt,
+            "situacao":      sit,
+            "cliente":       o.get("nome_cliente", ""),
+            "vendedor":      o.get("nome_vendedor", ""),
+            "centro_custo":  o.get("nome_centro_custo", ""),
+            "loja":          o.get("nome_loja", ""),
+            "valor":         round(float(o.get("valor_total", 0) or 0), 2),
+        })
+    conc = sum(1 for r in registros if r["situacao"] == "Concretizado")
+    print(f"  ✔ {len(registros)} orçamentos ({conc} concretizados)")
     return registros
 
 
@@ -1842,6 +1745,9 @@ body[data-theme="dark"] .fin-filter-bar{{background:#1e293b;border-color:#334155
 .hm-btn:hover{{background:#2563eb;}}
 .badge.green{{background:#dcfce7;color:#166534;}}
 .badge.red{{background:#fee2e2;color:#991b1b;}}
+.badge.yellow{{background:#fef9c3;color:#854d0e;}}
+.badge.blue{{background:#dbeafe;color:#1e40af;}}
+.badge.gray{{background:#f1f5f9;color:#475569;}}
 .kpi-label{{font-size:11px;color:#718096;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}}
 .kpi-value{{font-size:20px;font-weight:800;color:#1e293b;}}
 .kpi-value.small{{font-size:15px;}}
@@ -2125,15 +2031,17 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
 
       <div class="hm-panel" id="hmp-orcamento">
         <h3>&#128203; Módulo Orçamento</h3>
-        <p>Exibe todas as <strong>Propostas Comerciais</strong> com análise de conversão e valores.</p>
+        <p>Exibe todos os <strong>Orçamentos</strong> cadastrados no GestãoClick com análise por situação e valores.</p>
         <ul>
-          <li><strong>Total de Propostas</strong> — Quantidade emitida no período.</li>
-          <li><strong>Valor Total</strong> — Soma de todos os orçamentos.</li>
-          <li><strong>Aprovadas</strong> — Propostas com status “Aprovado”.</li>
-          <li><strong>Taxa de Conversão</strong> — % de propostas aprovadas sobre o total.</li>
+          <li><strong>Total de Propostas</strong> — Quantidade de orçamentos no período.</li>
+          <li><strong>Em Aberto</strong> — Orçamentos aguardando resposta do cliente.</li>
+          <li><strong>Em Andamento</strong> — Orçamentos em negociação ou execução.</li>
+          <li><strong>Concretizado</strong> — Orçamentos aprovados e fechados.</li>
+          <li><strong>Cancelado</strong> — Orçamentos cancelados pelo cliente ou empresa.</li>
+          <li><strong>Valor Total</strong> — Soma de todos os orçamentos do período.</li>
         </ul>
-        <p>Filtros rápidos por status: <strong>Todos / Aprovados / Reprovados / Em Aberto</strong>.</p>
-        <div class="hm-tip"><strong>&#128161; Dica:</strong> Compare propostas abertas vs. aprovadas para entender o pipeline comercial em andamento.</div>
+        <p>Filtros rápidos por situação: <strong>Todas / Em Aberto / Em Andamento / Concretizado / Cancelado</strong>.</p>
+        <div class="hm-tip"><strong>&#128161; Dica:</strong> Acompanhe a evolução dos orçamentos por vendedor no gráfico de barras e a distribuição geral no gráfico de rosca.</div>
       </div>
 
     </div>
@@ -2531,36 +2439,36 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
       <div class="kpi-label">Total Propostas</div>
       <div class="kpi-value" id="kOrcTotal">—</div>
     </div>
-    <div class="kpi-card green">
-      <div class="kpi-label">✅ Fechadas</div>
-      <div class="kpi-value" id="kOrcFech">—</div>
-    </div>
-    <div class="kpi-card red">
-      <div class="kpi-label">❌ Perdidas</div>
-      <div class="kpi-value" id="kOrcPerd">—</div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">📂 Em Aberto</div>
+      <div class="kpi-value" id="kOrcAberto">—</div>
     </div>
     <div class="kpi-card teal">
-      <div class="kpi-label">Valor Fechado</div>
-      <div class="kpi-value small" id="kOrcValFech">—</div>
+      <div class="kpi-label">⏳ Em Andamento</div>
+      <div class="kpi-value" id="kOrcAndamento">—</div>
     </div>
-    <div class="kpi-card orange">
-      <div class="kpi-label">Valor Perdido</div>
-      <div class="kpi-value small" id="kOrcValPerd">—</div>
+    <div class="kpi-card green">
+      <div class="kpi-label">✅ Concretizado</div>
+      <div class="kpi-value" id="kOrcConc">—</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">❌ Cancelado</div>
+      <div class="kpi-value" id="kOrcCanc">—</div>
     </div>
     <div class="kpi-card purple">
-      <div class="kpi-label">Taxa Conversão</div>
-      <div class="kpi-value" id="kOrcTaxa">—</div>
+      <div class="kpi-label">Valor Total</div>
+      <div class="kpi-value small" id="kOrcValTotal">—</div>
     </div>
   </div>
 
   <!-- Gráficos -->
   <div class="chart-row" style="align-items:start;">
     <div class="chart-card" style="flex:1;">
-      <h3>📊 Propostas por Vendedor — Fechadas vs Perdidas</h3>
+      <h3>📊 Propostas por Vendedor</h3>
       <div style="position:relative;height:280px;"><canvas id="chartOrcVendedor"></canvas></div>
     </div>
     <div class="chart-card" style="flex:0 0 280px;">
-      <h3>🎯 Taxa de Conversão</h3>
+      <h3>🎯 Situação dos Orçamentos</h3>
       <div style="position:relative;height:280px;"><canvas id="chartOrcTaxa"></canvas></div>
     </div>
   </div>
@@ -2569,24 +2477,25 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
   <div class="section-title">🔍 Propostas Detalhadas</div>
   <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <span style="color:#94a3b8;font-size:13px;">Filtrar:</span>
-    <button class="btn-filter-orc active" data-f="todos"   onclick="filtrarOrc(this)">Todas</button>
-    <button class="btn-filter-orc"        data-f="fechada" onclick="filtrarOrc(this)">✅ Fechadas</button>
-    <button class="btn-filter-orc"        data-f="perdida" onclick="filtrarOrc(this)">❌ Perdidas</button>
+    <button class="btn-filter-orc active" data-f="todos"       onclick="filtrarOrc(this)">Todas</button>
+    <button class="btn-filter-orc"        data-f="Em aberto"   onclick="filtrarOrc(this)">📂 Em Aberto</button>
+    <button class="btn-filter-orc"        data-f="Em andamento" onclick="filtrarOrc(this)">⏳ Em Andamento</button>
+    <button class="btn-filter-orc"        data-f="Concretizado" onclick="filtrarOrc(this)">✅ Concretizado</button>
+    <button class="btn-filter-orc"        data-f="Cancelado"   onclick="filtrarOrc(this)">❌ Cancelado</button>
   </div>
 
   <div class="table-card">
     <table class="data-tbl" id="tblOrcamentos">
       <thead><tr>
         <th>#</th>
+        <th>Nº</th>
         <th>Data</th>
-        <th>Nº Proposta</th>
         <th>Cliente</th>
         <th>Vendedor</th>
-        <th>Equipamento / Material</th>
-        <th class="num">Valor Ref.</th>
-        <th>Contato</th>
-        <th>Fone</th>
-        <th>Status</th>
+        <th>Centro de Custo</th>
+        <th>Loja</th>
+        <th class="num">Valor Total</th>
+        <th>Situação</th>
       </tr></thead>
       <tbody id="tblOrcBody"></tbody>
     </table>
@@ -3787,53 +3696,48 @@ function renderTblOrc() {{
   const tbody = document.getElementById('tblOrcBody');
   if (!tbody) return;
   const lista = _orcFiltro === 'todos' ? ORCAMENTOS
-    : ORCAMENTOS.filter(r => r.status === _orcFiltro);
-  // Ordenar: fechadas primeiro, depois por data desc
-  const sorted = [...lista].sort((a, b) => {{
-    if (a.status !== b.status) return a.status === 'fechada' ? -1 : 1;
-    return (b.data || '').localeCompare(a.data || '');
-  }});
+    : ORCAMENTOS.filter(r => r.situacao === _orcFiltro);
+  const sorted = [...lista].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+  const badgeMap = {{'Em aberto':'yellow','Em andamento':'blue','Concretizado':'green','Cancelado':'red'}};
+  const iconMap  = {{'Em aberto':'\uD83D\uDCC2','Em andamento':'\u23F3','Concretizado':'\u2705','Cancelado':'\u274C'}};
   tbody.innerHTML = sorted.map((r, i) => {{
-    const badge = r.status === 'fechada'
-      ? '<span class="badge green">\u2705 Fechada</span>'
-      : '<span class="badge red">\u274C Perdida</span>';
+    const cor  = badgeMap[r.situacao] || 'gray';
+    const icon = iconMap[r.situacao]  || '';
+    const badge = `<span class="badge ${{cor}}">${{icon}} ${{r.situacao}}</span>`;
     const val = r.valor > 0 ? BRL(r.valor) : '\u2014';
-    const mat = (r.material || '\u2014').replace(/Loca\u00E7\u00E3o (de )?/gi,'').trim() || '\u2014';
     return `<tr>
       <td>${{i+1}}</td>
+      <td style="font-size:11px;color:#94a3b8">${{r.codigo}}</td>
       <td style="white-space:nowrap">${{r.data || '\u2014'}}</td>
-      <td style="font-size:11px;color:#94a3b8">${{r.numero}}</td>
       <td><strong>${{r.cliente || '\u2014'}}</strong></td>
       <td style="font-size:12px">${{r.vendedor || '\u2014'}}</td>
-      <td style="font-size:12px;max-width:220px">${{mat}}</td>
+      <td style="font-size:12px">${{r.centro_custo || '\u2014'}}</td>
+      <td style="font-size:12px">${{r.loja || '\u2014'}}</td>
       <td class="num">${{val}}</td>
-      <td style="font-size:12px">${{r.contato || '\u2014'}}</td>
-      <td style="font-size:12px;white-space:nowrap">${{r.fone || '\u2014'}}</td>
       <td>${{badge}}</td>
     </tr>`;
-  }}).join('') || '<tr><td colspan="10" style="text-align:center;color:#94a3b8">Nenhuma proposta</td></tr>';
+  }}).join('') || '<tr><td colspan="9" style="text-align:center;color:#94a3b8">Nenhum orçamento</td></tr>';
 }}
 
 function mkOrcamento() {{
   if (!ORCAMENTOS.length) return;
-  const fechadas = ORCAMENTOS.filter(r => r.status === 'fechada');
-  const perdidas = ORCAMENTOS.filter(r => r.status === 'perdida');
-  const valFech  = fechadas.reduce((s, r) => s + (r.valor || 0), 0);
-  const valPerd  = perdidas.reduce((s, r) => s + (r.valor || 0), 0);
-  const taxa     = ORCAMENTOS.length > 0
-    ? (fechadas.length / ORCAMENTOS.length * 100).toFixed(1) + '%' : '\u2014';
+  const abertos   = ORCAMENTOS.filter(r => r.situacao === 'Em aberto');
+  const andamento = ORCAMENTOS.filter(r => r.situacao === 'Em andamento');
+  const concret   = ORCAMENTOS.filter(r => r.situacao === 'Concretizado');
+  const cancelados= ORCAMENTOS.filter(r => r.situacao === 'Cancelado');
+  const valTotal  = ORCAMENTOS.reduce((s, r) => s + (r.valor || 0), 0);
 
   const _set = (id, v) => {{ const el = document.getElementById(id); if (el) el.textContent = v; }};
-  _set('kOrcTotal',   NUM(ORCAMENTOS.length));
-  _set('kOrcFech',    NUM(fechadas.length));
-  _set('kOrcPerd',    NUM(perdidas.length));
-  _set('kOrcValFech', BRL(valFech));
-  _set('kOrcValPerd', BRL(valPerd));
-  _set('kOrcTaxa',    taxa);
+  _set('kOrcTotal',     NUM(ORCAMENTOS.length));
+  _set('kOrcAberto',    NUM(abertos.length));
+  _set('kOrcAndamento', NUM(andamento.length));
+  _set('kOrcConc',      NUM(concret.length));
+  _set('kOrcCanc',      NUM(cancelados.length));
+  _set('kOrcValTotal',  BRL(valTotal));
 
   renderTblOrc();
 
-  // \u2500\u2500 Gr\u00E1fico: propostas por vendedor (fechadas vs perdidas)
+  // ── Gráfico: propostas por vendedor (stacked por situação)
   destroyChart('chartOrcVendedor');
   const cv = document.getElementById('chartOrcVendedor');
   if (cv) {{
@@ -3841,27 +3745,30 @@ function mkOrcamento() {{
     const isDark = document.body.getAttribute('data-theme') !== 'light';
     const txtClr = isDark ? '#cbd5e1' : '#1e293b';
     const gridClr = isDark ? '#334155' : '#e2e8f0';
+    const sits = ['Em aberto','Em andamento','Concretizado','Cancelado'];
+    const cores = ['#eab308','#3b82f6','#059669','#ef4444'];
     charts['chartOrcVendedor'] = new Chart(cv, {{
       type: 'bar',
       data: {{
         labels: vends,
-        datasets: [
-          {{ label: '\u2705 Fechadas', data: vends.map(v => fechadas.filter(r => (r.vendedor||'Sem Vendedor')===v).length), backgroundColor: '#059669' }},
-          {{ label: '\u274C Perdidas', data: vends.map(v => perdidas.filter(r => (r.vendedor||'Sem Vendedor')===v).length), backgroundColor: '#ef4444' }},
-        ]
+        datasets: sits.map((s,idx) => ({{
+          label: s,
+          data: vends.map(v => ORCAMENTOS.filter(r => (r.vendedor||'Sem Vendedor')===v && r.situacao===s).length),
+          backgroundColor: cores[idx]
+        }}))
       }},
       options: {{
         responsive: true, maintainAspectRatio: false,
-        plugins: {{ legend: {{ labels: {{ color: txtClr }} }}, tooltip: {{ callbacks: {{ label: c => c.dataset.label + ': ' + c.raw + ' proposta(s)' }} }} }},
+        plugins: {{ legend: {{ labels: {{ color: txtClr }} }}, tooltip: {{ callbacks: {{ label: c => c.dataset.label + ': ' + c.raw }} }} }},
         scales: {{
-          x: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr }} }},
-          y: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr, stepSize: 1 }}, beginAtZero: true }}
+          x: {{ stacked: true, grid: {{ color: gridClr }}, ticks: {{ color: txtClr }} }},
+          y: {{ stacked: true, grid: {{ color: gridClr }}, ticks: {{ color: txtClr, stepSize: 1 }}, beginAtZero: true }}
         }}
       }}
     }});
   }}
 
-  // \u2500\u2500 Gr\u00E1fico: donut taxa de convers\u00E3o
+  // ── Gráfico: donut situação
   destroyChart('chartOrcTaxa');
   const ct = document.getElementById('chartOrcTaxa');
   if (ct) {{
@@ -3870,8 +3777,8 @@ function mkOrcamento() {{
     charts['chartOrcTaxa'] = new Chart(ct, {{
       type: 'doughnut',
       data: {{
-        labels: ['Fechadas', 'Perdidas'],
-        datasets: [{{ data: [fechadas.length, perdidas.length], backgroundColor: ['#059669','#ef4444'], borderWidth: 0 }}]
+        labels: ['Em aberto', 'Em andamento', 'Concretizado', 'Cancelado'],
+        datasets: [{{ data: [abertos.length, andamento.length, concret.length, cancelados.length], backgroundColor: ['#eab308','#3b82f6','#059669','#ef4444'], borderWidth: 0 }}]
       }},
       options: {{
         responsive: true, maintainAspectRatio: false,
