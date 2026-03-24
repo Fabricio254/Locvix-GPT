@@ -28,6 +28,21 @@ if sys.platform == "win32":
 import requests
 import pandas as pd
 from openpyxl import load_workbook
+
+# reportlab — geração de PDF de orçamentos (opcional: degradação suave se ausente)
+try:
+    from io import BytesIO as _BytesIO
+    from reportlab.lib.pagesizes import A4 as _A4
+    from reportlab.lib import colors as _rlcolors
+    from reportlab.lib.units import mm as _mm
+    from reportlab.platypus import (SimpleDocTemplate as _SDT, Table as _RLTable,
+                                     TableStyle as _RLTableStyle, Paragraph as _Para,
+                                     Spacer as _Spacer, Image as _RLImg)
+    from reportlab.lib.styles import ParagraphStyle as _PS
+    from reportlab.lib.enums import TA_CENTER as _TAC, TA_RIGHT as _TAR, TA_LEFT as _TAL
+    _REPORTLAB_OK = True
+except ImportError:
+    _REPORTLAB_OK = False
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.chart import BarChart, Reference
@@ -792,34 +807,275 @@ def buscar_contratos() -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════
+#  GERAÇÃO DE PDF — ORÇAMENTO
+# ══════════════════════════════════════════════════════════════════
+def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
+    """
+    Gera PDF do orçamento idêntico ao layout GestãoClick.
+    d       = resposta de GET /orcamentos/{id} (dict 'data')
+    cli_data= resposta de GET /clientes/{id}  (dict 'data')
+    Retorna bytes do PDF ou None se reportlab não está disponível.
+    """
+    if not _REPORTLAB_OK:
+        return None
+
+    # ── helpers ───────────────────────────────────────────────────
+    def _brl(v):
+        try:
+            return f"{float(v):,.2f}".replace(",","X").replace(".",",").replace("X",".")
+        except Exception:
+            return "0,00"
+
+    def _fdate(dt):
+        if not dt:
+            return ""
+        p = str(dt).split("-")
+        return f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else str(dt)
+
+    # ── estilos ───────────────────────────────────────────────────
+    PRETO    = _rlcolors.black
+    CINZA_BG = _rlcolors.HexColor("#d9d9d9")
+    CW       = _A4[0] - 30*_mm
+
+    st_sec  = _PS("sec",  fontSize=9,  fontName="Helvetica-Bold",  textColor=PRETO)
+    st_lbl  = _PS("lbl",  fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO)
+    st_val  = _PS("val",  fontSize=8,  fontName="Helvetica",       textColor=PRETO)
+    st_th   = _PS("th",   fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO)
+    st_th_c = _PS("thc",  fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAC)
+    st_th_r = _PS("thr",  fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAR)
+    st_td   = _PS("td",   fontSize=8,  fontName="Helvetica",       textColor=PRETO)
+    st_td_c = _PS("tdc",  fontSize=8,  fontName="Helvetica",       textColor=PRETO, alignment=_TAC)
+    st_td_r = _PS("tdr",  fontSize=8,  fontName="Helvetica",       textColor=PRETO, alignment=_TAR)
+    st_tl   = _PS("tl",   fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAR)
+    st_tv   = _PS("tv",   fontSize=8,  fontName="Helvetica",       textColor=PRETO, alignment=_TAR)
+    st_tf   = _PS("tf",   fontSize=9,  fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAR)
+    st_he   = _PS("he",   fontSize=14, fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAC)
+    st_hi   = _PS("hi",   fontSize=8,  fontName="Helvetica",       textColor=PRETO, alignment=_TAC, leading=11)
+    st_intr = _PS("intr", fontSize=7,  fontName="Helvetica",       textColor=PRETO, leading=9,  alignment=_TAL)
+
+    def _borda():
+        return [
+            ("BOX",           (0,0),(-1,-1), 0.5, PRETO),
+            ("INNERGRID",     (0,0),(-1,-1), 0.5, PRETO),
+            ("TOPPADDING",    (0,0),(-1,-1), 3),
+            ("BOTTOMPADDING", (0,0),(-1,-1), 3),
+            ("LEFTPADDING",   (0,0),(-1,-1), 4),
+            ("RIGHTPADDING",  (0,0),(-1,-1), 4),
+        ]
+
+    def _secao(txt):
+        t = _RLTable([[_Para(txt, st_sec)]], colWidths=[CW])
+        t.setStyle(_RLTableStyle([
+            ("BACKGROUND", (0,0),(-1,-1), CINZA_BG),
+            ("BOX",        (0,0),(-1,-1), 0.5, PRETO),
+            ("TOPPADDING", (0,0),(-1,-1), 3),
+            ("BOTTOMPADDING",(0,0),(-1,-1),3),
+            ("LEFTPADDING", (0,0),(-1,-1), 4),
+        ]))
+        return t
+
+    buf  = _BytesIO()
+    doc  = _SDT(buf, pagesize=_A4,
+                leftMargin=15*_mm, rightMargin=15*_mm,
+                topMargin=12*_mm, bottomMargin=12*_mm)
+    els  = []
+
+    # ── cabeçalho Locvix ──────────────────────────────────────────
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo_locvix.png")
+    cab = []
+    if os.path.exists(logo_path):
+        cab.append([_RLImg(logo_path, width=50*_mm, height=15*_mm)])
+    cab.append([_Para("LOCVIX LOCAÇÕES LTDA", st_he)])
+    cab.append([_Para("CNPJ: 29.007.819/0001-96  •  Serra/ES  •  (27) 3065-2627  •  contato@locvix.com.br", st_hi)])
+    cab.append([_Para(f"PROPOSTA COMERCIAL Nº {d.get('codigo','')}", st_he)])
+    tc = _RLTable(cab, colWidths=[CW])
+    tc.setStyle(_RLTableStyle([
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ("TOPPADDING",(0,0),(-1,-1),2),
+        ("BOTTOMPADDING",(0,0),(-1,-1),2),
+    ]))
+    els.append(tc); els.append(_Spacer(1, 4*_mm))
+
+    # ── validade / previsão ───────────────────────────────────────
+    tv = _RLTable([[
+        _Para(f"VALIDADE DA PROPOSTA: {d.get('validade','') or '10 DIAS'}", st_lbl),
+        _Para(f"PREVISÃO DE ENTREGA: {_fdate(d.get('previsao_entrega',''))}", st_lbl),
+    ]], colWidths=[CW/2, CW/2])
+    tv.setStyle(_RLTableStyle(_borda() + [("BACKGROUND",(0,0),(-1,-1),CINZA_BG)]))
+    els.append(tv); els.append(_Spacer(1,2*_mm))
+
+    # ── dados do cliente ──────────────────────────────────────────
+    els.append(_secao("DADOS DO CLIENTE"))
+    enderecos = cli_data.get("enderecos", [])
+    end = enderecos[0].get("endereco", enderecos[0]) if enderecos else {}
+    logradouro = end.get("logradouro",""); numero = end.get("numero","")
+    bairro = end.get("bairro","")
+    end_str = f"{logradouro}, {numero}" + (f" - {bairro}" if bairro else "")
+    cidade_uf = f"{end.get('nome_cidade','')}/{end.get('estado','')}"
+    col_lbl = 24*_mm; col_val = CW/2 - col_lbl
+    rows_cli = [
+        [_Para("Razão social:", st_lbl), _Para(cli_data.get("razao_social","") or d.get("nome_cliente",""), st_val),
+         _Para("Nome fantasia:", st_lbl), _Para(cli_data.get("nome",""), st_val)],
+        [_Para("CNPJ/CPF:", st_lbl),     _Para(cli_data.get("cnpj","") or cli_data.get("cpf",""), st_val),
+         _Para("Endereço:", st_lbl),      _Para(end_str, st_val)],
+        [_Para("CEP:", st_lbl),           _Para(end.get("cep",""), st_val),
+         _Para("Cidade/UF:", st_lbl),     _Para(cidade_uf, st_val)],
+        [_Para("Telefone:", st_lbl),      _Para(cli_data.get("telefone",""), st_val),
+         _Para("E-mail:", st_lbl),        _Para(cli_data.get("email",""), st_val)],
+    ]
+    tc2 = _RLTable(rows_cli, colWidths=[col_lbl, col_val, col_lbl, col_val])
+    tc2.setStyle(_RLTableStyle(_borda()))
+    els.append(tc2); els.append(_Spacer(1,3*_mm))
+
+    # ── serviços ──────────────────────────────────────────────────
+    servicos = d.get("servicos", [])
+    if servicos:
+        els.append(_secao("SERVIÇOS"))
+        c_item=12*_mm; c_cod=32*_mm; c_qtd=18*_mm; c_vr=22*_mm; c_sub=24*_mm
+        c_nome = CW - c_item - c_cod - c_qtd - c_vr - c_sub
+        cws_s  = [c_item, c_cod, c_nome, c_qtd, c_vr, c_sub]
+        rows_s = [[_Para("ITEM",st_th_c),_Para("CÓDIGO",st_th_c),_Para("NOME",st_th),
+                   _Para("QTD.",st_th_c),_Para("VR.<br/>UNIT.",st_th_c),_Para("SUBTOTAL",st_th_c)]]
+        ts_s = 0.0
+        for i, sv in enumerate(servicos, 1):
+            s  = sv.get("servico", sv)
+            q  = float(s.get("quantidade",0) or 0)
+            vt = float(s.get("valor_total",0) or 0)
+            ts_s += vt
+            rows_s.append([_Para(str(i),st_td_c), _Para(str(s.get("codigo_servico","") or ""),st_td_c),
+                            _Para(s.get("nome_servico",""),st_td), _Para(_brl(q),st_td_r),
+                            _Para(_brl(s.get("valor_venda",0)),st_td_r), _Para(_brl(vt),st_td_r)])
+        rows_s.append([_Para("TOTAL",st_th),"","","",_Para(_brl(ts_s),st_th_r),_Para(_brl(ts_s),st_th_r)])
+        ts = _RLTable(rows_s, colWidths=cws_s)
+        ts.setStyle(_RLTableStyle(_borda() + [("BACKGROUND",(0,0),(-1,0),CINZA_BG)]))
+        els.append(ts); els.append(_Spacer(1,3*_mm))
+
+    # ── produtos ──────────────────────────────────────────────────
+    produtos = d.get("produtos", [])
+    if produtos:
+        els.append(_secao("PRODUTOS"))
+        c_item=12*_mm; c_cod=20*_mm; c_und=14*_mm; c_qtd=18*_mm; c_vr=22*_mm; c_sub=24*_mm
+        c_nome_p = CW - c_item - c_cod - c_und - c_qtd - c_vr - c_sub
+        cwp = [c_item, c_cod, c_nome_p, c_und, c_qtd, c_vr, c_sub]
+        rows_p = [[_Para("ITEM",st_th_c),_Para("CÓDIGO",st_th_c),_Para("NOME",st_th),_Para("UND.",st_th_c),
+                   _Para("QTD.",st_th_c),_Para("VR.<br/>UNIT.",st_th_c),_Para("SUBTOTAL",st_th_c)]]
+        tp_s = 0.0
+        for i, pv in enumerate(produtos, 1):
+            p  = pv.get("produto", pv)
+            q  = float(p.get("quantidade",0) or 0)
+            vt = float(p.get("valor_total",0) or 0)
+            tp_s += vt
+            rows_p.append([_Para(str(i),st_td_c), _Para(str(p.get("codigo_produto","") or ""),st_td_c),
+                            _Para(p.get("nome_produto",""),st_td), _Para(str(p.get("sigla_unidade","") or ""),st_td_c),
+                            _Para(_brl(q),st_td_r), _Para(_brl(p.get("valor_venda",0)),st_td_r),
+                            _Para(_brl(vt),st_td_r)])
+        rows_p.append([_Para("TOTAL",st_th),"","","","",_Para(_brl(tp_s),st_th_r),_Para(_brl(tp_s),st_th_r)])
+        tp = _RLTable(rows_p, colWidths=cwp)
+        tp.setStyle(_RLTableStyle(_borda() + [("BACKGROUND",(0,0),(-1,0),CINZA_BG)]))
+        els.append(tp); els.append(_Spacer(1,3*_mm))
+
+    # ── totais ────────────────────────────────────────────────────
+    val_total = float(d.get("valor_total",0) or 0)
+    val_serv  = float(d.get("valor_servicos",0) or 0)
+    val_prod  = float(d.get("valor_produtos",0) or 0)
+    val_frete = float(d.get("valor_frete",0) or 0)
+    rows_tot  = []
+    if val_prod  > 0: rows_tot.append([_Para("PRODUTOS:", st_tl), _Para(_brl(val_prod), st_tv)])
+    if val_serv  > 0: rows_tot.append([_Para("SERVIÇOS:", st_tl), _Para(_brl(val_serv), st_tv)])
+    if val_frete > 0: rows_tot.append([_Para("FRETE:", st_tl),    _Para(_brl(val_frete),st_tv)])
+    rows_tot.append([_Para("TOTAL:", st_tl), _Para(f"R$ {_brl(val_total)}", st_tf)])
+    tt = _RLTable(rows_tot, colWidths=[35*_mm, 30*_mm], hAlign="RIGHT")
+    tt.setStyle(_RLTableStyle(_borda()))
+    els.append(tt); els.append(_Spacer(1,3*_mm))
+
+    # ── pagamento ─────────────────────────────────────────────────
+    pagamentos = d.get("pagamentos", [])
+    if pagamentos:
+        els.append(_secao("DADOS DO PAGAMENTO"))
+        c_venc=28*_mm; c_vlr=28*_mm; c_obs=40*_mm
+        c_forma = CW - c_venc - c_vlr - c_obs
+        rows_pag = [[_Para("VENCIMENTO",st_th_c),_Para("VALOR",st_th_c),
+                     _Para("FORMA DE PAGAMENTO",st_th),_Para("OBSERVAÇÃO",st_th)]]
+        for pv in pagamentos:
+            pg = pv.get("pagamento", pv)
+            rows_pag.append([_Para(_fdate(pg.get("data_vencimento","")),st_td),
+                              _Para(_brl(pg.get("valor",0)),st_td_r),
+                              _Para(str(pg.get("nome_forma_pagamento","")),st_td),
+                              _Para(str(pg.get("observacao","") or ""),st_td)])
+        tpg = _RLTable(rows_pag, colWidths=[c_venc,c_vlr,c_forma,c_obs])
+        tpg.setStyle(_RLTableStyle(_borda() + [("BACKGROUND",(0,0),(-1,0),CINZA_BG)]))
+        els.append(tpg); els.append(_Spacer(1,4*_mm))
+
+    # ── introdução / termos ───────────────────────────────────────
+    intro = (d.get("introducao","") or "").strip()
+    if intro:
+        els.append(_secao("TERMOS E CONDIÇÕES"))
+        intro_html = intro.replace("\n","<br/>").replace("\t","&nbsp;&nbsp;&nbsp;&nbsp;")
+        els.append(_Spacer(1,1*_mm))
+        els.append(_Para(intro_html, st_intr))
+        els.append(_Spacer(1,4*_mm))
+
+    doc.build(els)
+    return buf.getvalue()
+
+
+# ══════════════════════════════════════════════════════════════════
 #  LEITURA DE PROPOSTAS (PDF) — PERDIDAS E FECHADAS
 # ══════════════════════════════════════════════════════════════════
 def buscar_orcamentos() -> list[dict]:
     """
     Busca orçamentos da API GestãoClick (GET /orcamentos).
+    Para cada orçamento faz GET /orcamentos/{id} e GET /clientes/{id}
+    para gerar o PDF e incluí-lo como base64 no campo 'pdf_b64'.
     Retorna lista com: codigo, data, cliente, vendedor, situacao, valor,
-    centro_custo, loja, id.
+    centro_custo, loja, id, pdf_b64.
     """
     _prog(0.69, "Buscando orçamentos GestãoClick...")
     raw = _paginar_lojas("orcamentos")
     registros: list[dict] = []
-    for o in raw:
+
+    def _fetch_one(o: dict) -> dict:
         dt = o.get("data", "") or ""
         if dt and "-" in dt:
             p = dt.split("-")
             dt = f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else dt
         sit = (o.get("nome_situacao") or "Em aberto").strip()
-        registros.append({
-            "id":            o.get("id", ""),
-            "codigo":        o.get("codigo", ""),
-            "data":          dt,
-            "situacao":      sit,
-            "cliente":       o.get("nome_cliente", ""),
-            "vendedor":      o.get("nome_vendedor", ""),
-            "centro_custo":  o.get("nome_centro_custo", ""),
-            "loja":          o.get("nome_loja", ""),
-            "valor":         round(float(o.get("valor_total", 0) or 0), 2),
-        })
+        rec = {
+            "id":           o.get("id", ""),
+            "codigo":       o.get("codigo", ""),
+            "data":         dt,
+            "situacao":     sit,
+            "cliente":      o.get("nome_cliente", ""),
+            "vendedor":     o.get("nome_vendedor", ""),
+            "centro_custo": o.get("nome_centro_custo", ""),
+            "loja":         o.get("nome_loja", ""),
+            "valor":        round(float(o.get("valor_total", 0) or 0), 2),
+            "pdf_b64":      "",
+        }
+        # Gera PDF com dados detalhados
+        try:
+            orc_id = str(o.get("id",""))
+            cli_id = str(o.get("cliente_id",""))
+            gck = _gck()
+            det = gck.get(f"orcamentos/{orc_id}").get("data", {})
+            cli_data: dict = {}
+            if cli_id:
+                cli_data = gck.get(f"clientes/{cli_id}").get("data", {})
+            pdf_bytes = _gerar_pdf_orc_bytes(det, cli_data)
+            if pdf_bytes:
+                rec["pdf_b64"] = base64.b64encode(pdf_bytes).decode("ascii")
+        except Exception as e:
+            print(f"  ⚠ PDF orçamento {rec['codigo']}: {e}")
+        return rec
+
+    # Gera PDFs em paralelo (max 4 threads para não sobrecarregar a API)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+        futs = [ex.submit(_fetch_one, o) for o in raw]
+        registros = [f.result() for f in concurrent.futures.as_completed(futs)]
+
+    # Reordena pelo código (a conclusão em paralelo pode ficar fora de ordem)
+    registros.sort(key=lambda r: str(r.get("codigo","")).zfill(10))
+
     conc = sum(1 for r in registros if r["situacao"] == "Concretizado")
     print(f"  ✔ {len(registros)} orçamentos ({conc} concretizados)")
     return registros
@@ -2496,6 +2752,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
         <th>Loja</th>
         <th class="num">Valor Total</th>
         <th>Situação</th>
+        <th style="text-align:center">PDF</th>
       </tr></thead>
       <tbody id="tblOrcBody"></tbody>
     </table>
@@ -3692,6 +3949,22 @@ function filtrarOrc(btn) {{
   renderTblOrc();
 }}
 
+function _downloadOrcPdf(idx) {{
+  const r = ORCAMENTOS[idx];
+  if (!r || !r.pdf_b64) {{ alert('PDF não disponível para este orçamento.'); return; }}
+  try {{
+    const bin = atob(r.pdf_b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    const blob = new Blob([arr], {{type:'application/pdf'}});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'Proposta_' + (r.codigo || r.id) + '.pdf';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }} catch(e) {{ alert('Erro ao abrir PDF: ' + e); }}
+}}
+
 function renderTblOrc() {{
   const tbody = document.getElementById('tblOrcBody');
   if (!tbody) return;
@@ -3701,10 +3974,14 @@ function renderTblOrc() {{
   const badgeMap = {{'Em aberto':'yellow','Em andamento':'blue','Concretizado':'green','Cancelado':'red'}};
   const iconMap  = {{'Em aberto':'\uD83D\uDCC2','Em andamento':'\u23F3','Concretizado':'\u2705','Cancelado':'\u274C'}};
   tbody.innerHTML = sorted.map((r, i) => {{
-    const cor  = badgeMap[r.situacao] || 'gray';
-    const icon = iconMap[r.situacao]  || '';
+    const cor   = badgeMap[r.situacao] || 'gray';
+    const icon  = iconMap[r.situacao]  || '';
     const badge = `<span class="badge ${{cor}}">${{icon}} ${{r.situacao}}</span>`;
-    const val = r.valor > 0 ? BRL(r.valor) : '\u2014';
+    const val   = r.valor > 0 ? BRL(r.valor) : '\u2014';
+    const origIdx = ORCAMENTOS.indexOf(r);
+    const pdfBtn  = r.pdf_b64
+      ? `<button onclick="_downloadOrcPdf(${{origIdx}})" style="background:#1e40af;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;white-space:nowrap">\uD83D\uDCC4 PDF</button>`
+      : `<span style="color:#94a3b8;font-size:10px">—</span>`;
     return `<tr>
       <td>${{i+1}}</td>
       <td style="font-size:11px;color:#94a3b8">${{r.codigo}}</td>
@@ -3715,8 +3992,9 @@ function renderTblOrc() {{
       <td style="font-size:12px">${{r.loja || '\u2014'}}</td>
       <td class="num">${{val}}</td>
       <td>${{badge}}</td>
+      <td style="text-align:center">${{pdfBtn}}</td>
     </tr>`;
-  }}).join('') || '<tr><td colspan="9" style="text-align:center;color:#94a3b8">Nenhum orçamento</td></tr>';
+  }}).join('') || '<tr><td colspan="10" style="text-align:center;color:#94a3b8">Nenhum orçamento</td></tr>';
 }}
 
 function mkOrcamento() {{
