@@ -1112,6 +1112,8 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
                 sty.append(("BACKGROUND", (0,ri),(-1,ri), ROW_ALT))
         tbl.setStyle(_RLTableStyle(sty))
         els.append(tbl)
+        st_obs = _PS("ob", fontSize=8, fontName="Helvetica-Oblique", textColor=CINZA_L)
+        els.append(_Para("Obs.: Mínimo 10 horas/dia", st_obs))
         els.append(_Spacer(1, 3*_mm))
 
     # ══ PRODUTOS ══════════════════════════════════════════════════
