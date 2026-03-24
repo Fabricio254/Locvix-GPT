@@ -2145,6 +2145,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
     <button class="nav-tab" data-mod="vendas" onclick="setModulo('vendas')">💰 Vendas</button>
     <button class="nav-tab" data-mod="financeiro" onclick="setModulo('financeiro')">💳 Financeiro</button>
     <button class="nav-tab" data-mod="operacoes" onclick="setModulo('operacoes')">🔧 Operações</button>
+    <button class="nav-tab" data-mod="manutencao" onclick="setModulo('manutencao')">🛠 Manutenção</button>
     <button class="nav-tab" data-mod="ponto" onclick="setModulo('ponto')">🕐 Ponto Colaborador</button>
     <button class="nav-tab" data-mod="orcamento" onclick="setModulo('orcamento')">📋 Orçamento</button>
   </div>
@@ -2331,6 +2332,14 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
   </div>
 
   </div><!-- /mod operacoes -->
+
+  <div class="mod-section" data-mod="manutencao">
+    <div class="section-title">🛠 Manutenção</div>
+    <div style="display:flex;align-items:center;justify-content:center;padding:80px 24px;color:#94a3b8;font-size:15px;gap:12px;">
+      <span style="font-size:36px;">🛠</span>
+      <span>Módulo de Manutenção em desenvolvimento. Em breve disponível.</span>
+    </div>
+  </div><!-- /mod manutencao -->
 
   <div class="mod-section" data-mod="vendas">
   <!-- ── GRÁFICOS DE VENDAS ── -->
