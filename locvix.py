@@ -807,19 +807,19 @@ def buscar_contratos() -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════
-#  GERAÇÃO DE PDF — ORÇAMENTO
+#  GERAÇÃO DE PDF — ORÇAMENTO  (layout profissional)
 # ══════════════════════════════════════════════════════════════════
 def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     """
-    Gera PDF do orçamento idêntico ao layout GestãoClick.
-    d       = resposta de GET /orcamentos/{id} (dict 'data')
-    cli_data= resposta de GET /clientes/{id}  (dict 'data')
-    Retorna bytes do PDF ou None se reportlab não está disponível.
+    Gera PDF profissional do orçamento (layout corporativo Locvix).
+    d        = dados de GET /orcamentos/{id}
+    cli_data = dados de GET /clientes/{id}
+    Retorna bytes do PDF ou None se reportlab indisponível.
     """
     if not _REPORTLAB_OK:
         return None
 
-    # ── helpers ───────────────────────────────────────────────────
+    # ── helpers ────────────────────────────────────────────────────
     def _brl(v):
         try:
             return f"{float(v):,.2f}".replace(",","X").replace(".",",").replace("X",".")
@@ -827,197 +827,355 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
             return "0,00"
 
     def _fdate(dt):
-        if not dt:
-            return ""
+        if not dt: return ""
         p = str(dt).split("-")
         return f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else str(dt)
 
-    # ── estilos ───────────────────────────────────────────────────
+    # ── paleta corporativa ─────────────────────────────────────────
+    NAVY     = _rlcolors.HexColor("#1e3a5f")   # azul escuro — cabeçalho
+    NAVY_T   = _rlcolors.HexColor("#2d5a9b")   # azul médio — col headers
+    NAVY_CUI = _rlcolors.HexColor("#3a6db5")   # azul claro — "aos cuidados"
+    ROW_ALT  = _rlcolors.HexColor("#f1f5f9")   # cinza muito claro — linha par
+    ROW_TOT  = _rlcolors.HexColor("#dbeafe")   # azul pastel — linha TOTAL
+    BDR      = _rlcolors.HexColor("#94a3b8")   # cinza — bordas
     PRETO    = _rlcolors.black
-    CINZA_BG = _rlcolors.HexColor("#d9d9d9")
-    CW       = _A4[0] - 30*_mm
+    BRANCO   = _rlcolors.white
+    CINZA_L  = _rlcolors.HexColor("#475569")   # texto label (cinza escuro)
 
-    st_sec  = _PS("sec",  fontSize=9,  fontName="Helvetica-Bold",  textColor=PRETO)
-    st_lbl  = _PS("lbl",  fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO)
-    st_val  = _PS("val",  fontSize=8,  fontName="Helvetica",       textColor=PRETO)
-    st_th   = _PS("th",   fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO)
-    st_th_c = _PS("thc",  fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAC)
-    st_th_r = _PS("thr",  fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAR)
-    st_td   = _PS("td",   fontSize=8,  fontName="Helvetica",       textColor=PRETO)
-    st_td_c = _PS("tdc",  fontSize=8,  fontName="Helvetica",       textColor=PRETO, alignment=_TAC)
-    st_td_r = _PS("tdr",  fontSize=8,  fontName="Helvetica",       textColor=PRETO, alignment=_TAR)
-    st_tl   = _PS("tl",   fontSize=8,  fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAR)
-    st_tv   = _PS("tv",   fontSize=8,  fontName="Helvetica",       textColor=PRETO, alignment=_TAR)
-    st_tf   = _PS("tf",   fontSize=9,  fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAR)
-    st_he   = _PS("he",   fontSize=14, fontName="Helvetica-Bold",  textColor=PRETO, alignment=_TAC)
-    st_hi   = _PS("hi",   fontSize=8,  fontName="Helvetica",       textColor=PRETO, alignment=_TAC, leading=11)
-    st_intr = _PS("intr", fontSize=7,  fontName="Helvetica",       textColor=PRETO, leading=9,  alignment=_TAL)
+    CW = _A4[0] - 30*_mm   # largura útil do conteúdo
 
-    def _borda():
+    # ── estilos de parágrafo ───────────────────────────────────────
+    # Cabeçalho da empresa
+    st_emp  = _PS("em", fontSize=15, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAC, spaceAfter=2)
+    st_esub = _PS("es", fontSize=8,  fontName="Helvetica",      textColor=BRANCO, alignment=_TAC, leading=11)
+    st_pnum = _PS("pn", fontSize=11, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAC, spaceBefore=4)
+    # Barra de info
+    st_bl   = _PS("bl", fontSize=8,  fontName="Helvetica-Bold", textColor=BRANCO, spaceAfter=1)
+    st_bv   = _PS("bv", fontSize=8,  fontName="Helvetica",      textColor=BRANCO)
+    # Seção
+    st_sec  = _PS("sc", fontSize=9,  fontName="Helvetica-Bold", textColor=BRANCO)
+    # Campos do cliente
+    st_lbl  = _PS("lb", fontSize=8,  fontName="Helvetica-Bold", textColor=CINZA_L)
+    st_val  = _PS("vl", fontSize=8,  fontName="Helvetica",      textColor=PRETO)
+    # Cabeçalho de colunas (branco em NAVY_T)
+    st_th   = _PS("th", fontSize=8,  fontName="Helvetica-Bold", textColor=BRANCO)
+    st_th_c = _PS("tc", fontSize=8,  fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAC)
+    st_th_r = _PS("tr", fontSize=8,  fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAR)
+    # Dados das linhas
+    st_td   = _PS("td", fontSize=8,  fontName="Helvetica",      textColor=PRETO)
+    st_td_c = _PS("dc", fontSize=8,  fontName="Helvetica",      textColor=PRETO,  alignment=_TAC)
+    st_td_r = _PS("dr", fontSize=8,  fontName="Helvetica",      textColor=PRETO,  alignment=_TAR)
+    # Linha TOTAL nas tabelas
+    st_tt   = _PS("tt", fontSize=8,  fontName="Helvetica-Bold", textColor=NAVY,   alignment=_TAR)
+    st_tr   = _PS("tor",fontSize=8,  fontName="Helvetica-Bold", textColor=NAVY,   alignment=_TAR)
+    # Subtotais (caixa de totais)
+    st_sl   = _PS("sl", fontSize=9,  fontName="Helvetica",      textColor=PRETO,  alignment=_TAR)
+    st_sv   = _PS("sv", fontSize=9,  fontName="Helvetica",      textColor=PRETO,  alignment=_TAR)
+    # Linha TOTAL GERAL (navy, branco)
+    st_fl   = _PS("fl", fontSize=10, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAR)
+    st_fv   = _PS("fv", fontSize=11, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAR)
+    # Termos
+    st_intr = _PS("in", fontSize=7,  fontName="Helvetica",      textColor=PRETO,  leading=10)
+
+    # ── helpers de estilo de tabela ────────────────────────────────
+    def _bst():
         return [
-            ("BOX",           (0,0),(-1,-1), 0.5, PRETO),
-            ("INNERGRID",     (0,0),(-1,-1), 0.5, PRETO),
-            ("TOPPADDING",    (0,0),(-1,-1), 3),
-            ("BOTTOMPADDING", (0,0),(-1,-1), 3),
-            ("LEFTPADDING",   (0,0),(-1,-1), 4),
-            ("RIGHTPADDING",  (0,0),(-1,-1), 4),
+            ("BOX",           (0,0),(-1,-1), 0.4, BDR),
+            ("INNERGRID",     (0,0),(-1,-1), 0.25, BDR),
+            ("TOPPADDING",    (0,0),(-1,-1), 4),
+            ("BOTTOMPADDING", (0,0),(-1,-1), 4),
+            ("LEFTPADDING",   (0,0),(-1,-1), 5),
+            ("RIGHTPADDING",  (0,0),(-1,-1), 5),
         ]
 
-    def _secao(txt):
+    def _sec_hdr(txt):
         t = _RLTable([[_Para(txt, st_sec)]], colWidths=[CW])
         t.setStyle(_RLTableStyle([
-            ("BACKGROUND", (0,0),(-1,-1), CINZA_BG),
-            ("BOX",        (0,0),(-1,-1), 0.5, PRETO),
-            ("TOPPADDING", (0,0),(-1,-1), 3),
-            ("BOTTOMPADDING",(0,0),(-1,-1),3),
-            ("LEFTPADDING", (0,0),(-1,-1), 4),
+            ("BACKGROUND",    (0,0),(-1,-1), NAVY),
+            ("BOX",           (0,0),(-1,-1), 0, NAVY),
+            ("TOPPADDING",    (0,0),(-1,-1), 5),
+            ("BOTTOMPADDING", (0,0),(-1,-1), 5),
+            ("LEFTPADDING",   (0,0),(-1,-1), 7),
+            ("RIGHTPADDING",  (0,0),(-1,-1), 7),
         ]))
         return t
 
-    buf  = _BytesIO()
-    doc  = _SDT(buf, pagesize=_A4,
-                leftMargin=15*_mm, rightMargin=15*_mm,
-                topMargin=12*_mm, bottomMargin=12*_mm)
-    els  = []
+    # ── buffer / documento ─────────────────────────────────────────
+    buf = _BytesIO()
+    doc = _SDT(buf, pagesize=_A4,
+               leftMargin=15*_mm, rightMargin=15*_mm,
+               topMargin=12*_mm, bottomMargin=12*_mm)
+    els = []
 
-    # ── cabeçalho Locvix ──────────────────────────────────────────
+    # ══ CABEÇALHO DA EMPRESA ══════════════════════════════════════
     logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo_locvix.png")
-    cab = []
+    info_cell = [
+        _Para("LOCVIX LOCAÇÕES LTDA", st_emp),
+        _Para("CNPJ: 29.007.819/0001-96  •  Serra/ES  •  (27) 3065-2627  •  contato@locvix.com.br", st_esub),
+        _Para(f"PROPOSTA COMERCIAL  Nº  {d.get('codigo','')}", st_pnum),
+    ]
     if os.path.exists(logo_path):
-        cab.append([_RLImg(logo_path, width=50*_mm, height=15*_mm)])
-    cab.append([_Para("LOCVIX LOCAÇÕES LTDA", st_he)])
-    cab.append([_Para("CNPJ: 29.007.819/0001-96  •  Serra/ES  •  (27) 3065-2627  •  contato@locvix.com.br", st_hi)])
-    cab.append([_Para(f"PROPOSTA COMERCIAL Nº {d.get('codigo','')}", st_he)])
-    tc = _RLTable(cab, colWidths=[CW])
-    tc.setStyle(_RLTableStyle([
-        ("ALIGN",(0,0),(-1,-1),"CENTER"),
-        ("TOPPADDING",(0,0),(-1,-1),2),
-        ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        logo_w = 48*_mm
+        hdr = _RLTable([[_RLImg(logo_path, width=44*_mm, height=14*_mm), info_cell]],
+                       colWidths=[logo_w, CW - logo_w])
+        hdr.setStyle(_RLTableStyle([
+            ("BACKGROUND",    (0,0),(-1,-1), NAVY),
+            ("ALIGN",         (0,0),(0,0), "CENTER"),
+            ("ALIGN",         (1,0),(1,0), "CENTER"),
+            ("VALIGN",        (0,0),(-1,-1), "MIDDLE"),
+            ("BOX",           (0,0),(-1,-1), 0.5, NAVY),
+            ("TOPPADDING",    (0,0),(-1,-1), 8),
+            ("BOTTOMPADDING", (0,0),(-1,-1), 8),
+            ("LEFTPADDING",   (0,0),(-1,-1), 6),
+            ("RIGHTPADDING",  (0,0),(-1,-1), 6),
+        ]))
+    else:
+        hdr = _RLTable([[info_cell]], colWidths=[CW])
+        hdr.setStyle(_RLTableStyle([
+            ("BACKGROUND",    (0,0),(-1,-1), NAVY),
+            ("ALIGN",         (0,0),(-1,-1), "CENTER"),
+            ("VALIGN",        (0,0),(-1,-1), "MIDDLE"),
+            ("BOX",           (0,0),(-1,-1), 0.5, NAVY),
+            ("TOPPADDING",    (0,0),(-1,-1), 8),
+            ("BOTTOMPADDING", (0,0),(-1,-1), 8),
+        ]))
+    els.append(hdr)
+    els.append(_Spacer(1, 2*_mm))
+
+    # ══ BARRA DE INFORMAÇÕES ══════════════════════════════════════
+    data_orc = _fdate(d.get("data",""))
+    validade = d.get("validade","") or "10 DIAS"
+    previsao = _fdate(d.get("previsao_entrega",""))
+    situacao = d.get("nome_situacao","") or "Em aberto"
+    cuidados = (d.get("aos_cuidados_de","") or "").strip()
+
+    bar_data = [[
+        [_Para("Data:", st_bl),               _Para(data_orc,  st_bv)],
+        [_Para("Validade:", st_bl),            _Para(validade,  st_bv)],
+        [_Para("Previsão de Entrega:", st_bl), _Para(previsao,  st_bv)],
+        [_Para("Situação:", st_bl),            _Para(situacao,  st_bv)],
+    ]]
+    bar_t = _RLTable(bar_data, colWidths=[CW/4]*4)
+    bar_t.setStyle(_RLTableStyle([
+        ("BACKGROUND",    (0,0),(-1,-1), NAVY_T),
+        ("BOX",           (0,0),(-1,-1), 0.4, BDR),
+        ("INNERGRID",     (0,0),(-1,-1), 0.3, BDR),
+        ("TOPPADDING",    (0,0),(-1,-1), 5),
+        ("BOTTOMPADDING", (0,0),(-1,-1), 5),
+        ("LEFTPADDING",   (0,0),(-1,-1), 6),
+        ("RIGHTPADDING",  (0,0),(-1,-1), 6),
+        ("VALIGN",        (0,0),(-1,-1), "MIDDLE"),
     ]))
-    els.append(tc); els.append(_Spacer(1, 4*_mm))
+    els.append(bar_t)
 
-    # ── validade / previsão ───────────────────────────────────────
-    tv = _RLTable([[
-        _Para(f"VALIDADE DA PROPOSTA: {d.get('validade','') or '10 DIAS'}", st_lbl),
-        _Para(f"PREVISÃO DE ENTREGA: {_fdate(d.get('previsao_entrega',''))}", st_lbl),
-    ]], colWidths=[CW/2, CW/2])
-    tv.setStyle(_RLTableStyle(_borda() + [("BACKGROUND",(0,0),(-1,-1),CINZA_BG)]))
-    els.append(tv); els.append(_Spacer(1,2*_mm))
+    if cuidados:
+        cuid_t = _RLTable([[
+            _Para("Aos cuidados de:", st_bl),
+            _Para(cuidados, st_bv),
+        ]], colWidths=[38*_mm, CW-38*_mm])
+        cuid_t.setStyle(_RLTableStyle([
+            ("BACKGROUND",    (0,0),(-1,-1), NAVY_CUI),
+            ("BOX",           (0,0),(-1,-1), 0.4, BDR),
+            ("TOPPADDING",    (0,0),(-1,-1), 3),
+            ("BOTTOMPADDING", (0,0),(-1,-1), 3),
+            ("LEFTPADDING",   (0,0),(-1,-1), 7),
+            ("RIGHTPADDING",  (0,0),(-1,-1), 6),
+        ]))
+        els.append(cuid_t)
 
-    # ── dados do cliente ──────────────────────────────────────────
-    els.append(_secao("DADOS DO CLIENTE"))
+    els.append(_Spacer(1, 3*_mm))
+
+    # ══ DADOS DO CLIENTE ══════════════════════════════════════════
+    els.append(_sec_hdr("\u258c  DADOS DO CLIENTE"))
     enderecos = cli_data.get("enderecos", [])
     end = enderecos[0].get("endereco", enderecos[0]) if enderecos else {}
-    logradouro = end.get("logradouro",""); numero = end.get("numero","")
-    bairro = end.get("bairro","")
-    end_str = f"{logradouro}, {numero}" + (f" - {bairro}" if bairro else "")
-    cidade_uf = f"{end.get('nome_cidade','')}/{end.get('estado','')}"
-    col_lbl = 24*_mm; col_val = CW/2 - col_lbl
+    logr    = end.get("logradouro",""); numero = end.get("numero",""); bairro = end.get("bairro","")
+    end_str = f"{logr}, {numero}" + (f" \u2014 {bairro}" if bairro else "")
+    cid_uf  = f"{end.get('nome_cidade','')}/{end.get('estado','')}"
+    razao   = cli_data.get("razao_social","") or d.get("nome_cliente","")
+    nome_fn = cli_data.get("nome","")
+    cnpj    = cli_data.get("cnpj","") or cli_data.get("cpf","")
+    tel     = cli_data.get("telefone","")
+    email   = cli_data.get("email","")
+    cl = 26*_mm; cv = CW/2 - cl
     rows_cli = [
-        [_Para("Razão social:", st_lbl), _Para(cli_data.get("razao_social","") or d.get("nome_cliente",""), st_val),
-         _Para("Nome fantasia:", st_lbl), _Para(cli_data.get("nome",""), st_val)],
-        [_Para("CNPJ/CPF:", st_lbl),     _Para(cli_data.get("cnpj","") or cli_data.get("cpf",""), st_val),
-         _Para("Endereço:", st_lbl),      _Para(end_str, st_val)],
-        [_Para("CEP:", st_lbl),           _Para(end.get("cep",""), st_val),
-         _Para("Cidade/UF:", st_lbl),     _Para(cidade_uf, st_val)],
-        [_Para("Telefone:", st_lbl),      _Para(cli_data.get("telefone",""), st_val),
-         _Para("E-mail:", st_lbl),        _Para(cli_data.get("email",""), st_val)],
+        [_Para("Razão Social:",  st_lbl), _Para(razao,             st_val), _Para("Nome Fantasia:", st_lbl), _Para(nome_fn,   st_val)],
+        [_Para("CNPJ / CPF:",   st_lbl), _Para(cnpj,              st_val), _Para("Endereço:",      st_lbl), _Para(end_str,   st_val)],
+        [_Para("CEP:",           st_lbl), _Para(end.get("cep",""), st_val), _Para("Cidade / UF:",   st_lbl), _Para(cid_uf,    st_val)],
+        [_Para("Telefone:",      st_lbl), _Para(tel,               st_val), _Para("E-mail:",         st_lbl), _Para(email,     st_val)],
     ]
-    tc2 = _RLTable(rows_cli, colWidths=[col_lbl, col_val, col_lbl, col_val])
-    tc2.setStyle(_RLTableStyle(_borda()))
-    els.append(tc2); els.append(_Spacer(1,3*_mm))
+    cli_t = _RLTable(rows_cli, colWidths=[cl, cv, cl, cv])
+    cli_t.setStyle(_RLTableStyle(_bst() + [
+        ("BACKGROUND", (0,1),(-1,1), ROW_ALT),
+        ("BACKGROUND", (0,3),(-1,3), ROW_ALT),
+    ]))
+    els.append(cli_t)
+    els.append(_Spacer(1, 3*_mm))
 
-    # ── serviços ──────────────────────────────────────────────────
+    # ══ SERVIÇOS ══════════════════════════════════════════════════
     servicos = d.get("servicos", [])
     if servicos:
-        els.append(_secao("SERVIÇOS"))
-        c_item=12*_mm; c_cod=32*_mm; c_qtd=18*_mm; c_vr=22*_mm; c_sub=24*_mm
-        c_nome = CW - c_item - c_cod - c_qtd - c_vr - c_sub
-        cws_s  = [c_item, c_cod, c_nome, c_qtd, c_vr, c_sub]
-        rows_s = [[_Para("ITEM",st_th_c),_Para("CÓDIGO",st_th_c),_Para("NOME",st_th),
-                   _Para("QTD.",st_th_c),_Para("VR.<br/>UNIT.",st_th_c),_Para("SUBTOTAL",st_th_c)]]
-        ts_s = 0.0
+        els.append(_sec_hdr("\u258c  SERVI\u00c7OS"))
+        c0=10*_mm; c1=28*_mm; c3=18*_mm; c4=27*_mm; c5=29*_mm
+        c2 = CW - c0 - c1 - c3 - c4 - c5
+        cws = [c0, c1, c2, c3, c4, c5]
+        rows = [[
+            _Para("ITEM",        st_th_c),
+            _Para("C\u00d3DIGO", st_th_c),
+            _Para("DESCRI\u00c7\u00c3O", st_th),
+            _Para("QTD.",        st_th_c),
+            _Para("VR. UNIT.",   st_th_r),
+            _Para("SUBTOTAL",    st_th_r),
+        ]]
+        ts_q = 0.0; ts_v = 0.0
         for i, sv in enumerate(servicos, 1):
             s  = sv.get("servico", sv)
-            q  = float(s.get("quantidade",0) or 0)
-            vt = float(s.get("valor_total",0) or 0)
-            ts_s += vt
-            rows_s.append([_Para(str(i),st_td_c), _Para(str(s.get("codigo_servico","") or ""),st_td_c),
-                            _Para(s.get("nome_servico",""),st_td), _Para(_brl(q),st_td_r),
-                            _Para(_brl(s.get("valor_venda",0)),st_td_r), _Para(_brl(vt),st_td_r)])
-        rows_s.append([_Para("TOTAL",st_th),"","","",_Para(_brl(ts_s),st_th_r),_Para(_brl(ts_s),st_th_r)])
-        ts = _RLTable(rows_s, colWidths=cws_s)
-        ts.setStyle(_RLTableStyle(_borda() + [("BACKGROUND",(0,0),(-1,0),CINZA_BG)]))
-        els.append(ts); els.append(_Spacer(1,3*_mm))
+            q  = float(s.get("quantidade", 0) or 0)
+            vt = float(s.get("valor_total", 0) or 0)
+            vu = float(s.get("valor_venda", 0) or 0)
+            ts_q += q; ts_v += vt
+            rows.append([
+                _Para(str(i),                                    st_td_c),
+                _Para(str(s.get("codigo_servico","") or ""),     st_td_c),
+                _Para(s.get("nome_servico",""),                   st_td),
+                _Para(_brl(q),                                   st_td_r),
+                _Para(_brl(vu),                                  st_td_r),
+                _Para(_brl(vt),                                  st_td_r),
+            ])
+        lr = len(rows)
+        # TOTAL row: SPAN colunas 0-3 → "TOTAL" não quebra linha
+        rows.append([_Para("TOTAL", st_tt), "", "", "", _Para(_brl(ts_q), st_tr), _Para(_brl(ts_v), st_tr)])
+        tbl = _RLTable(rows, colWidths=cws)
+        sty = _bst() + [
+            ("BACKGROUND", (0,0),  (-1,0),   NAVY_T),
+            ("BACKGROUND", (0,lr), (-1,lr),  ROW_TOT),
+            ("SPAN",       (0,lr), (3,lr)),
+            ("ALIGN",      (0,lr), (3,lr),   "RIGHT"),
+            ("BOX",        (0,lr), (-1,lr),  0.5, _rlcolors.HexColor("#93c5fd")),
+        ]
+        for ri in range(1, lr):
+            if ri % 2 == 0:
+                sty.append(("BACKGROUND", (0,ri),(-1,ri), ROW_ALT))
+        tbl.setStyle(_RLTableStyle(sty))
+        els.append(tbl)
+        els.append(_Spacer(1, 3*_mm))
 
-    # ── produtos ──────────────────────────────────────────────────
+    # ══ PRODUTOS ══════════════════════════════════════════════════
     produtos = d.get("produtos", [])
     if produtos:
-        els.append(_secao("PRODUTOS"))
-        c_item=12*_mm; c_cod=20*_mm; c_und=14*_mm; c_qtd=18*_mm; c_vr=22*_mm; c_sub=24*_mm
-        c_nome_p = CW - c_item - c_cod - c_und - c_qtd - c_vr - c_sub
-        cwp = [c_item, c_cod, c_nome_p, c_und, c_qtd, c_vr, c_sub]
-        rows_p = [[_Para("ITEM",st_th_c),_Para("CÓDIGO",st_th_c),_Para("NOME",st_th),_Para("UND.",st_th_c),
-                   _Para("QTD.",st_th_c),_Para("VR.<br/>UNIT.",st_th_c),_Para("SUBTOTAL",st_th_c)]]
-        tp_s = 0.0
+        els.append(_sec_hdr("\u258c  PRODUTOS"))
+        c0=10*_mm; c1=22*_mm; cu=14*_mm; c3=18*_mm; c4=27*_mm; c5=29*_mm
+        c2 = CW - c0 - c1 - cu - c3 - c4 - c5
+        cwp = [c0, c1, c2, cu, c3, c4, c5]
+        rows = [[
+            _Para("ITEM",        st_th_c),
+            _Para("C\u00d3DIGO", st_th_c),
+            _Para("DESCRI\u00c7\u00c3O", st_th),
+            _Para("UND.",        st_th_c),
+            _Para("QTD.",        st_th_c),
+            _Para("VR. UNIT.",   st_th_r),
+            _Para("SUBTOTAL",    st_th_r),
+        ]]
+        tp_q = 0.0; tp_v = 0.0
         for i, pv in enumerate(produtos, 1):
             p  = pv.get("produto", pv)
-            q  = float(p.get("quantidade",0) or 0)
-            vt = float(p.get("valor_total",0) or 0)
-            tp_s += vt
-            rows_p.append([_Para(str(i),st_td_c), _Para(str(p.get("codigo_produto","") or ""),st_td_c),
-                            _Para(p.get("nome_produto",""),st_td), _Para(str(p.get("sigla_unidade","") or ""),st_td_c),
-                            _Para(_brl(q),st_td_r), _Para(_brl(p.get("valor_venda",0)),st_td_r),
-                            _Para(_brl(vt),st_td_r)])
-        rows_p.append([_Para("TOTAL",st_th),"","","","",_Para(_brl(tp_s),st_th_r),_Para(_brl(tp_s),st_th_r)])
-        tp = _RLTable(rows_p, colWidths=cwp)
-        tp.setStyle(_RLTableStyle(_borda() + [("BACKGROUND",(0,0),(-1,0),CINZA_BG)]))
-        els.append(tp); els.append(_Spacer(1,3*_mm))
+            q  = float(p.get("quantidade", 0) or 0)
+            vt = float(p.get("valor_total", 0) or 0)
+            vu = float(p.get("valor_venda", 0) or 0)
+            tp_q += q; tp_v += vt
+            rows.append([
+                _Para(str(i),                                    st_td_c),
+                _Para(str(p.get("codigo_produto","") or ""),     st_td_c),
+                _Para(p.get("nome_produto",""),                   st_td),
+                _Para(str(p.get("sigla_unidade","") or ""),      st_td_c),
+                _Para(_brl(q),                                   st_td_r),
+                _Para(_brl(vu),                                  st_td_r),
+                _Para(_brl(vt),                                  st_td_r),
+            ])
+        lr = len(rows)
+        # TOTAL row: SPAN colunas 0-4
+        rows.append([_Para("TOTAL", st_tt), "", "", "", "", _Para(_brl(tp_q), st_tr), _Para(_brl(tp_v), st_tr)])
+        tbl = _RLTable(rows, colWidths=cwp)
+        sty = _bst() + [
+            ("BACKGROUND", (0,0),  (-1,0),  NAVY_T),
+            ("BACKGROUND", (0,lr), (-1,lr), ROW_TOT),
+            ("SPAN",       (0,lr), (4,lr)),
+            ("ALIGN",      (0,lr), (4,lr),  "RIGHT"),
+            ("BOX",        (0,lr), (-1,lr), 0.5, _rlcolors.HexColor("#93c5fd")),
+        ]
+        for ri in range(1, lr):
+            if ri % 2 == 0:
+                sty.append(("BACKGROUND", (0,ri),(-1,ri), ROW_ALT))
+        tbl.setStyle(_RLTableStyle(sty))
+        els.append(tbl)
+        els.append(_Spacer(1, 3*_mm))
 
-    # ── totais ────────────────────────────────────────────────────
-    val_total = float(d.get("valor_total",0) or 0)
-    val_serv  = float(d.get("valor_servicos",0) or 0)
-    val_prod  = float(d.get("valor_produtos",0) or 0)
-    val_frete = float(d.get("valor_frete",0) or 0)
-    rows_tot  = []
-    if val_prod  > 0: rows_tot.append([_Para("PRODUTOS:", st_tl), _Para(_brl(val_prod), st_tv)])
-    if val_serv  > 0: rows_tot.append([_Para("SERVIÇOS:", st_tl), _Para(_brl(val_serv), st_tv)])
-    if val_frete > 0: rows_tot.append([_Para("FRETE:", st_tl),    _Para(_brl(val_frete),st_tv)])
-    rows_tot.append([_Para("TOTAL:", st_tl), _Para(f"R$ {_brl(val_total)}", st_tf)])
-    tt = _RLTable(rows_tot, colWidths=[35*_mm, 30*_mm], hAlign="RIGHT")
-    tt.setStyle(_RLTableStyle(_borda()))
-    els.append(tt); els.append(_Spacer(1,3*_mm))
+    # ══ CAIXA DE TOTAIS ═══════════════════════════════════════════
+    vt_g  = float(d.get("valor_total",    0) or 0)
+    vs_g  = float(d.get("valor_servicos", 0) or 0)
+    vp_g  = float(d.get("valor_produtos", 0) or 0)
+    vf_g  = float(d.get("valor_frete",    0) or 0)
+    rows_t = []
+    if vp_g > 0: rows_t.append([_Para("PRODUTOS",  st_sl), _Para(f"R$ {_brl(vp_g)}", st_sv)])
+    if vs_g > 0: rows_t.append([_Para("SERVI\u00c7OS",  st_sl), _Para(f"R$ {_brl(vs_g)}", st_sv)])
+    if vf_g > 0: rows_t.append([_Para("FRETE",     st_sl), _Para(f"R$ {_brl(vf_g)}", st_sv)])
+    lr_t = len(rows_t)
+    rows_t.append([_Para("TOTAL GERAL", st_fl), _Para(f"R$ {_brl(vt_g)}", st_fv)])
+    tot_t = _RLTable(rows_t, colWidths=[44*_mm, 38*_mm], hAlign="RIGHT")
+    tot_t.setStyle(_RLTableStyle([
+        ("BOX",           (0,0), (-1,-1),    0.5, BDR),
+        ("INNERGRID",     (0,0), (-1,-1),    0.3, BDR),
+        ("TOPPADDING",    (0,0), (-1,-1),    5),
+        ("BOTTOMPADDING", (0,0), (-1,-1),    5),
+        ("LEFTPADDING",   (0,0), (-1,-1),    8),
+        ("RIGHTPADDING",  (0,0), (-1,-1),    8),
+        ("ALIGN",         (0,0), (-1,-1),    "RIGHT"),
+        ("BACKGROUND",    (0,lr_t),(-1,lr_t), NAVY),
+        ("BOX",           (0,lr_t),(-1,lr_t), 0.5, NAVY),
+    ]))
+    els.append(tot_t)
+    els.append(_Spacer(1, 4*_mm))
 
-    # ── pagamento ─────────────────────────────────────────────────
+    # ══ DADOS DO PAGAMENTO ════════════════════════════════════════
     pagamentos = d.get("pagamentos", [])
     if pagamentos:
-        els.append(_secao("DADOS DO PAGAMENTO"))
-        c_venc=28*_mm; c_vlr=28*_mm; c_obs=40*_mm
+        els.append(_sec_hdr("\u258c  DADOS DO PAGAMENTO"))
+        c_venc=30*_mm; c_vlr=32*_mm; c_obs=45*_mm
         c_forma = CW - c_venc - c_vlr - c_obs
-        rows_pag = [[_Para("VENCIMENTO",st_th_c),_Para("VALOR",st_th_c),
-                     _Para("FORMA DE PAGAMENTO",st_th),_Para("OBSERVAÇÃO",st_th)]]
-        for pv in pagamentos:
+        rows = [[
+            _Para("VENCIMENTO",          st_th_c),
+            _Para("VALOR",               st_th_r),
+            _Para("FORMA DE PAGAMENTO",  st_th),
+            _Para("OBSERVA\u00c7\u00c3O", st_th),
+        ]]
+        for ri, pv in enumerate(pagamentos, 1):
             pg = pv.get("pagamento", pv)
-            rows_pag.append([_Para(_fdate(pg.get("data_vencimento","")),st_td),
-                              _Para(_brl(pg.get("valor",0)),st_td_r),
-                              _Para(str(pg.get("nome_forma_pagamento","")),st_td),
-                              _Para(str(pg.get("observacao","") or ""),st_td)])
-        tpg = _RLTable(rows_pag, colWidths=[c_venc,c_vlr,c_forma,c_obs])
-        tpg.setStyle(_RLTableStyle(_borda() + [("BACKGROUND",(0,0),(-1,0),CINZA_BG)]))
-        els.append(tpg); els.append(_Spacer(1,4*_mm))
+            rows.append([
+                _Para(_fdate(pg.get("data_vencimento","")),           st_td_c),
+                _Para(_brl(pg.get("valor",0)),                        st_td_r),
+                _Para(str(pg.get("nome_forma_pagamento","") or ""),   st_td),
+                _Para(str(pg.get("observacao","") or ""),             st_td),
+            ])
+        tpg = _RLTable(rows, colWidths=[c_venc, c_vlr, c_forma, c_obs])
+        sty_pg = _bst() + [("BACKGROUND", (0,0),(-1,0), NAVY_T)]
+        for ri in range(1, len(rows)):
+            if ri % 2 == 0:
+                sty_pg.append(("BACKGROUND", (0,ri),(-1,ri), ROW_ALT))
+        tpg.setStyle(_RLTableStyle(sty_pg))
+        els.append(tpg)
+        els.append(_Spacer(1, 4*_mm))
 
-    # ── introdução / termos ───────────────────────────────────────
+    # ══ TERMOS E CONDIÇÕES ════════════════════════════════════════
     intro = (d.get("introducao","") or "").strip()
     if intro:
-        els.append(_secao("TERMOS E CONDIÇÕES"))
+        els.append(_sec_hdr("\u258c  TERMOS E CONDI\u00c7\u00d5ES"))
         intro_html = intro.replace("\n","<br/>").replace("\t","&nbsp;&nbsp;&nbsp;&nbsp;")
-        els.append(_Spacer(1,1*_mm))
+        els.append(_Spacer(1, 2*_mm))
         els.append(_Para(intro_html, st_intr))
-        els.append(_Spacer(1,4*_mm))
+        els.append(_Spacer(1, 4*_mm))
 
     doc.build(els)
     return buf.getvalue()
-
 
 # ══════════════════════════════════════════════════════════════════
 #  LEITURA DE PROPOSTAS (PDF) — PERDIDAS E FECHADAS
