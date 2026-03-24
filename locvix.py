@@ -846,8 +846,8 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
 
     # ── estilos de parágrafo ───────────────────────────────────────
     # Cabeçalho da empresa
-    st_emp  = _PS("em", fontSize=15, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAC, spaceAfter=2)
-    st_esub = _PS("es", fontSize=8,  fontName="Helvetica",      textColor=BRANCO, alignment=_TAC, leading=11)
+    st_emp  = _PS("em", fontSize=15, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAC, spaceAfter=8)
+    st_esub = _PS("es", fontSize=8,  fontName="Helvetica",      textColor=BRANCO, alignment=_TAC, leading=11, spaceBefore=4)
     st_pnum = _PS("pn", fontSize=11, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAC, spaceBefore=4)
     # Barra de info
     st_bl   = _PS("bl", fontSize=8,  fontName="Helvetica-Bold", textColor=BRANCO, spaceAfter=1)
