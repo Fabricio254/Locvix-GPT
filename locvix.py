@@ -321,7 +321,52 @@ def _gck() -> GCKClient:
     return _client
 
 
-def _paginar_lojas(endpoint: str, params: dict | None = None) -> list[dict]:
+_empresa_cache: dict | None = None
+
+def _get_empresa_info() -> dict:
+    """Busca dados da empresa/loja principal no GestãoClick e cacheia.
+    Fallback para valores fixos se o endpoint não estiver disponível."""
+    global _empresa_cache
+    if _empresa_cache is not None:
+        return _empresa_cache
+    defaults = {
+        "nome":    "LOCVIX LOCAÇÕES LTDA",
+        "cnpj":    "29.007.819/0001-96",
+        "cidade":  "Serra",
+        "uf":      "ES",
+        "telefone":"(27) 3065-2627",
+        "email":   "contato@locvix.com.br",
+    }
+    try:
+        gck = _gck()
+        # Tenta GET /lojas/{id}
+        resp = gck.get(f"lojas/{LOJA_GJ_ID}")
+        data = (resp.get("data", {}) if resp else {}) or {}
+        if not data:
+            # Tenta GET /empresas (lista)
+            resp2 = gck.get("empresas")
+            lst = (resp2.get("data", []) if resp2 else []) or []
+            data = lst[0] if lst else {}
+        if data:
+            end = (data.get("enderecos") or [{}])
+            end0 = end[0].get("endereco", end[0]) if end else {}
+            info = {
+                "nome":     (data.get("razao_social") or data.get("nome") or defaults["nome"]),
+                "cnpj":     (data.get("cnpj") or data.get("cpf_cnpj") or defaults["cnpj"]),
+                "cidade":   (end0.get("nome_cidade") or end0.get("cidade") or data.get("cidade") or defaults["cidade"]),
+                "uf":       (end0.get("estado") or end0.get("uf") or data.get("uf") or defaults["uf"]),
+                "telefone": (data.get("telefone") or data.get("fone") or defaults["telefone"]),
+                "email":    (data.get("email") or defaults["email"]),
+            }
+            _empresa_cache = info
+            return info
+    except Exception:
+        pass
+    _empresa_cache = defaults
+    return defaults
+
+
+
     """Busca dados respeitando LOJA_FILTRO global.
     None = padrão API | 'ambas' = W&A + G&J merged | id = loja específica.
     """
@@ -908,11 +953,14 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     els = []
 
     # ══ CABEÇALHO DA EMPRESA ══════════════════════════════════════
+    emp = _get_empresa_info()
     logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo_locvix.png")
+    _sub = (f"CNPJ: {emp['cnpj']}  \u2022  {emp['cidade']}/{emp['uf']}"
+            f"  \u2022  {emp['telefone']}  \u2022  {emp['email']}")
     info_cell = [
-        _Para("LOCVIX LOCAÇÕES LTDA", st_emp),
-        _Para("CNPJ: 29.007.819/0001-96  •  Serra/ES  •  (27) 3065-2627  •  contato@locvix.com.br", st_esub),
-        _Para(f"PROPOSTA COMERCIAL  Nº  {d.get('codigo','')}", st_pnum),
+        _Para(emp["nome"], st_emp),
+        _Para(_sub, st_esub),
+        _Para(f"PROPOSTA COMERCIAL  N\u00ba  {d.get('codigo','')}", st_pnum),
     ]
     if os.path.exists(logo_path):
         logo_w = 36*_mm
