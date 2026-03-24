@@ -991,17 +991,22 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     end = enderecos[0].get("endereco", enderecos[0]) if enderecos else {}
     logr    = end.get("logradouro",""); numero = end.get("numero",""); bairro = end.get("bairro","")
     end_str = f"{logr}, {numero}" + (f" \u2014 {bairro}" if bairro else "")
-    cid_uf  = f"{end.get('nome_cidade','')}/{end.get('estado','')}"
-    razao   = cli_data.get("razao_social","") or d.get("nome_cliente","")
-    nome_fn = cli_data.get("nome","")
-    cnpj    = cli_data.get("cnpj","") or cli_data.get("cpf","")
-    tel     = cli_data.get("telefone","")
-    email   = cli_data.get("email","")
+    razao   = (cli_data.get("razao_social","") or cli_data.get("nome","") or
+               d.get("nome_cliente","") or d.get("cliente",""))
+    nome_fn = cli_data.get("nome_fantasia","") or cli_data.get("nome","") or razao
+    cnpj    = (cli_data.get("cnpj","") or cli_data.get("cpf","") or
+               cli_data.get("cpf_cnpj",""))
+    tel     = cli_data.get("telefone","") or cli_data.get("fone","") or cli_data.get("celular","")
+    email   = cli_data.get("email","") or cli_data.get("email_nfe","")
+    cep     = end.get("cep","") or cli_data.get("cep","")
+    nome_cid= end.get("nome_cidade","") or end.get("cidade","") or cli_data.get("cidade","")
+    estado  = end.get("estado","") or end.get("uf","") or cli_data.get("uf","")
+    cid_uf  = f"{nome_cid}/{estado}"
     cl = 26*_mm; cv = CW/2 - cl
     rows_cli = [
         [_Para("Razão Social:",  st_lbl), _Para(razao,             st_val), _Para("Nome Fantasia:", st_lbl), _Para(nome_fn,   st_val)],
         [_Para("CNPJ / CPF:",   st_lbl), _Para(cnpj,              st_val), _Para("Endereço:",      st_lbl), _Para(end_str,   st_val)],
-        [_Para("CEP:",           st_lbl), _Para(end.get("cep",""), st_val), _Para("Cidade / UF:",   st_lbl), _Para(cid_uf,    st_val)],
+        [_Para("CEP:",           st_lbl), _Para(cep,              st_val), _Para("Cidade / UF:",   st_lbl), _Para(cid_uf,    st_val)],
         [_Para("Telefone:",      st_lbl), _Para(tel,               st_val), _Para("E-mail:",         st_lbl), _Para(email,     st_val)],
     ]
     cli_t = _RLTable(rows_cli, colWidths=[cl, cv, cl, cv])
@@ -1238,10 +1243,15 @@ def buscar_orcamentos() -> list[dict]:
             orc_id = str(o.get("id",""))
             cli_id = str(o.get("cliente_id",""))
             gck = _gck()
-            det = gck.get(f"orcamentos/{orc_id}").get("data", {})
+            resp_det = gck.get(f"orcamentos/{orc_id}")
+            det = (resp_det.get("data", {}) if resp_det else {}) or {}
             cli_data: dict = {}
             if cli_id:
-                cli_data = gck.get(f"clientes/{cli_id}").get("data", {})
+                resp_cli = gck.get(f"clientes/{cli_id}")
+                cli_data = (resp_cli.get("data", {}) if resp_cli else {}) or {}
+            # garante nome do cliente mesmo sem detalhe do cliente
+            if not cli_data.get("nome") and not cli_data.get("razao_social"):
+                cli_data["razao_social"] = o.get("nome_cliente", "")
             pdf_bytes = _gerar_pdf_orc_bytes(det, cli_data)
             if pdf_bytes:
                 rec["pdf_b64"] = base64.b64encode(pdf_bytes).decode("ascii")
