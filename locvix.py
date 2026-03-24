@@ -1276,7 +1276,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
                ("LEFTPADDING",(0,0),(-1,-1),0),
                ("RIGHTPADDING",(0,0),(-1,-1),0)]
     )
-    els.append(_KeepTogether([_Spacer(1, 10*_mm), sig_outer]))
+    els.append(_KeepTogether([_Spacer(1, 4*_mm), sig_outer]))
 
     doc.build(els)
     return buf.getvalue()
