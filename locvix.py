@@ -366,7 +366,7 @@ def _get_empresa_info() -> dict:
     return defaults
 
 
-
+def _paginar_lojas(endpoint: str, params: dict | None = None) -> list[dict]:
     """Busca dados respeitando LOJA_FILTRO global.
     None = padrão API | 'ambas' = W&A + G&J merged | id = loja específica.
     """
