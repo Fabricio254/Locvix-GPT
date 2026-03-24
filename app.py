@@ -20,7 +20,7 @@ import base64
 import streamlit as st
 import streamlit.components.v1 as components
 
-_ALL_MODULES = ["geral", "vendas", "financeiro", "operacoes", "ponto", "orcamento"]
+_ALL_MODULES = ["geral", "vendas", "financeiro", "operacoes", "manutencao", "ponto", "orcamento"]
 
 
 def _secrets_get(*keys, default=None):
@@ -211,6 +211,7 @@ with st.sidebar:
         "vendas":      "💰 Vendas",
         "financeiro":  "💳 Financeiro",
         "operacoes":   "🔧 Operações",
+        "manutencao":  "🛠 Manutenção",
         "ponto":       "🕐 Ponto Colaborador",
         "orcamento":   "📋 Orçamento",
     }
