@@ -1224,10 +1224,34 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     # ══ TERMOS E CONDIÇÕES ════════════════════════════════════════
     intro = (d.get("introducao","") or "").strip()
     if intro:
-        els.append(_sec_hdr("\u258c  TERMOS E CONDI\u00c7\u00d5ES"))
-        intro_html = intro.replace("\n","<br/>").replace("\t","&nbsp;&nbsp;&nbsp;&nbsp;")
+        import re as _re_pdf
+        _SEC_HDRS = {
+            "JORNADA DE TRABALHO E APONTAMENTO DE HORAS",
+            "OBRIGAÇÕES DA CONTRATADA",
+            "OBRIGAÇÕES DA CONTRATANTE",
+            "IMPOSTOS",
+            "MEDIÇÃO, FATURAMENTO E PAGAMENTO",
+            "DISPOSIÇÕES FINAIS",
+        }
+        els.append(_sec_hdr("\u258c  TERMOS E CONDIÇÕES"))
         els.append(_Spacer(1, 2*_mm))
-        els.append(_Para(intro_html, st_intr))
+        pending = []
+        for raw in intro.split("\n"):
+            # remove leading numbering like "2 " / "2. " / "2.1 "
+            clean = _re_pdf.sub(r'^\d+[\.\s]+', '', raw.strip().upper()).strip()
+            if clean in _SEC_HDRS:
+                if pending:
+                    block = "<br/>".join(l.replace("\t","&nbsp;&nbsp;&nbsp;&nbsp;") for l in pending)
+                    els.append(_Para(block, st_intr))
+                    els.append(_Spacer(1, 1*_mm))
+                    pending = []
+                els.append(_Spacer(1, 2*_mm))
+                els.append(_sec_hdr(f"\u258c  {clean}"))
+            else:
+                pending.append(raw)
+        if pending:
+            block = "<br/>".join(l.replace("\t","&nbsp;&nbsp;&nbsp;&nbsp;") for l in pending)
+            els.append(_Para(block, st_intr))
         els.append(_Spacer(1, 4*_mm))
 
     # ── Assinatura do cliente ──────────────────────────────────────
