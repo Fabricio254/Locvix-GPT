@@ -37,7 +37,8 @@ try:
     from reportlab.lib.units import mm as _mm
     from reportlab.platypus import (SimpleDocTemplate as _SDT, Table as _RLTable,
                                      TableStyle as _RLTableStyle, Paragraph as _Para,
-                                     Spacer as _Spacer, Image as _RLImg)
+                                     Spacer as _Spacer, Image as _RLImg,
+                                     KeepTogether as _KeepTogether)
     from reportlab.lib.styles import ParagraphStyle as _PS
     from reportlab.lib.enums import TA_CENTER as _TAC, TA_RIGHT as _TAR, TA_LEFT as _TAL
     _REPORTLAB_OK = True
@@ -1268,14 +1269,14 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
         ("BOTTOMPADDING",(0,0),(-1,0), 2),
         ("ALIGN",       (0,0), (-1,-1), "CENTER"),
     ]))
-    els.append(_Spacer(1, 10*_mm))
-    els.append(_RLTable(
+    sig_outer = _RLTable(
         [[sig_tbl]],
         colWidths=[CW],
         style=[("ALIGN",(0,0),(-1,-1),"CENTER"),
                ("LEFTPADDING",(0,0),(-1,-1),0),
                ("RIGHTPADDING",(0,0),(-1,-1),0)]
-    ))
+    )
+    els.append(_KeepTogether([_Spacer(1, 10*_mm), sig_outer]))
 
     doc.build(els)
     return buf.getvalue()
