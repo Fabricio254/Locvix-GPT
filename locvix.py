@@ -2032,6 +2032,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
       <button class="hm-tab" onclick="setHmTab('vendas')">&#128176; Vendas</button>
       <button class="hm-tab" onclick="setHmTab('financeiro')">&#128179; Financeiro</button>
       <button class="hm-tab" onclick="setHmTab('operacoes')">&#128295; Operações</button>
+      <button class="hm-tab" onclick="setHmTab('manutencao')">&#128736; Manutenção</button>
       <button class="hm-tab" onclick="setHmTab('ponto')">&#128336; Ponto</button>
       <button class="hm-tab" onclick="setHmTab('orcamento')">&#128203; Orçamento</button>
     </div>
@@ -2100,6 +2101,12 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
           <li><strong>Horas do App</strong> — Horas registradas via app mobile pelos operadores.</li>
         </ul>
         <div class="hm-tip"><strong>&#128161; Dica:</strong> O status das OS usa cores: <span style="color:#059669">&#9632;</span> Concluída, <span style="color:#d97706">&#9632;</span> Em andamento, <span style="color:#dc2626">&#9632;</span> Cancelada.</div>
+      </div>
+
+      <div class="hm-panel" id="hmp-manutencao">
+        <h3>&#128736; Módulo Manutenção</h3>
+        <p>Este módulo está em desenvolvimento e em breve exibirá informações sobre manutenções preventivas e corretivas dos equipamentos da Locvix.</p>
+        <div class="hm-tip"><strong>&#128161; Em breve:</strong> Histórico de manutenções, custos, equipamentos e técnicos responsáveis.</div>
       </div>
 
       <div class="hm-panel" id="hmp-ponto">
