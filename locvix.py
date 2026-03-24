@@ -1174,6 +1174,30 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
         els.append(_Para(intro_html, st_intr))
         els.append(_Spacer(1, 4*_mm))
 
+    # ── Assinatura do cliente ──────────────────────────────────────
+    st_ass = _PS("as", fontSize=8, fontName="Helvetica", textColor=NAVY_T,
+                 alignment=_TAC)
+    sig_w = 90*_mm
+    sig_tbl = _RLTable(
+        [[_Para("Assinatura do cliente", st_ass)]],
+        colWidths=[sig_w]
+    )
+    sig_tbl.setStyle(_RLTableStyle([
+        ("LINEABOVE",   (0,0), (-1,0), 0.8, NAVY_T),
+        ("TOPPADDING",  (0,0), (-1,0), 4),
+        ("BOTTOMPADDING",(0,0),(-1,0), 4),
+        ("ALIGN",       (0,0), (-1,-1), "CENTER"),
+    ]))
+    els.append(_Spacer(1, 10*_mm))
+    els.append(_RLTable(
+        [[sig_tbl]],
+        colWidths=[CW],
+        style=[("ALIGN",(0,0),(-1,-1),"CENTER"),
+               ("LEFTPADDING",(0,0),(-1,-1),0),
+               ("RIGHTPADDING",(0,0),(-1,-1),0)]
+    ))
+    els.append(_Spacer(1, 6*_mm))
+
     doc.build(els)
     return buf.getvalue()
 
