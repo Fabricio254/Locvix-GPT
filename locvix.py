@@ -875,7 +875,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     st_fl   = _PS("fl", fontSize=10, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAR)
     st_fv   = _PS("fv", fontSize=11, fontName="Helvetica-Bold", textColor=BRANCO, alignment=_TAR)
     # Termos
-    st_intr = _PS("in", fontSize=7,  fontName="Helvetica",      textColor=PRETO,  leading=10)
+    st_intr = _PS("in", fontSize=9,  fontName="Helvetica",      textColor=PRETO,  leading=13)
 
     # ── helpers de estilo de tabela ────────────────────────────────
     def _bst():
@@ -915,8 +915,8 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
         _Para(f"PROPOSTA COMERCIAL  Nº  {d.get('codigo','')}", st_pnum),
     ]
     if os.path.exists(logo_path):
-        logo_w = 48*_mm
-        hdr = _RLTable([[_RLImg(logo_path, width=44*_mm, height=14*_mm), info_cell]],
+        logo_w = 36*_mm
+        hdr = _RLTable([[_RLImg(logo_path, width=32*_mm, height=10*_mm), info_cell]],
                        colWidths=[logo_w, CW - logo_w])
         hdr.setStyle(_RLTableStyle([
             ("BACKGROUND",    (0,0),(-1,-1), NAVY),
@@ -1016,7 +1016,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     servicos = d.get("servicos", [])
     if servicos:
         els.append(_sec_hdr("\u258c  SERVI\u00c7OS"))
-        c0=10*_mm; c1=28*_mm; c3=18*_mm; c4=27*_mm; c5=29*_mm
+        c0=16*_mm; c1=28*_mm; c3=18*_mm; c4=27*_mm; c5=29*_mm
         c2 = CW - c0 - c1 - c3 - c4 - c5
         cws = [c0, c1, c2, c3, c4, c5]
         rows = [[
@@ -1064,7 +1064,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     produtos = d.get("produtos", [])
     if produtos:
         els.append(_sec_hdr("\u258c  PRODUTOS"))
-        c0=10*_mm; c1=22*_mm; cu=14*_mm; c3=18*_mm; c4=27*_mm; c5=29*_mm
+        c0=16*_mm; c1=22*_mm; cu=14*_mm; c3=18*_mm; c4=27*_mm; c5=29*_mm
         c2 = CW - c0 - c1 - cu - c3 - c4 - c5
         cwp = [c0, c1, c2, cu, c3, c4, c5]
         rows = [[
