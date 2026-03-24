@@ -282,16 +282,65 @@ for _old_key in ["locvix_html", "locvix_html_v2", "locvix_html_v3", "locvix_html
     st.session_state.pop(_old_key, None)
 
 # ── Barra de ação ─────────────────────────────────────────────────
-col1, col2 = st.columns([3, 1])
+col1, col2, col3 = st.columns([2.5, 1, 1])
 with col2:
     btn_atualizar = st.button(
         "🔄 Atualizar Dados",
         use_container_width=True,
         type="primary",
     )
+with col3:
+    btn_atualizar_orc = st.button(
+        "📋 Atualizar Orçamentos",
+        use_container_width=True,
+        help="Atualiza somente os dados de orçamentos (mais rápido)",
+        disabled=(HTML_KEY not in st.session_state),
+    )
 
 # Sempre carrega as duas lojas; seleção de loja fica dentro do HTML
 _loja_filtro = "ambas"
+
+# ── Atualização parcial — somente Orçamentos ─────────────────────
+if btn_atualizar_orc and HTML_KEY in st.session_state:
+    import re as _re, json as _json
+    _prog_orc = st.progress(0, text="⏳ Buscando orçamentos...")
+    try:
+        if _BASE_DIR not in sys.path:
+            sys.path.insert(0, _BASE_DIR)
+        if "locvix" in sys.modules:
+            lv = sys.modules["locvix"]
+            importlib.reload(lv)
+        else:
+            import locvix as lv
+        lv.GCK_ACCESS_TOKEN  = os.getenv("GCK_ACCESS_TOKEN", lv.GCK_ACCESS_TOKEN)
+        lv.GCK_SECRET_TOKEN  = os.getenv("GCK_SECRET_TOKEN", lv.GCK_SECRET_TOKEN)
+        lv.SUPABASE_URL      = os.getenv("SUPABASE_URL",     lv.SUPABASE_URL)
+        lv.SUPABASE_ANON     = os.getenv("SUPABASE_ANON",    lv.SUPABASE_ANON)
+        lv._SKIP_CACHE       = True   # ignora cache para forçar fetch fresco
+        lv._empresa_cache    = {}     # limpa cache da empresa também
+
+        _prog_orc.progress(0.2, text="⏳ Conectando ao ERP...")
+        novos_orc = lv.buscar_orcamentos()
+
+        _prog_orc.progress(0.85, text="⏳ Atualizando dashboard...")
+        # Serializa igual ao jv() do locvix.py
+        _orc_json = _json.dumps(novos_orc, ensure_ascii=True, default=str).replace("</" , r"<\/")
+        # Substitui o bloco JSON de orçamentos no HTML armazenado
+        _html_atual = st.session_state[HTML_KEY]
+        _html_novo = _re.sub(
+            r'(<script type="application/json" id="_dORCAMENTOS">).*?(</script>)',
+            r'\g<1>' + _orc_json + r'\2',
+            _html_atual,
+            flags=_re.DOTALL,
+        )
+        st.session_state[HTML_KEY] = _html_novo
+        st.session_state[TIME_KEY] = datetime.now(_BRT).strftime("%d/%m/%Y %H:%M:%S")
+        _prog_orc.progress(1.0, text=f"✅ {len(novos_orc)} orçamentos atualizados!")
+        st.success(f"✅ Orçamentos atualizados: {len(novos_orc)} registros.")
+        st.rerun()
+    except Exception as _e_orc:
+        _prog_orc.empty()
+        st.error(f"❌ Erro ao atualizar orçamentos: {_e_orc}")
 
 # ── Executa coleta ────────────────────────────────────────────────
 if btn_atualizar or HTML_KEY not in st.session_state:
