@@ -321,32 +321,39 @@ def _gck() -> GCKClient:
     return _client
 
 
-_empresa_cache: dict | None = None
+_empresa_cache: dict = {}
 
-def _get_empresa_info() -> dict:
-    """Busca dados da empresa/loja principal no GestãoClick e cacheia.
-    Fallback para valores fixos se o endpoint não estiver disponível."""
-    global _empresa_cache
-    if _empresa_cache is not None:
-        return _empresa_cache
-    defaults = {
+# Fallbacks por loja_id conhecida
+_EMPRESA_DEFAULTS: dict[str, dict] = {
+    LOJA_GJ_ID: {
         "nome":    "LOCVIX LOCAÇÕES LTDA",
         "cnpj":    "29.007.819/0001-96",
-        "cidade":  "Serra",
-        "uf":      "ES",
+        "cidade":  "Serra", "uf": "ES",
         "telefone":"(27) 3065-2627",
         "email":   "contato@locvix.com.br",
-    }
+    },
+    LOJA_WA_ID: {
+        "nome":    "W & A LOCAÇÕES LTDA",
+        "cnpj":    "30.993.597/0001-83",
+        "cidade":  "Serra", "uf": "ES",
+        "telefone":"(27) 3065-2627",
+        "email":   "contato@locvix.com.br",
+    },
+}
+_EMPRESA_DEFAULT_GERAL = _EMPRESA_DEFAULTS[LOJA_GJ_ID]
+
+def _get_empresa_info(loja_id: str | None = None) -> dict:
+    """Busca dados da loja no GestãoClick e cacheia por loja_id.
+    Fallback para valores fixos se o endpoint não estiver disponível."""
+    global _empresa_cache
+    key = str(loja_id or LOJA_GJ_ID)
+    if key in _empresa_cache:
+        return _empresa_cache[key]
+    defaults = _EMPRESA_DEFAULTS.get(key, _EMPRESA_DEFAULT_GERAL)
     try:
         gck = _gck()
-        # Tenta GET /lojas/{id}
-        resp = gck.get(f"lojas/{LOJA_GJ_ID}")
+        resp = gck.get(f"lojas/{key}")
         data = (resp.get("data", {}) if resp else {}) or {}
-        if not data:
-            # Tenta GET /empresas (lista)
-            resp2 = gck.get("empresas")
-            lst = (resp2.get("data", []) if resp2 else []) or []
-            data = lst[0] if lst else {}
         if data:
             end = (data.get("enderecos") or [{}])
             end0 = end[0].get("endereco", end[0]) if end else {}
@@ -358,11 +365,11 @@ def _get_empresa_info() -> dict:
                 "telefone": (data.get("telefone") or data.get("fone") or defaults["telefone"]),
                 "email":    (data.get("email") or defaults["email"]),
             }
-            _empresa_cache = info
+            _empresa_cache[key] = info
             return info
     except Exception:
         pass
-    _empresa_cache = defaults
+    _empresa_cache[key] = defaults
     return defaults
 
 
@@ -953,7 +960,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     els = []
 
     # ══ CABEÇALHO DA EMPRESA ══════════════════════════════════════
-    emp = _get_empresa_info()
+    emp = _get_empresa_info(d.get("loja_id") or d.get("id_loja"))
     logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo_locvix.png")
     _sub = (f"CNPJ: {emp['cnpj']}  \u2022  {emp['cidade']}/{emp['uf']}"
             f"  \u2022  {emp['telefone']}  \u2022  {emp['email']}")
