@@ -1300,6 +1300,14 @@ def buscar_orcamentos() -> list[dict]:
             gck = _gck()
             resp_det = gck.get(f"orcamentos/{orc_id}")
             det = (resp_det.get("data", {}) if resp_det else {}) or {}
+            # garante que loja_id chegue ao PDF — usa o registro da lista como fonte
+            _nome_loja_map = {"w & a": LOJA_WA_ID, "w&a": LOJA_WA_ID,
+                              "g & j": LOJA_GJ_ID, "g&j": LOJA_GJ_ID}
+            _nome_loja = (o.get("nome_loja") or "").strip().lower()
+            loja_id_orc = (o.get("loja_id") or o.get("id_loja") or
+                           (o.get("loja", {}) or {}).get("id") or
+                           _nome_loja_map.get(_nome_loja) or LOJA_GJ_ID)
+            det.setdefault("loja_id", str(loja_id_orc))
             cli_data: dict = {}
             if cli_id:
                 resp_cli = gck.get(f"clientes/{cli_id}")
