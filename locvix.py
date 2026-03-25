@@ -401,7 +401,7 @@ def _chave_loja(chave: str) -> str:
 # ══════════════════════════════════════════════════════════════════
 #  CACHE EM DISCO
 # ══════════════════════════════════════════════════════════════════
-_CACHE_SCHEMA = "3"  # incremente quando o esquema de dados mudar (invalida cache antigo)
+_CACHE_SCHEMA = "4"  # incremente quando o esquema de dados mudar (invalida cache antigo)
 
 def _cache_path(chave: str) -> str:
     h = hashlib.md5(f"{_CACHE_SCHEMA}|{chave}".encode()).hexdigest()
@@ -459,14 +459,41 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
     }
 
     # Tenta endpoint /vendas; se falhar, tenta /pedidos
+    endpoint_usado = "vendas"
     for endpoint in ["vendas", "pedidos"]:
         raw = _paginar_lojas(endpoint, params)
         if raw:
+            endpoint_usado = endpoint
             break
 
     if not raw:
         print("  [AVISO] Nenhuma venda encontrada no período ou credenciais inválidas.")
         return []
+
+    # Verifica se a listagem já traz os itens ou se precisamos buscar individualmente
+    # GestãoClick às vezes omite produtos/servicos na listagem paginada
+    _sem_itens = [v for v in raw if not v.get("produtos") and not v.get("servicos") and not v.get("itens")]
+    if _sem_itens and len(_sem_itens) == len(raw):
+        print(f"  ℹ Listagem sem itens detalhados — buscando cada venda individualmente ({len(raw)})...")
+        gck = _gck()
+        _detalhadas = []
+        for i, v in enumerate(raw, 1):
+            vid = v.get("id")
+            if not vid:
+                _detalhadas.append(v)
+                continue
+            loja_tag = v.get("_loja", "")
+            detalhe = gck.get(f"{endpoint_usado}/{vid}")
+            if detalhe:
+                det = detalhe.get("data", detalhe)
+                if isinstance(det, dict):
+                    det["_loja"] = loja_tag
+                    _detalhadas.append(det)
+                    continue
+            _detalhadas.append(v)
+            if i % 20 == 0:
+                print(f"    {i}/{len(raw)} vendas detalhadas...")
+        raw = _detalhadas
 
     registros: list[dict] = []
     for v in raw:
