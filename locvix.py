@@ -2904,6 +2904,12 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
       </div>
     </div>
   </div>
+  <div class="chart-row" style="align-items:start;">
+    <div class="chart-card" style="flex:1;">
+      <h3>🏷️ Faturamento Líquido por Centro de Custo</h3>
+      <div id="wrapVendasCC" style="position:relative;height:320px;"><canvas id="chartVendasCC"></canvas></div>
+    </div>
+  </div>
 
   </div><!-- /mod vendas-charts -->
 
@@ -3360,6 +3366,55 @@ function mkCategoria(rows) {{
       }}
     }},
     plugins: centerPluginCat
+  }});
+}}
+
+function mkVendasCC(rows) {{
+  destroyChart('chartVendasCC');
+  const canvas = document.getElementById('chartVendasCC');
+  if (!canvas) return;
+  const mCC = {{}};
+  rows.forEach(r => {{
+    const cc = (r.cc || '').trim() || 'SEM CENTRO DE CUSTO';
+    mCC[cc] = (mCC[cc] || 0) + r.liq;
+  }});
+  const entries = Object.entries(mCC).sort((a, b) => b[1] - a[1]);
+  const wrap = document.getElementById('wrapVendasCC');
+  if (!entries.length) {{
+    if (wrap) wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:14px;">Nenhuma venda no período</div>';
+    return;
+  }}
+  const total = entries.reduce((s, e) => s + e[1], 0);
+  const altura = Math.max(320, entries.length * 44);
+  if (wrap) wrap.style.height = altura + 'px';
+  const isDark = document.body.getAttribute('data-theme') !== 'light';
+  const gridClr = isDark ? '#334155' : '#e2e8f0';
+  const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
+  const CORES_V = ['#0891b2','#0ea5e9','#38bdf8','#7dd3fc','#22d3ee','#06b6d4','#0284c7','#0369a1','#14b8a6','#2dd4bf','#34d399','#4ade80'];
+  charts['chartVendasCC'] = new Chart(canvas, {{
+    type: 'bar',
+    data: {{
+      labels: entries.map(e => e[0]),
+      datasets: [{{
+        label: 'Faturamento Líquido',
+        data: entries.map(e => Math.round(e[1] * 100) / 100),
+        backgroundColor: entries.map((_, i) => CORES_V[i % CORES_V.length]),
+        borderRadius: 4, borderSkipped: false
+      }}]
+    }},
+    options: {{
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {{
+        legend: {{ display: false }},
+        subtitle: {{ display: true, text: 'Total: ' + BRL(total),
+          color: '#38bdf8', font: {{ size: 12, weight: 'bold' }}, padding: {{ bottom: 6 }} }},
+        tooltip: {{ callbacks: {{ label: c => BRL(c.raw) + ' (' + ((c.raw / total) * 100).toFixed(1) + '%)' }} }}
+      }},
+      scales: {{
+        x: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr, callback: v => v >= 1000 ? 'R$' + (v/1000).toFixed(0) + 'k' : 'R$' + v }} }},
+        y: {{ grid: {{ display: false }}, ticks: {{ color: txtClr, font: {{ size: 10 }} }} }}
+      }}
+    }}
   }});
 }}
 
@@ -4700,6 +4755,7 @@ function atualizar() {{
   // Gr\u00E1ficos de vendas
   try {{ mkMensal(rows); }} catch(e) {{ console.warn('mkMensal:', e); }}
   try {{ mkCategoria(rows); }} catch(e) {{ console.warn('mkCategoria:', e); }}
+  try {{ mkVendasCC(rows); }} catch(e) {{ console.warn('mkVendasCC:', e); }}
 
   // Top 10 produtos e clientes
   const mProd = {{}};
