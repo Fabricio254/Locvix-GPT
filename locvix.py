@@ -470,15 +470,6 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
         print("  [AVISO] Nenhuma venda encontrada no período ou credenciais inválidas.")
         return []
 
-    # ── DIAGNÓSTICO: imprime campos da 1ª venda para identificar nome do CC ──
-    if raw:
-        _v0 = raw[0]
-        print("  [DEBUG] Campos da 1ª venda (raw):", list(_v0.keys()))
-        _cc_keys = [k for k in _v0.keys() if "centro" in k.lower() or "cc" in k.lower() or "custo" in k.lower()]
-        print("  [DEBUG] Chaves relacionadas a Centro Custo:", _cc_keys or "(nenhuma encontrada)")
-        for _k in _cc_keys:
-            print(f"  [DEBUG]   {_k} = {_v0.get(_k)!r}")
-    # ─────────────────────────────────────────────────────────────────────────
     # GestãoClick às vezes omite produtos/servicos na listagem paginada
     _sem_itens = [v for v in raw if not v.get("produtos") and not v.get("servicos") and not v.get("itens")]
     if _sem_itens and len(_sem_itens) == len(raw):
@@ -529,14 +520,6 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
         for it in (v.get("servicos") or []):
             itens_raw.append(it.get("servico", it))
         if itens_raw:
-            # DIAGNÓSTICO: campos do 1º item da 1ª venda
-            if registros == [] and itens_raw:
-                _it0 = itens_raw[0]
-                print("  [DEBUG] Campos do 1º item:", list(_it0.keys()))
-                _cc_it = [k for k in _it0.keys() if "centro" in k.lower() or "cc" in k.lower() or "custo" in k.lower()]
-                print("  [DEBUG] Chaves CC no item:", _cc_it or "(nenhuma)")
-                for _k in _cc_it:
-                    print(f"  [DEBUG]   item.{_k} = {_it0.get(_k)!r}")
             for it in itens_raw:
                 cod   = str(it.get("produto_id") or it.get("servico_id") or it.get("codigo") or "")
                 desc  = str(it.get("nome_produto") or it.get("nome_servico") or it.get("descricao") or it.get("nome") or "")
