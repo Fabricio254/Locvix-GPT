@@ -687,6 +687,7 @@ def buscar_vendas_excel(data_ini: str, data_fim: str) -> list[dict]:
                     "Status":       status_str,
                     "Vendedor":     "Sem Vendedor",
                     "Categoria":    "SEM CATEGORIA",
+                    "Centro Custo": aba_nome.upper().strip() or "SEM CENTRO DE CUSTO",
                     "Cod. Produto": "",
                     "Produto":      forma_str,
                     "Unidade":      "",
