@@ -2226,6 +2226,26 @@ body[data-theme="dark"] .fin-filter-bar{{background:#1e293b;border-color:#334155
 .btn-filter-orc.active{{background:#2563eb;color:#fff;border-color:#2563eb;}}
 /* ── BADGE STATUS ── */
 .badge{{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;}}
+/* ── MODAL DETALHE CC (Manutenção) ── */
+.cc-overlay{{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;
+  justify-content:center;align-items:center;z-index:25000;padding:16px;}}
+.cc-overlay.open{{display:flex;}}
+.cc-modal{{background:#1e293b;border-radius:14px;width:100%;max-width:760px;
+  max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6);
+  animation:hmFade .2s ease;}}
+.cc-modal-header{{display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px 12px;border-bottom:1px solid #334155;}}
+.cc-modal-header h2{{color:#f59e0b;font-size:15px;margin:0;}}
+.cc-modal-body{{overflow-y:auto;padding:14px 20px;flex:1;}}
+.cc-modal table{{width:100%;border-collapse:collapse;font-size:12.5px;}}
+.cc-modal th{{background:#0f172a;color:#94a3b8;padding:7px 8px;text-align:left;
+  position:sticky;top:0;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}}
+.cc-modal th.num{{text-align:right;}}
+.cc-modal td{{padding:6px 8px;border-bottom:1px solid #1e293b;color:#e2e8f0;vertical-align:top;}}
+.cc-modal td.num{{text-align:right;white-space:nowrap;color:#fcd34d;font-weight:600;}}
+.cc-modal tr:hover td{{background:#1e3a5f33;}}
+.cc-modal tfoot td{{background:#0f172a;color:#f59e0b;font-weight:700;padding:8px;}}
+.cc-modal tfoot td.num{{color:#fcd34d;font-size:13px;}}
 /* ── MODAL AJUDA ── */
 .fab-help{{position:fixed;bottom:24px;right:136px;width:48px;height:48px;border-radius:50%;
   background:#1a3a4a;color:#fff;border:2px solid rgba(255,255,255,.18);font-size:20px;font-weight:800;
@@ -2455,6 +2475,17 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
 
 <!-- Botão flutuante de Ajuda -->
 <button class="fab-help" onclick="abrirAjuda()" title="Ajuda">?</button>
+
+<!-- Modal Detalhe CC Manutenção -->
+<div class="cc-overlay" id="ccOverlay" onclick="if(event.target===this)fecharCCModal()">
+  <div class="cc-modal">
+    <div class="cc-modal-header">
+      <h2 id="ccModalTitle">🏷️ Discriminação dos Lançamentos</h2>
+      <button class="hm-close" onclick="fecharCCModal()">&#10005;</button>
+    </div>
+    <div class="cc-modal-body" id="ccModalBody"></div>
+  </div>
+</div>
 
 <!-- Modal de Ajuda -->
 <div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)fecharAjuda()">
@@ -3605,6 +3636,26 @@ function mkResultadoMensal() {{
   }});
 }}
 
+function abrirCCModal(ccNome) {{
+  const EXCLUIR = ['ADM/FINANCEIRO','SUBLOCAÇÕES - TERCEIROS','SEM CENTRO DE CUSTO','MANUTENÇÃO'];
+  const rows = pagarFiltFin.filter(r => {{
+    const cc = (r.cc || '').trim() || 'SEM CENTRO DE CUSTO';
+    if (EXCLUIR.includes(cc.toUpperCase())) return false;
+    return cc === ccNome;
+  }}).sort((a, b) => (a.desc || '').localeCompare(b.desc || '', 'pt-BR'));
+  const total = rows.reduce((s, r) => s + r.valor, 0);
+  document.getElementById('ccModalTitle').textContent = '🏷️ ' + ccNome + ' — Discriminação dos Lançamentos';
+  let html = '<table><thead><tr><th>#</th><th>Descrição</th><th>Fornecedor</th><th>Vencimento</th><th class="num">Valor</th></tr></thead><tbody>';
+  rows.forEach((r, i) => {{
+    const venc = r.venc ? r.venc.split('-').reverse().join('/') : '—';
+    html += `<tr><td style="color:#64748b;font-size:11px">${{i+1}}</td><td>${{r.desc||'—'}}</td><td style="color:#94a3b8">${{r.pessoa||'—'}}</td><td style="color:#94a3b8">${{venc}}</td><td class="num">${{BRL(r.valor)}}</td></tr>`;
+  }});
+  html += `</tbody><tfoot><tr><td colspan="4">TOTAL (${{{rows.length}}} lançamentos)</td><td class="num">${{BRL(total)}}</td></tr></tfoot></table>`;
+  document.getElementById('ccModalBody').innerHTML = html;
+  document.getElementById('ccOverlay').classList.add('open');
+}}
+function fecharCCModal() {{ document.getElementById('ccOverlay').classList.remove('open'); }}
+
 function mkManutencaoCC() {{
   destroyChart('chartManutCC');
   const canvas = document.getElementById('chartManutCC');
@@ -3637,15 +3688,19 @@ function mkManutencaoCC() {{
         label: 'Despesas',
         data: entries.map(e => Math.round(e[1] * 100) / 100),
         backgroundColor: entries.map((_, i) => CORES[i % CORES.length]),
-        borderRadius: 4, borderSkipped: false
+        borderRadius: 4, borderSkipped: false,
+        cursor: 'pointer'
       }}]
     }},
     options: {{
       responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      onClick: (evt, els) => {{
+        if (els.length) abrirCCModal(entries[els[0].index][0]);
+      }},
       plugins: {{
         legend: {{ display: false }},
-        subtitle: {{ display: true, text: 'Total: ' + BRL(total),
-          color: '#f59e0b', font: {{ size: 12, weight: 'bold' }}, padding: {{ bottom: 6 }} }},
+        subtitle: {{ display: true, text: 'Total: ' + BRL(total) + '  —  clique numa barra para ver os lançamentos',
+          color: '#f59e0b', font: {{ size: 11, weight: 'bold' }}, padding: {{ bottom: 6 }} }},
         tooltip: {{ callbacks: {{ label: c => BRL(c.raw) + ' (' + ((c.raw / total) * 100).toFixed(1) + '%)' }} }}
       }},
       scales: {{
@@ -3654,57 +3709,7 @@ function mkManutencaoCC() {{
       }}
     }}
   }});
-}}
-
-function mkManutencaoCC() {{
-  destroyChart('chartManutCC');
-  const canvas = document.getElementById('chartManutCC');
-  if (!canvas) return;
-  const EXCLUIR = ['ADM/FINANCEIRO','SUBLOCAÇÕES - TERCEIROS','SEM CENTRO DE CUSTO','MANUTENÇÃO'];
-  const mCC = {{}};
-  pagarFiltFin.forEach(r => {{
-    const cc = (r.cc || '').trim() || 'SEM CENTRO DE CUSTO';
-    if (EXCLUIR.includes(cc.toUpperCase())) return;
-    mCC[cc] = (mCC[cc] || 0) + r.valor;
-  }});
-  const entries = Object.entries(mCC).sort((a, b) => b[1] - a[1]);
-  const wrap = document.getElementById('wrapManutCC');
-  if (!entries.length) {{
-    if (wrap) wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:14px;">Nenhuma despesa de equipamento no per\u00EDodo</div>';
-    return;
-  }}
-  const total = entries.reduce((s, e) => s + e[1], 0);
-  const altura = Math.max(320, entries.length * 44);
-  if (wrap) wrap.style.height = altura + 'px';
-  const isDark = document.body.getAttribute('data-theme') !== 'light';
-  const gridClr = isDark ? '#334155' : '#e2e8f0';
-  const txtClr  = isDark ? '#cbd5e1' : '#1e293b';
-  const CORES = ['#f59e0b','#f97316','#ef4444','#eab308','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#d946ef'];
-  charts['chartManutCC'] = new Chart(canvas, {{
-    type: 'bar',
-    data: {{
-      labels: entries.map(e => e[0]),
-      datasets: [{{
-        label: 'Despesas',
-        data: entries.map(e => Math.round(e[1] * 100) / 100),
-        backgroundColor: entries.map((_, i) => CORES[i % CORES.length]),
-        borderRadius: 4, borderSkipped: false
-      }}]
-    }},
-    options: {{
-      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-      plugins: {{
-        legend: {{ display: false }},
-        subtitle: {{ display: true, text: 'Total: ' + BRL(total),
-          color: '#f59e0b', font: {{ size: 12, weight: 'bold' }}, padding: {{ bottom: 6 }} }},
-        tooltip: {{ callbacks: {{ label: c => BRL(c.raw) + ' (' + ((c.raw / total) * 100).toFixed(1) + '%)' }} }}
-      }},
-      scales: {{
-        x: {{ grid: {{ color: gridClr }}, ticks: {{ color: txtClr, callback: v => v >= 1000 ? 'R$' + (v/1000).toFixed(0) + 'k' : 'R$' + v }} }},
-        y: {{ grid: {{ display: false }}, ticks: {{ color: txtClr, font: {{ size: 10 }} }} }}
-      }}
-    }}
-  }});
+  canvas.style.cursor = 'pointer';
 }}
 
 function mkPagarCentroCusto() {{
