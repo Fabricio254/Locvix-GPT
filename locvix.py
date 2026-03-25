@@ -3650,7 +3650,7 @@ function abrirCCModal(ccNome) {{
     const venc = r.venc ? r.venc.split('-').reverse().join('/') : '—';
     html += `<tr><td style="color:#64748b;font-size:11px">${{i+1}}</td><td>${{r.desc||'—'}}</td><td style="color:#94a3b8">${{r.pessoa||'—'}}</td><td style="color:#94a3b8">${{venc}}</td><td class="num">${{BRL(r.valor)}}</td></tr>`;
   }});
-  html += `</tbody><tfoot><tr><td colspan="4">TOTAL (${{{{rows.length}}}} lançamentos)</td><td class="num">${{BRL(total)}}</td></tr></tfoot></table>`;
+  html += `</tbody><tfoot><tr><td colspan="4">TOTAL (${{rows.length}} lançamentos)</td><td class="num">${{BRL(total)}}</td></tr></tfoot></table>`;
   document.getElementById('ccModalBody').innerHTML = html;
   document.getElementById('ccOverlay').classList.add('open');
 }}
