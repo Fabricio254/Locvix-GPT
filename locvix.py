@@ -507,7 +507,9 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
         cliente   = (v.get("nome_cliente") or v.get("cliente_nome") or v.get("cliente") or "")
         status    = (v.get("nome_situacao") or v.get("status") or v.get("situacao") or "").upper()
         vendedor  = (v.get("nome_vendedor") or v.get("vendedor_nome") or v.get("vendedor") or "Sem Vendedor")
-        cat       = (v.get("nome_centro_custo") or v.get("categoria") or v.get("grupo") or "SEM CATEGORIA").upper()
+        # centro de custo da venda (nível cabeçalho)
+        cc_venda  = (v.get("nome_centro_custo") or v.get("centro_custo") or v.get("centro_de_custo") or "").upper().strip()
+        cat       = (v.get("categoria") or v.get("grupo") or cc_venda or "SEM CATEGORIA").upper()
         nf        = str(v.get("numero_nf") or v.get("numero") or v.get("id") or "")
         id_venda  = str(v.get("id") or "")
 
@@ -523,6 +525,9 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
                 cod   = str(it.get("produto_id") or it.get("servico_id") or it.get("codigo") or "")
                 desc  = str(it.get("nome_produto") or it.get("nome_servico") or it.get("descricao") or it.get("nome") or "")
                 unid  = str(it.get("sigla_unidade") or it.get("unidade") or "UN")
+                # centro de custo: tenta no item primeiro, depois usa o da venda
+                cc_item = (it.get("nome_centro_custo") or it.get("centro_custo") or it.get("centro_de_custo") or "").upper().strip()
+                cc_final = cc_item or cc_venda or "SEM CENTRO DE CUSTO"
                 try:    qtd    = float(it.get("quantidade") or 1)
                 except: qtd    = 1.0
                 try:    v_unit = float(it.get("valor_venda") or it.get("valor_unitario") or it.get("preco") or 0)
@@ -532,22 +537,23 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
                 try:    v_desc = float(it.get("desconto_valor") or it.get("desconto") or 0)
                 except: v_desc = 0.0
                 registros.append({
-                    "ID":           id_venda,
-                    "NF":           nf,
-                    "Data":         data_dt,
-                    "Cliente":      cliente,
-                    "Status":       status,
-                    "Vendedor":     vendedor,
-                    "Categoria":    cat,
-                    "Cod. Produto": cod,
-                    "Produto":      desc,
-                    "Unidade":      unid,
-                    "Qtd":          qtd,
-                    "Vlr Unitário": v_unit,
-                    "Vlr Bruto":    v_bruto,
-                    "Desconto":     v_desc,
-                    "Vlr Líquido":  v_bruto - v_desc,
-                    "Loja":         v.get("_loja", ""),
+                    "ID":            id_venda,
+                    "NF":            nf,
+                    "Data":          data_dt,
+                    "Cliente":       cliente,
+                    "Status":        status,
+                    "Vendedor":      vendedor,
+                    "Categoria":     cat,
+                    "Centro Custo":  cc_final,
+                    "Cod. Produto":  cod,
+                    "Produto":       desc,
+                    "Unidade":       unid,
+                    "Qtd":           qtd,
+                    "Vlr Unitário":  v_unit,
+                    "Vlr Bruto":     v_bruto,
+                    "Desconto":      v_desc,
+                    "Vlr Líquido":   v_bruto - v_desc,
+                    "Loja":          v.get("_loja", ""),
                 })
         else:
             # Venda sem detalhamento de itens — registra a venda como um todo
@@ -556,22 +562,23 @@ def buscar_vendas(data_ini: str, data_fim: str) -> list[dict]:
             try:    v_desc  = float(v.get("desconto") or v.get("valor_desconto") or 0)
             except: v_desc  = 0.0
             registros.append({
-                "ID":           id_venda,
-                "NF":           nf,
-                "Data":         data_dt,
-                "Cliente":      cliente,
-                "Status":       status,
-                "Vendedor":     vendedor,
-                "Categoria":    cat,
-                "Cod. Produto": "",
-                "Produto":      "",
-                "Unidade":      "",
-                "Qtd":          1.0,
-                "Vlr Unitário": v_bruto - v_desc,
-                "Vlr Bruto":    v_bruto,
-                "Desconto":     v_desc,
-                "Vlr Líquido":  v_bruto - v_desc,
-                "Loja":         v.get("_loja", ""),
+                "ID":            id_venda,
+                "NF":            nf,
+                "Data":          data_dt,
+                "Cliente":       cliente,
+                "Status":        status,
+                "Vendedor":      vendedor,
+                "Categoria":     cat,
+                "Centro Custo":  cc_venda or "SEM CENTRO DE CUSTO",
+                "Cod. Produto":  "",
+                "Produto":       "",
+                "Unidade":       "",
+                "Qtd":           1.0,
+                "Vlr Unitário":  v_bruto - v_desc,
+                "Vlr Bruto":     v_bruto,
+                "Desconto":      v_desc,
+                "Vlr Líquido":   v_bruto - v_desc,
+                "Loja":          v.get("_loja", ""),
             })
 
     _cache_save(chave, [
@@ -2102,6 +2109,7 @@ def gerar_dashboard_html(
                 "cod":       str(r.get("Cod. Produto","") or ""),
                 "produto":   str(r.get("Produto","") or "")[:50],
                 "categoria": str(r.get("Categoria","") or "SEM CATEGORIA"),
+                "cc":        str(r.get("Centro Custo","") or "SEM CENTRO DE CUSTO"),
                 "vendedor":  str(r.get("Vendedor","") or "Sem Vendedor"),
                 "status":    str(r.get("Status","") or ""),
                 "qtd":       round(float(r.get("Qtd",0) or 0), 4),
