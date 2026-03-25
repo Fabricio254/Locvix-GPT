@@ -1211,7 +1211,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
                 _Para(_fdate(pg.get("data_vencimento","")),                 st_td_c),
                 _Para(_brl(pg.get("valor",0)),                              st_td_r),
                 _Para(str(pg.get("nome_forma_pagamento","") or ""),         st_td),
-                _Para("Sujeito a alteração da data de vencimento.",         st_td),
+                _Para("Sujeito a alteração da data de vencimento e dos valores.",         st_td),
             ])
     else:
         # linha padrão quando a API não retorna parcelas
@@ -1226,7 +1226,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
             _Para("",                                              st_td_c),
             _Para(_brl(total_geral) if total_geral else "",        st_td_r),
             _Para("",                                              st_td),
-            _Para("Sujeito a alteração da data de vencimento.",    st_td),
+            _Para("Sujeito a alteração da data de vencimento e dos valores.",    st_td),
         ])
     tpg = _RLTable(rows_pg, colWidths=[c_venc, c_vlr, c_forma, c_obs])
     sty_pg = _bst() + [("BACKGROUND", (0,0),(-1,0), NAVY_T)]
