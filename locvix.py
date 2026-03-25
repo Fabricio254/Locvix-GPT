@@ -1194,16 +1194,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     els.append(_Spacer(1, 4*_mm))
 
     # ══ DADOS DO PAGAMENTO ════════════════════════════════════════
-    from datetime import timedelta as _td
     pagamentos = d.get("pagamentos", [])
-    # calcula vencimento padrão: 15 dias da data da emissão
-    _data_emissao_str = d.get("data", "")
-    try:
-        from datetime import datetime as _dt2
-        _emissao = _dt2.strptime(_data_emissao_str[:10], "%Y-%m-%d") if _data_emissao_str else _dt2.today()
-        _venc_padrao = (_emissao + _td(days=15)).strftime("%d/%m/%Y")
-    except Exception:
-        _venc_padrao = "15 DIAS DA EMISSÃO"
     els.append(_sec_hdr("\u258c  DADOS DO PAGAMENTO"))
     c_venc=30*_mm; c_vlr=32*_mm; c_obs=45*_mm
     c_forma = CW - c_venc - c_vlr - c_obs
@@ -1214,10 +1205,10 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
         _Para("OBSERVAÇÃO",          st_th),
     ]]
     if pagamentos:
-        for ri, pv in enumerate(pagamentos, 1):
+        for pv in pagamentos:
             pg = pv.get("pagamento", pv)
             rows_pg.append([
-                _Para(_fdate(pg.get("data_vencimento","")) or _venc_padrao, st_td_c),
+                _Para(_fdate(pg.get("data_vencimento","")),                 st_td_c),
                 _Para(_brl(pg.get("valor",0)),                              st_td_r),
                 _Para(str(pg.get("nome_forma_pagamento","") or ""),         st_td),
                 _Para("Sujeito a alteração da data de vencimento.",         st_td),
@@ -1228,14 +1219,14 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
             float(sv.get("servico", sv).get("valor_total", 0) or 0)
             for sv in d.get("servicos", [])
         ) + sum(
-            float(pv.get("produto", pv).get("valor_total", 0) or 0)
-            for pv in d.get("produtos", [])
+            float(pv2.get("produto", pv2).get("valor_total", 0) or 0)
+            for pv2 in d.get("produtos", [])
         )
         rows_pg.append([
-            _Para(_venc_padrao,                                   st_td_c),
-            _Para(_brl(total_geral) if total_geral else "",       st_td_r),
-            _Para("",                                             st_td),
-            _Para("Sujeito a alteração da data de vencimento.",   st_td),
+            _Para("",                                              st_td_c),
+            _Para(_brl(total_geral) if total_geral else "",        st_td_r),
+            _Para("",                                              st_td),
+            _Para("Sujeito a alteração da data de vencimento.",    st_td),
         ])
     tpg = _RLTable(rows_pg, colWidths=[c_venc, c_vlr, c_forma, c_obs])
     sty_pg = _bst() + [("BACKGROUND", (0,0),(-1,0), NAVY_T)]
