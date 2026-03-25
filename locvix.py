@@ -962,7 +962,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
 
     # ══ CABEÇALHO DA EMPRESA ══════════════════════════════════════
     emp = _get_empresa_info(d.get("loja_id") or d.get("id_loja"))
-    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo_locvix.png")
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ARTE locvix.png")
     _sub = (f"CNPJ: {emp['cnpj']}  \u2022  {emp['cidade']}/{emp['uf']}"
             f"  \u2022  {emp['telefone']}  \u2022  {emp['email']}")
     info_cell = [
