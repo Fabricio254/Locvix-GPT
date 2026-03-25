@@ -1237,7 +1237,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     els.append(tpg)
     els.append(_Spacer(1, 4*_mm))
 
-    # ══ PERÍODO DE UTILIZAÇÃO ════════════════════════════════════════
+    # ══ TERMOS E CONDIÇÕES ════════════════════════════════════════
     intro = (d.get("introducao","") or "").strip()
     if intro:
         import re as _re_pdf
@@ -1251,7 +1251,8 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
             "MEDIÇÃO, FATURAMENTO E PAGAMENTO",
             "DISPOSIÇÕES FINAIS",
         }
-        els.append(_sec_hdr("\u258c  PERÍODO DE UTILIZAÇÃO"))
+        st_tc_title = _PS("tct", fontSize=10, fontName="Helvetica-Bold", textColor=PRETO, spaceBefore=4, spaceAfter=4)
+        els.append(_Para("TERMOS E CONDIÇÕES", st_tc_title))
         els.append(_Spacer(1, 2*_mm))
         pending = []
         for raw in intro.split("\n"):
