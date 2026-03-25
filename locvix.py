@@ -971,8 +971,8 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
         _Para(f"PROPOSTA COMERCIAL  N\u00ba  {d.get('codigo','')}", st_pnum),
     ]
     if os.path.exists(logo_path):
-        logo_w = 36*_mm
-        hdr = _RLTable([[_RLImg(logo_path, width=32*_mm, height=10*_mm), info_cell]],
+        logo_w = 50*_mm
+        hdr = _RLTable([[_RLImg(logo_path, width=44*_mm, height=27.5*_mm), info_cell]],
                        colWidths=[logo_w, CW - logo_w])
         hdr.setStyle(_RLTableStyle([
             ("BACKGROUND",    (0,0),(-1,-1), NAVY),
