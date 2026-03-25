@@ -1194,39 +1194,65 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
     els.append(_Spacer(1, 4*_mm))
 
     # ══ DADOS DO PAGAMENTO ════════════════════════════════════════
+    from datetime import timedelta as _td
     pagamentos = d.get("pagamentos", [])
+    # calcula vencimento padrão: 15 dias da data da emissão
+    _data_emissao_str = d.get("data", "")
+    try:
+        from datetime import datetime as _dt2
+        _emissao = _dt2.strptime(_data_emissao_str[:10], "%Y-%m-%d") if _data_emissao_str else _dt2.today()
+        _venc_padrao = (_emissao + _td(days=15)).strftime("%d/%m/%Y")
+    except Exception:
+        _venc_padrao = "15 DIAS DA EMISSÃO"
+    els.append(_sec_hdr("\u258c  DADOS DO PAGAMENTO"))
+    c_venc=30*_mm; c_vlr=32*_mm; c_obs=45*_mm
+    c_forma = CW - c_venc - c_vlr - c_obs
+    rows_pg = [[
+        _Para("VENCIMENTO",          st_th_c),
+        _Para("VALOR",               st_th_r),
+        _Para("FORMA DE PAGAMENTO",  st_th),
+        _Para("OBSERVAÇÃO",          st_th),
+    ]]
     if pagamentos:
-        els.append(_sec_hdr("\u258c  DADOS DO PAGAMENTO"))
-        c_venc=30*_mm; c_vlr=32*_mm; c_obs=45*_mm
-        c_forma = CW - c_venc - c_vlr - c_obs
-        rows = [[
-            _Para("VENCIMENTO",          st_th_c),
-            _Para("VALOR",               st_th_r),
-            _Para("FORMA DE PAGAMENTO",  st_th),
-            _Para("OBSERVA\u00c7\u00c3O", st_th),
-        ]]
         for ri, pv in enumerate(pagamentos, 1):
             pg = pv.get("pagamento", pv)
-            rows.append([
-                _Para(_fdate(pg.get("data_vencimento","")),           st_td_c),
-                _Para(_brl(pg.get("valor",0)),                        st_td_r),
-                _Para(str(pg.get("nome_forma_pagamento","") or ""),   st_td),
-                _Para(str(pg.get("observacao","") or ""),             st_td),
+            rows_pg.append([
+                _Para(_fdate(pg.get("data_vencimento","")) or _venc_padrao, st_td_c),
+                _Para(_brl(pg.get("valor",0)),                              st_td_r),
+                _Para(str(pg.get("nome_forma_pagamento","") or ""),         st_td),
+                _Para("Sujeito a alteração da data de vencimento.",         st_td),
             ])
-        tpg = _RLTable(rows, colWidths=[c_venc, c_vlr, c_forma, c_obs])
-        sty_pg = _bst() + [("BACKGROUND", (0,0),(-1,0), NAVY_T)]
-        for ri in range(1, len(rows)):
-            if ri % 2 == 0:
-                sty_pg.append(("BACKGROUND", (0,ri),(-1,ri), ROW_ALT))
-        tpg.setStyle(_RLTableStyle(sty_pg))
-        els.append(tpg)
-        els.append(_Spacer(1, 4*_mm))
+    else:
+        # linha padrão quando a API não retorna parcelas
+        total_geral = sum(
+            float(sv.get("servico", sv).get("valor_total", 0) or 0)
+            for sv in d.get("servicos", [])
+        ) + sum(
+            float(pv.get("produto", pv).get("valor_total", 0) or 0)
+            for pv in d.get("produtos", [])
+        )
+        rows_pg.append([
+            _Para(_venc_padrao,                                   st_td_c),
+            _Para(_brl(total_geral) if total_geral else "",       st_td_r),
+            _Para("",                                             st_td),
+            _Para("Sujeito a alteração da data de vencimento.",   st_td),
+        ])
+    tpg = _RLTable(rows_pg, colWidths=[c_venc, c_vlr, c_forma, c_obs])
+    sty_pg = _bst() + [("BACKGROUND", (0,0),(-1,0), NAVY_T)]
+    for ri in range(1, len(rows_pg)):
+        if ri % 2 == 0:
+            sty_pg.append(("BACKGROUND", (0,ri),(-1,ri), ROW_ALT))
+    tpg.setStyle(_RLTableStyle(sty_pg))
+    els.append(tpg)
+    els.append(_Spacer(1, 4*_mm))
 
-    # ══ TERMOS E CONDIÇÕES ════════════════════════════════════════
+    # ══ PERÍODO DE UTILIZAÇÃO ════════════════════════════════════════
     intro = (d.get("introducao","") or "").strip()
     if intro:
         import re as _re_pdf
         _SEC_HDRS = {
+            "PERÍODO DE UTILIZAÇÃO",
+            "1 PERÍODO DE UTILIZAÇÃO",
             "JORNADA DE TRABALHO E APONTAMENTO DE HORAS",
             "OBRIGAÇÕES DA CONTRATADA",
             "OBRIGAÇÕES DA CONTRATANTE",
@@ -1234,7 +1260,7 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
             "MEDIÇÃO, FATURAMENTO E PAGAMENTO",
             "DISPOSIÇÕES FINAIS",
         }
-        els.append(_sec_hdr("\u258c  TERMOS E CONDIÇÕES"))
+        els.append(_sec_hdr("\u258c  PERÍODO DE UTILIZAÇÃO"))
         els.append(_Spacer(1, 2*_mm))
         pending = []
         for raw in intro.split("\n"):
