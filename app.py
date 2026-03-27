@@ -74,11 +74,16 @@ div[data-testid="stSidebar"]{
     min-width:280px!important;
     max-width:320px!important;
     transform:none!important;
+    visibility:visible!important;
+    position:relative!important;
+    display:flex!important;
 }
 div[data-testid="stSidebar"] *{color:#e0e8f0!important;}
 div[data-testid="stSidebar"] hr{border-color:#1e3550!important;}
-/* Esconde botão de colapsar sidebar */
+/* Esconde TODOS os botões de colapso sidebar */
 button[data-testid="stSidebarCollapseButton"]{display:none!important;}
+button[data-testid="baseButton-headerNoPadding"]{display:none!important;}
+[data-testid="collapsedControl"]{display:none!important;}
 /* Oculta toolbar superior (Share, Edit, Deploy, Github) */
 [data-testid="stToolbar"]{display:none!important;}
 [data-testid="stDecoration"]{display:none!important;}
@@ -502,8 +507,8 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         )
     st.success("✅ Dashboard gerado com sucesso!")
 
-    # ── Botão Novo Orçamento na área principal ──
-    if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form"):
+    # ── Botão Novo Orçamento na área principal (— SEMPRE visível) ──
+    if not st.session_state.get("_show_orc_form"):
         st.markdown('<div class="orc-btn-main">', unsafe_allow_html=True)
         st.button("➕ Criar Novo Orçamento no GestãoClick",
                   use_container_width=True, key="_btn_orc_main",
@@ -511,7 +516,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Formulário Novo Orçamento (visível na área principal quando acionado) ──
-    if st.session_state.get("modulo_ativo") == "orcamento" and st.session_state.get("_show_orc_form"):
+    if st.session_state.get("_show_orc_form"):
         with st.container(border=True):
             _col_tit, _col_fechar = st.columns([6, 1])
             with _col_tit:
