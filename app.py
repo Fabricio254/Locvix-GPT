@@ -476,37 +476,10 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         )
     st.success("✅ Dashboard gerado com sucesso!")
 
-    _html_safe = st.session_state[HTML_KEY].encode("ascii", errors="xmlcharrefreplace").decode("ascii")
-
-    # Inject module-activation script based on sidebar selection
-    _modulo_sel = st.session_state.get("modulo_ativo", "geral")
-    _allowed    = set(_usuario_modulos)
-    if _modulo_sel not in _allowed:
-        _modulo_sel = next(iter(_allowed), "geral")
-    _inject = (
-        f"<script>(function(){{function _am(){{if(typeof setModulo==='function')"
-        f"setModulo('{_modulo_sel}');else setTimeout(_am,80);}}"
-        f"if(document.readyState==='complete')_am();"
-        f"else window.addEventListener('load',_am);}})()</script>"
-    )
-    _html_safe = _html_safe.replace("</body>", f"{_inject}</body>")
-
-    components.html(
-        _html_safe,
-        height=1600,
-        scrolling=True,
-    )
-
-    _log_saved = st.session_state.get("locvix_log", "")
-    if _log_saved.strip():
-        with st.expander("📋 Log de execução", expanded=False):
-            st.code(_log_saved, language=None)
-
     # ══════════════════════════════════════════════════════════════
-    #  NOVO ORÇAMENTO — exibido apenas no módulo Orçamento
+    #  NOVO ORÇAMENTO — visível ACIMA do iframe (módulo Orçamento)
     # ══════════════════════════════════════════════════════════════
     if st.session_state.get("modulo_ativo") == "orcamento":
-        st.markdown("---")
         with st.expander("➕ Criar Novo Orçamento no GestãoClick", expanded=st.session_state.get("_orc_form_open", False)):
 
             # ── carrega dados auxiliares (com cache de sessão) ────
@@ -726,6 +699,32 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
                         st.session_state.pop(HTML_KEY, None)
                     else:
                         st.error(f"❌ Erro ao criar orçamento: {_res['msg']}")
+
+    _html_safe = st.session_state[HTML_KEY].encode("ascii", errors="xmlcharrefreplace").decode("ascii")
+
+    # Inject module-activation script based on sidebar selection
+    _modulo_sel = st.session_state.get("modulo_ativo", "geral")
+    _allowed    = set(_usuario_modulos)
+    if _modulo_sel not in _allowed:
+        _modulo_sel = next(iter(_allowed), "geral")
+    _inject = (
+        f"<script>(function(){{function _am(){{if(typeof setModulo==='function')"
+        f"setModulo('{_modulo_sel}');else setTimeout(_am,80);}}"
+        f"if(document.readyState==='complete')_am();"
+        f"else window.addEventListener('load',_am);}})()</script>"
+    )
+    _html_safe = _html_safe.replace("</body>", f"{_inject}</body>")
+
+    components.html(
+        _html_safe,
+        height=1600,
+        scrolling=True,
+    )
+
+    _log_saved = st.session_state.get("locvix_log", "")
+    if _log_saved.strip():
+        with st.expander("📋 Log de execução", expanded=False):
+            st.code(_log_saved, language=None)
 
 elif HTML_KEY not in st.session_state:
     st.info(
