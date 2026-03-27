@@ -675,7 +675,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
                 n_parcelas = 1; d1_parcela = date.today(); intervalo_dias = 0
 
             st.markdown("")
-            if st.button("📤 Criar Orçamento no GestãoClick", type="primary",
+            if st.button("📤 Criar Orçamento", type="primary",
                          use_container_width=True, key="_btn_criar_orc"):
                 if not cli_nome:
                     st.error("❌ Selecione um cliente.")
