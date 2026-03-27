@@ -277,6 +277,32 @@ with st.sidebar:
     st.markdown("---")
     st.caption(f"Última execução: {datetime.now(_BRT).strftime('%d/%m/%Y %H:%M')}")
 
+# ── Força sidebar sempre aberta via JS no iframe (mesmo domínio) ──
+components.html("""<script>
+(function(){
+    function forceOpen(){
+        var p = window.parent.document;
+        // Se o botão de expandir está visível, clica nele
+        var btn = p.querySelector('[data-testid="collapsedControl"] button') ||
+                  p.querySelector('[data-testid="collapsedControl"]');
+        if(btn){ btn.click(); return; }
+        // Sobrepõe transform inline da sidebar
+        var sb = p.querySelector('[data-testid="stSidebar"]');
+        if(sb){
+            sb.style.setProperty('transform','none','important');
+            sb.style.setProperty('min-width','280px','important');
+            sb.style.setProperty('visibility','visible','important');
+            // Esconde botão de colapsar
+            var cb = p.querySelector('[data-testid="stSidebarCollapseButton"]');
+            if(cb) cb.style.setProperty('display','none','important');
+        }
+    }
+    setTimeout(forceOpen, 100);
+    setTimeout(forceOpen, 600);
+    setTimeout(forceOpen, 1500);
+})();
+</script>""", height=0, scrolling=False)
+
 # ═══════════════════════════════════════════════════════════════════
 #  PÁGINA PRINCIPAL — Dashboard Locvix
 # ═══════════════════════════════════════════════════════════════════
