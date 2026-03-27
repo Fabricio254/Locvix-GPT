@@ -826,7 +826,9 @@ def buscar_clientes() -> list[dict]:
         enderecos = c.get("enderecos") or []
         end0 = enderecos[0].get("endereco", {}) if enderecos and isinstance(enderecos[0], dict) else {}
         normalizado.append({
+            "id":      str(c.get("id") or ""),
             "ID":      str(c.get("id") or ""),
+            "nome":    c.get("nome") or c.get("razao_social") or "",
             "Nome":    c.get("nome") or c.get("razao_social") or "",
             "Cidade":  end0.get("nome_cidade") or c.get("cidade") or "",
             "UF":      end0.get("estado") or c.get("uf") or "",

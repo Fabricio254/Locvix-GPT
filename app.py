@@ -581,8 +581,11 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
             _servicos   = _aux["servicos"]
             _vendedores = _aux["vendedores"]
 
-            def _opts(lista, campo="nome"): return [""] + [x[campo] for x in lista]
-            def _id_por_nome(lista, nome): return next((x["id"] for x in lista if x.get("nome") == nome), "")
+            def _opts(lista, campo="nome"):
+                # suporta chave "nome" (minúsculo) ou "Nome" (maiúsculo)
+                return [""] + [x.get(campo) or x.get(campo.title()) or x.get(campo.upper()) or "" for x in lista]
+            def _id_por_nome(lista, nome):
+                return next((x.get("id") or x.get("ID") or "" for x in lista if (x.get("nome") or x.get("Nome") or "") == nome), "")
             def _preco_serv(nome): return next((x["preco"] for x in _servicos if x.get("nome") == nome), 0.0)
 
             st.markdown("#### 📋 Dados do Orçamento")
