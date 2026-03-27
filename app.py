@@ -155,11 +155,8 @@ _usuario_modulos = [m for m in st.session_state.get("_usuario_modulos", list(_AL
 if not _usuario_modulos:
     _usuario_modulos = ["geral"]
 
-# ─── Sidebar ──────────────────────────────────────────────────────_SIDEBAR_MARKER_
-
-
-# (dialog removed — form now rendered inline in main content)
-def _dialog_novo_orcamento_UNUSED():
+# ─── Sidebar ──────────────────────────────────────────────────────
+with st.sidebar:
     _aux = _load_aux_orc()
     _clientes   = _aux["clientes"]
     _centros    = _aux["centros_cc"]
@@ -407,13 +404,11 @@ with st.sidebar:
     )
 
     if modulo_sel == "orcamento":
-        st.markdown("---")
         if st.button("➕ Criar Novo Orçamento", use_container_width=True,
-                     type="primary", key="_btn_orc_sidebar"):
+                     key="_btn_orc_sidebar"):
             st.session_state["_show_orc_form"] = True
             st.rerun()
-
-    st.markdown("---")
+        st.markdown("---")
 
     # ── Fonte das Vendas ──────────────────────────────────────────
     st.markdown("##### 📂 Fonte das Vendas")
@@ -660,6 +655,12 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
             use_container_width=True,
         )
     st.success("✅ Dashboard gerado com sucesso!")
+
+    # ── Botão Novo Orçamento na área principal ──
+    if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form"):
+        st.button("➕ Criar Novo Orçamento no GestãoClick",
+                  use_container_width=True, key="_btn_orc_main",
+                  on_click=lambda: st.session_state.update({"_show_orc_form": True}))
 
     # ── Formulário Novo Orçamento (visível na área principal quando acionado) ──
     if st.session_state.get("modulo_ativo") == "orcamento" and st.session_state.get("_show_orc_form"):
