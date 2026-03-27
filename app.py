@@ -426,7 +426,8 @@ with st.sidebar:
         key="modulo_ativo",
     )
 
-    if modulo_sel == "orcamento" and st.session_state.get("locvix_status") == "ok":
+    if modulo_sel == "orcamento":
+        st.markdown("---")
         if st.button("➕ Criar Novo Orçamento", use_container_width=True,
                      type="primary", key="_btn_orc_sidebar"):
             _dialog_novo_orcamento()
