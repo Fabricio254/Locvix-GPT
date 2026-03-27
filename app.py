@@ -282,6 +282,7 @@ with st.sidebar:
 # ═══════════════════════════════════════════════════════════════════
 st.title("📊 Dashboard — LOCVIX")
 st.caption("Análise de Vendas · Financeiro · Clientes · OS · Contratos via GestãoClick ERP")
+st.caption("🔧 **Build f18f86f-v2** — debug: sidebar + botão orçamento")
 
 HTML_KEY   = "locvix_html_v9"   # bump this when JS/HTML changes break cached output
 STATUS_KEY = "locvix_status"
