@@ -566,7 +566,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
                     st.rerun()
             st.warning("⚠️ **Atenção:** a exclusão é permanente e não pode ser desfeita.")
             _loja_del = st.selectbox("🏢 Loja do orçamento",
-                                      ["G & J — Locvix (padrão)", "W & A Locações"],
+                                      ["W & A Locações", "G & J — Locvix"],
                                       key="_del_loja")
             _c_num, _c_buscar = st.columns([4, 1])
             with _c_num:

@@ -1570,46 +1570,44 @@ def buscar_orcamento_por_id(orc_id: str, loja_id: str | None = None) -> dict:
             "msg":      "ok",
         }
 
-    global LOJA_FILTRO
-    _loja_orig = LOJA_FILTRO
-    if loja_id:
-        LOJA_FILTRO = loja_id
-    try:
-        gck = _gck()
-        _lid = {"loja_id": loja_id} if loja_id else {}
+    _lid = {"loja_id": loja_id} if loja_id else {}
 
-        # 1) Tenta GET direto por ID interno
-        resp = gck.get(f"orcamentos/{orc_id}")
-        if resp:
-            det = resp.get("data", {}) or {}
-            if det:
-                return _parse(det)
+    def _get_lista(extra_params: dict) -> list:
+        """GET /orcamentos com limite=1 — muito mais rápido que paginar."""
+        resp = _gck().get("orcamentos", {**_lid, "limite": 10, **extra_params})
+        if not resp:
+            return []
+        items = resp.get("data", [])
+        return items if isinstance(items, list) else []
 
-        # 2) Tenta listagem com filtro por numero
-        lista = gck.paginar("orcamentos", {**_lid, "numero": orc_id})
-        if lista:
-            # pega o que tem codigo ou id igual
-            match = next(
-                (o for o in lista if str(o.get("codigo","")) == str(orc_id)
-                 or str(o.get("numero","")) == str(orc_id)
-                 or str(o.get("id","")) == str(orc_id)),
-                lista[0]
-            )
-            return _parse(match)
+    def _best(lista: list) -> dict | None:
+        return next(
+            (o for o in lista if str(o.get("codigo","")) == str(orc_id)
+             or str(o.get("numero","")) == str(orc_id)
+             or str(o.get("id","")) == str(orc_id)),
+            lista[0] if lista else None,
+        )
 
-        # 3) Tenta filtro por codigo
-        lista2 = gck.paginar("orcamentos", {**_lid, "codigo": orc_id})
-        if lista2:
-            match2 = next(
-                (o for o in lista2 if str(o.get("codigo","")) == str(orc_id)
-                 or str(o.get("id","")) == str(orc_id)),
-                lista2[0]
-            )
-            return _parse(match2)
+    # 1) Filtro por codigo (campo mais específico)
+    lista = _get_lista({"codigo": orc_id})
+    hit = _best(lista)
+    if hit:
+        return _parse(hit)
 
-        return {"ok": False, "msg": f"Orçamento '{orc_id}' não encontrado."}
-    finally:
-        LOJA_FILTRO = _loja_orig
+    # 2) Filtro por numero
+    lista2 = _get_lista({"numero": orc_id})
+    hit2 = _best(lista2)
+    if hit2:
+        return _parse(hit2)
+
+    # 3) GET direto por ID interno (fallback)
+    resp = _gck().get(f"orcamentos/{orc_id}", _lid or None)
+    if resp:
+        det = resp.get("data", {}) or {}
+        if det:
+            return _parse(det)
+
+    return {"ok": False, "msg": f"Orçamento '{orc_id}' não encontrado."}
 
 
 def buscar_orcamentos():
