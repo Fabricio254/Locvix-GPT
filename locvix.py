@@ -196,6 +196,31 @@ class GCKClient:
                 time.sleep(2 * (t + 1))
         return None
 
+    def put(self, endpoint: str, body: dict, loja_id: str | None = None) -> dict | None:
+        """PUT com retry e rate-limit."""
+        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        if loja_id:
+            body = {**body, "loja_id": loja_id}
+        for t in range(5):
+            self._throttle()
+            try:
+                r = self.session.put(url, json=body, timeout=60)
+                if r.status_code == 429:
+                    espera = 30 * (t + 1)
+                    print(f"  [AVISO] Rate limit (429), aguardando {espera}s...")
+                    time.sleep(espera)
+                    continue
+                r.raise_for_status()
+                return r.json()
+            except requests.exceptions.HTTPError as e:
+                print(f"  [ERRO] PUT HTTP {e.response.status_code} em {url}: {e.response.text[:200]}")
+                return {"code": e.response.status_code, "status": "error",
+                        "errors": e.response.text[:500]}
+            except Exception as e:
+                print(f"  [AVISO] PUT {endpoint} tentativa {t+1}: {e}")
+                time.sleep(2 * (t + 1))
+        return None
+
     def delete(self, endpoint: str) -> dict | None:
         """DELETE com retry e rate-limit."""
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
@@ -1545,6 +1570,56 @@ def deletar_orcamento_api(orc_id: str, loja_id: str | None = None) -> dict:
         return {"ok": True, "msg": f"Orçamento {orc_id} excluído com sucesso."}
     erros = resp.get("errors") or resp.get("message") or str(resp)
     return {"ok": False, "msg": str(erros)}
+
+
+def alterar_orcamento_api(orc_id: str, payload: dict, loja_id: str | None = None) -> dict:
+    """
+    Envia PUT /orcamentos/{id} para o GestãoClick.
+    Retorna {"ok": bool, "id": str, "codigo": str, "msg": str, "pdf_bytes": bytes|None}
+    """
+    global LOJA_FILTRO
+    _loja_orig = LOJA_FILTRO
+    if loja_id:
+        LOJA_FILTRO = loja_id
+    try:
+        gck = _gck()
+        resp = gck.put(f"orcamentos/{orc_id}", payload)
+    finally:
+        LOJA_FILTRO = _loja_orig
+
+    if not resp:
+        return {"ok": False, "id": orc_id, "codigo": "", "msg": "Sem resposta da API", "pdf_bytes": None}
+
+    if resp.get("code") not in (200, 201) and resp.get("status") not in ("success", "ok"):
+        erros = resp.get("errors") or resp.get("message") or resp.get("data") or str(resp)
+        return {"ok": False, "id": orc_id, "codigo": "", "msg": str(erros), "pdf_bytes": None}
+
+    det = resp.get("data", {}) or {}
+    orc_cod = str(det.get("codigo", ""))
+
+    # Gera PDF com os dados retornados pela API
+    pdf_bytes = None
+    try:
+        if loja_id:
+            det.setdefault("loja_id", str(loja_id))
+        cli_id = str(det.get("cliente_id") or payload.get("cliente_id") or "")
+        cli_data: dict = {}
+        if cli_id:
+            resp_cli = gck.get(f"clientes/{cli_id}")
+            cli_data = (resp_cli.get("data", {}) if resp_cli else {}) or {}
+        if not cli_data.get("nome") and not cli_data.get("razao_social"):
+            cli_data["razao_social"] = det.get("nome_cliente", "")
+        pdf_bytes = _gerar_pdf_orc_bytes(det, cli_data)
+    except Exception as e:
+        print(f"  [AVISO] PDF alterar orçamento: {e}")
+
+    return {
+        "ok":        True,
+        "id":        str(det.get("id", orc_id)),
+        "codigo":    orc_cod,
+        "msg":       f"Orçamento nº {orc_cod} alterado com sucesso!",
+        "pdf_bytes": pdf_bytes,
+    }
 
 
 def buscar_orcamento_por_id(orc_id: str, loja_id: str | None = None) -> dict:

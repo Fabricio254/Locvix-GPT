@@ -541,12 +541,16 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
     st.success("✅ Dashboard gerado com sucesso!")
 
     # ── Ações do módulo Orçamento ──
-    if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form") and not st.session_state.get("_show_del_orc"):
-        _col_criar, _col_excluir = st.columns(2)
+    if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form") and not st.session_state.get("_show_del_orc") and not st.session_state.get("_show_edit_orc"):
+        _col_criar, _col_editar, _col_excluir = st.columns(3)
         with _col_criar:
             st.button("➕ Criar Novo Orçamento",
                       use_container_width=True, key="_btn_orc_main",
                       on_click=lambda: st.session_state.update({"_show_orc_form": True}))
+        with _col_editar:
+            st.button("✏️ Alterar Orçamento Existente",
+                      use_container_width=True, key="_btn_edit_orc",
+                      on_click=lambda: st.session_state.update({"_show_edit_orc": True}))
         with _col_excluir:
             st.button("🗑️ Excluir Orçamento Existente",
                       use_container_width=True, key="_btn_del_orc",
@@ -649,6 +653,312 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
                             if st.button("↩️ Cancelar", use_container_width=True, key="_btn_del_nao"):
                                 st.session_state.pop("_del_confirmado", None)
                                 st.rerun()
+
+    # ── Painel Alterar Orçamento ──
+    if st.session_state.get("modulo_ativo") == "orcamento" and st.session_state.get("_show_edit_orc"):
+        with st.container(border=True):
+            _et, _ef = st.columns([6, 1])
+            with _et:
+                st.markdown("### ✏️ Alterar Orçamento")
+            with _ef:
+                if st.button("❌ Fechar", key="_btn_fechar_edit"):
+                    st.session_state["_show_edit_orc"] = False
+                    st.session_state.pop("_edit_orc_det", None)
+                    st.session_state.pop("_edit_form_ready", None)
+                    st.rerun()
+
+            # ── Seleção de loja + número para busca ──
+            _e_loja_sel = st.selectbox("🏢 Loja do orçamento",
+                                        ["W & A Locações", "G & J — Locvix"],
+                                        key="_edit_loja")
+            _ec_num, _ec_buscar = st.columns([4, 1])
+            with _ec_num:
+                _e_orc_num = st.text_input("Nº do Orçamento (ID ou código)",
+                                            key="_edit_orc_num", placeholder="Ex: 7")
+            with _ec_buscar:
+                st.markdown("<div style='margin-top:1.75rem'>", unsafe_allow_html=True)
+                _btn_edit_buscar = st.button("🔍 Buscar", use_container_width=True, key="_btn_edit_buscar")
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            if _btn_edit_buscar:
+                if not _e_orc_num.strip():
+                    st.error("❌ Informe o número do orçamento.")
+                    st.session_state.pop("_edit_orc_det", None)
+                    st.session_state.pop("_edit_form_ready", None)
+                else:
+                    import locvix as _lve, importlib as _ile, os as _ose, sys as _syse
+                    _basee = _ose.path.dirname(_ose.path.abspath(__file__))
+                    if _basee not in _syse.path: _syse.path.insert(0, _basee)
+                    if "locvix" in _syse.modules:
+                        _lve = _syse.modules["locvix"]; _ile.reload(_lve)
+                    else:
+                        import locvix as _lve
+                    _lve.GCK_ACCESS_TOKEN = _ose.getenv("GCK_ACCESS_TOKEN", _lve.GCK_ACCESS_TOKEN)
+                    _lve.GCK_SECRET_TOKEN = _ose.getenv("GCK_SECRET_TOKEN", _lve.GCK_SECRET_TOKEN)
+                    _loja_e = _lve.LOJA_WA_ID if "W & A" in _e_loja_sel else _lve.LOJA_GJ_ID
+                    with st.spinner("🔍 Buscando orçamento..."):
+                        _prev_e = _lve.buscar_orcamento_por_id(_e_orc_num.strip(), loja_id=_loja_e)
+                    if not _prev_e["ok"]:
+                        st.error(f"❌ {_prev_e['msg']}")
+                        st.session_state.pop("_edit_orc_det", None)
+                        st.session_state.pop("_edit_form_ready", None)
+                    else:
+                        # Busca det completo para pré-popular o formulário
+                        with st.spinner("📋 Carregando dados completos..."):
+                            _resp_det_e = _lve._gck().get(f"orcamentos/{_prev_e['id']}", {"loja_id": _loja_e})
+                        _det_e = (_resp_det_e.get("data", {}) if _resp_det_e else {}) or {}
+                        if not _det_e:
+                            _det_e = _prev_e
+                        _det_e["_loja_id"] = _loja_e
+                        _det_e["_loja_sel"] = _e_loja_sel
+                        st.session_state["_edit_orc_det"] = _det_e
+                        # Pré-popula chaves de formulário no session_state
+                        _svcs_e = _det_e.get("servicos", []) or []
+                        def _svc_field(s, f):
+                            # suporta {servico: {...}} ou direto
+                            inner = s.get("servico", s)
+                            return inner.get(f, "")
+                        n_svcs_e = max(len(_svcs_e), 1)
+                        st.session_state["_e_n_serv"] = n_svcs_e
+                        for _ii, _ss in enumerate(_svcs_e):
+                            st.session_state[f"_e_svc_nome_{_ii}"] = _svc_field(_ss, "nome_servico") or ""
+                            try:
+                                st.session_state[f"_e_svc_qtd_{_ii}"] = float(_svc_field(_ss, "quantidade") or 0)
+                            except Exception:
+                                st.session_state[f"_e_svc_qtd_{_ii}"] = 1.0
+                            try:
+                                st.session_state[f"_e_svc_preco_{_ii}"] = float(_svc_field(_ss, "valor_venda") or 0)
+                            except Exception:
+                                st.session_state[f"_e_svc_preco_{_ii}"] = 0.0
+                            try:
+                                st.session_state[f"_e_svc_desc_{_ii}"] = float(_svc_field(_ss, "desconto_valor") or 0)
+                            except Exception:
+                                st.session_state[f"_e_svc_desc_{_ii}"] = 0.0
+                            st.session_state[f"_e_svc_det_{_ii}"] = _svc_field(_ss, "detalhes") or ""
+                        # Datas
+                        _dt_e = _det_e.get("data", "") or ""
+                        if _dt_e and "-" in _dt_e:
+                            try:
+                                from datetime import date as _dt_cls
+                                _pdt = _dt_e.split("-")
+                                st.session_state["_e_data"] = _dt_cls(int(_pdt[0]), int(_pdt[1]), int(_pdt[2]))
+                            except Exception:
+                                pass
+                        st.session_state["_e_validade"] = str(_det_e.get("validade") or "30 dias")
+                        st.session_state["_e_cuidados"] = str(_det_e.get("aos_cuidados_de") or "")
+                        st.session_state["_e_intro"]    = str(_det_e.get("introducao") or "")
+                        st.session_state["_e_obs"]      = str(_det_e.get("observacoes") or "")
+                        st.session_state["_edit_form_ready"] = True
+                        st.rerun()
+
+            # ── Formulário de edição (aparece após busca bem-sucedida) ──
+            if st.session_state.get("_edit_form_ready") and st.session_state.get("_edit_orc_det"):
+                _det_edit = st.session_state["_edit_orc_det"]
+                _orc_id_edit = str(_det_edit.get("id", ""))
+                _loja_id_edit = _det_edit.get("_loja_id", "")
+
+                st.info(f"✏️ Editando **Orçamento nº {_det_edit.get('codigo', _orc_id_edit)}** — "
+                        f"Cliente: **{_det_edit.get('nome_cliente', '—')}**")
+
+                @st.cache_data(ttl=300, show_spinner="Carregando dados do ERP...")
+                def _load_aux_edit():
+                    import locvix as _lv, importlib as _il, os as _os, sys as _sys
+                    _base = _os.path.dirname(_os.path.abspath(__file__))
+                    if _base not in _sys.path: _sys.path.insert(0, _base)
+                    if "locvix" in _sys.modules:
+                        _lv = _sys.modules["locvix"]; _il.reload(_lv)
+                    else:
+                        import locvix as _lv
+                    _lv.GCK_ACCESS_TOKEN = _os.getenv("GCK_ACCESS_TOKEN", _lv.GCK_ACCESS_TOKEN)
+                    _lv.GCK_SECRET_TOKEN = _os.getenv("GCK_SECRET_TOKEN", _lv.GCK_SECRET_TOKEN)
+                    return {
+                        "clientes":   _lv.buscar_clientes(),
+                        "centros_cc": _lv.buscar_centros_custo(),
+                        "situacoes":  _lv.buscar_situacoes_orcamento(),
+                        "formas_pag": _lv.buscar_formas_pagamento(),
+                        "servicos":   _lv.buscar_servicos(),
+                        "vendedores": _lv.buscar_vendedores(),
+                    }
+
+                _aux_e = _load_aux_edit()
+                _clientes_e   = _aux_e["clientes"]
+                _centros_e    = _aux_e["centros_cc"]
+                _situacoes_e  = _aux_e["situacoes"]
+                _formas_e     = _aux_e["formas_pag"]
+                _servicos_e   = _aux_e["servicos"]
+                _vendedores_e = _aux_e["vendedores"]
+
+                def _opts_e(lista, campo="nome"):
+                    return [""] + [x.get(campo) or x.get(campo.title()) or "" for x in lista]
+                def _id_e(lista, nome):
+                    return next((x.get("id") or x.get("ID") or "" for x in lista
+                                 if (x.get("nome") or x.get("Nome") or "") == nome), "")
+                def _idx_e(opts, val):
+                    try: return opts.index(val)
+                    except ValueError: return 0
+                def _preco_e(nome): return next((x["preco"] for x in _servicos_e if x.get("nome") == nome), 0.0)
+
+                st.markdown("#### 📋 Dados do Orçamento")
+                from datetime import date as _date_cls
+                _e_col_a, _e_col_b, _e_col_c = st.columns([2, 1, 1])
+                with _e_col_a:
+                    _e_loja_opts = ["W & A Locações", "G & J — Locvix"]
+                    _e_loja_form = st.selectbox("🏢 Empresa", _e_loja_opts,
+                                                 index=_idx_e(_e_loja_opts, _det_edit.get("_loja_sel", _e_loja_opts[0])),
+                                                 key="_e_loja_form")
+                with _e_col_b:
+                    _e_data = st.date_input("📅 Data", format="DD/MM/YYYY", key="_e_data")
+                with _e_col_c:
+                    _e_validade = st.text_input("⏳ Validade", key="_e_validade")
+
+                _e_col_d, _e_col_e = st.columns([3, 2])
+                with _e_col_d:
+                    _opts_cli_e = _opts_e(_clientes_e)
+                    _cli_default_e = _det_edit.get("nome_cliente", "")
+                    _e_cli_nome = st.selectbox("👤 Cliente *", _opts_cli_e,
+                                               index=_idx_e(_opts_cli_e, _cli_default_e), key="_e_cliente")
+                with _e_col_e:
+                    _opts_vend_e = _opts_e(_vendedores_e)
+                    _vend_default_e = _det_edit.get("nome_vendedor", "")
+                    _e_vend_nome = st.selectbox("🧑‍💼 Vendedor", _opts_vend_e,
+                                                index=_idx_e(_opts_vend_e, _vend_default_e), key="_e_vendedor")
+
+                _e_col_f, _e_col_g = st.columns([2, 2])
+                with _e_col_f:
+                    _opts_cc_e = _opts_e(_centros_e)
+                    _cc_default_e = _det_edit.get("nome_centro_custo", "")
+                    _e_cc_nome = st.selectbox("🏷️ Centro de Custo", _opts_cc_e,
+                                              index=_idx_e(_opts_cc_e, _cc_default_e), key="_e_cc")
+                with _e_col_g:
+                    _opts_sit_e = _opts_e(_situacoes_e)
+                    _sit_default_e = _det_edit.get("nome_situacao", "")
+                    _e_sit_nome = st.selectbox("📌 Situação", _opts_sit_e,
+                                               index=_idx_e(_opts_sit_e, _sit_default_e), key="_e_sit")
+
+                _e_cuidados = st.text_input("📬 Aos cuidados de", key="_e_cuidados")
+                _e_intro = st.text_area("📝 Introdução", key="_e_intro", height=80)
+                _e_obs = st.text_area("📄 Observações", key="_e_obs", height=60)
+
+                st.markdown("#### 🔧 Serviços")
+                _e_n_serv = st.number_input("Quantidade de itens", min_value=1, max_value=20,
+                                             step=1, key="_e_n_serv")
+                _e_servicos_form = []
+                for _ei in range(int(_e_n_serv)):
+                    st.markdown(f"**Item {_ei + 1}**")
+                    _ec1, _ec2, _ec3, _ec4 = st.columns([3, 1, 1.2, 1.2])
+                    with _ec1:
+                        _e_svc_nome = st.selectbox("Serviço", _opts_e(_servicos_e), key=f"_e_svc_nome_{_ei}")
+                    with _ec2:
+                        _e_svc_qtd = st.number_input("Qtd (h)", min_value=0.0, value=1.0,
+                                                      step=0.5, format="%.2f", key=f"_e_svc_qtd_{_ei}")
+                    with _ec3:
+                        _e_svc_preco = st.number_input("Vlr Unit (R$)", min_value=0.0,
+                                                        value=float(_preco_e(_e_svc_nome) if _e_svc_nome else 0.0),
+                                                        step=0.01, format="%.2f", key=f"_e_svc_preco_{_ei}")
+                    with _ec4:
+                        _e_svc_desc = st.number_input("Desconto (R$)", min_value=0.0, value=0.0,
+                                                       step=0.01, format="%.2f", key=f"_e_svc_desc_{_ei}")
+                    _e_svc_det = st.text_input(f"Detalhes item {_ei+1}", key=f"_e_svc_det_{_ei}")
+                    _e_svc_id = _id_e(_servicos_e, _e_svc_nome) if _e_svc_nome else ""
+                    if _e_svc_nome:
+                        _e_servicos_form.append({"servico": {
+                            "id": _e_svc_id, "servico_id": _e_svc_id, "nome_servico": _e_svc_nome,
+                            "detalhes": _e_svc_det, "sigla_unidade": "H",
+                            "quantidade": str(_e_svc_qtd), "valor_venda": str(_e_svc_preco),
+                            "tipo_desconto": "R$", "desconto_valor": str(_e_svc_desc),
+                            "desconto_porcentagem": "0",
+                        }})
+
+                _e_total = sum(
+                    float(s["servico"]["quantidade"]) * float(s["servico"]["valor_venda"])
+                    - float(s["servico"]["desconto_valor"]) for s in _e_servicos_form
+                ) if _e_servicos_form else 0.0
+                st.markdown(f"**💰 Total: R$ {_e_total:,.2f}**".replace(",","X").replace(".",",").replace("X","."))
+
+                st.markdown("#### 💳 Pagamento")
+                _epc1, _epc2 = st.columns(2)
+                with _epc1:
+                    _e_cond = st.radio("Condição", ["À vista", "Parcelado"], horizontal=True, key="_e_cond")
+                with _epc2:
+                    _opts_forma_e = _opts_e(_formas_e)
+                    _forma_default_e = _det_edit.get("nome_forma_pagamento", "")
+                    _e_forma_nome = st.selectbox("Forma de Pagamento", _opts_forma_e,
+                                                  index=_idx_e(_opts_forma_e, _forma_default_e), key="_e_forma")
+                if _e_cond == "Parcelado":
+                    _epp1, _epp2 = st.columns(2)
+                    with _epp1:
+                        _e_parcelas = st.number_input("Nº de parcelas", min_value=1, max_value=60,
+                                                       value=int(_det_edit.get("numero_parcelas") or 1),
+                                                       key="_e_parcelas")
+                    with _epp2:
+                        _e_d1parc = st.date_input("Data 1ª parcela", value=_date_cls.today(),
+                                                   format="DD/MM/YYYY", key="_e_d1parc")
+                    _e_intervalo = st.number_input("Intervalo (dias)", min_value=0, value=30, key="_e_intervalo")
+                else:
+                    _e_parcelas = 1; _e_d1parc = _date_cls.today(); _e_intervalo = 0
+
+                st.markdown("")
+                if st.button("💾 Salvar Alterações", type="primary",
+                              use_container_width=True, key="_btn_salvar_edit"):
+                    if not _e_cli_nome:
+                        st.error("❌ Selecione um cliente.")
+                    elif not _e_servicos_form:
+                        st.error("❌ Adicione pelo menos um serviço.")
+                    elif not _e_sit_nome:
+                        st.error("❌ Selecione a situação.")
+                    else:
+                        import locvix as _lve2, importlib as _ile2, os as _ose2, sys as _syse2
+                        _basee2 = _ose2.path.dirname(_ose2.path.abspath(__file__))
+                        if _basee2 not in _syse2.path: _syse2.path.insert(0, _basee2)
+                        if "locvix" in _syse2.modules:
+                            _lve2 = _syse2.modules["locvix"]; _ile2.reload(_lve2)
+                        else:
+                            import locvix as _lve2
+                        _lve2.GCK_ACCESS_TOKEN = _ose2.getenv("GCK_ACCESS_TOKEN", _lve2.GCK_ACCESS_TOKEN)
+                        _lve2.GCK_SECRET_TOKEN = _ose2.getenv("GCK_SECRET_TOKEN", _lve2.GCK_SECRET_TOKEN)
+
+                        _e_cli_id   = _id_e(_clientes_e, _e_cli_nome)
+                        _e_vend_id  = _id_e(_vendedores_e, _e_vend_nome) if _e_vend_nome else ""
+                        _e_cc_id    = _id_e(_centros_e, _e_cc_nome) if _e_cc_nome else ""
+                        _e_sit_id   = _id_e(_situacoes_e, _e_sit_nome) if _e_sit_nome else ""
+                        _e_forma_id = _id_e(_formas_e, _e_forma_nome) if _e_forma_nome else ""
+                        _e_loja_id2 = _lve2.LOJA_WA_ID if "W & A" in _e_loja_form else _lve2.LOJA_GJ_ID
+
+                        _e_payload = {
+                            "cliente_id": int(_e_cli_id) if _e_cli_id else None,
+                            "data": _e_data.strftime("%Y-%m-%d"),
+                            "validade": _e_validade or "30 dias",
+                            "situacao_id": _e_sit_id,
+                            "condicao_pagamento": "a_vista" if _e_cond == "À vista" else "parcelado",
+                            "servicos": _e_servicos_form,
+                        }
+                        if _e_vend_id:   _e_payload["vendedor_id"]      = _e_vend_id
+                        if _e_cc_id:     _e_payload["centro_custo_id"]  = int(_e_cc_id)
+                        if _e_cuidados:  _e_payload["aos_cuidados_de"]  = _e_cuidados
+                        if _e_intro:     _e_payload["introducao"]        = _e_intro
+                        if _e_obs:       _e_payload["observacoes"]       = _e_obs
+                        if _e_forma_id:
+                            _e_payload["forma_pagamento_id"]    = _e_forma_id
+                            _e_payload["numero_parcelas"]       = int(_e_parcelas)
+                            _e_payload["data_primeira_parcela"] = _e_d1parc.strftime("%Y-%m-%d")
+                            if _e_intervalo:
+                                _e_payload["intervalo_dias"] = int(_e_intervalo)
+
+                        with st.spinner("⏳ Salvando alterações no GestãoClick..."):
+                            _e_res = _lve2.alterar_orcamento_api(_orc_id_edit, _e_payload, loja_id=_e_loja_id2)
+
+                        if _e_res["ok"]:
+                            st.success(f"✅ {_e_res['msg']}")
+                            if _e_res["pdf_bytes"]:
+                                st.download_button(
+                                    label=f"📄 Baixar PDF — Orçamento Nº {_e_res['codigo']}",
+                                    data=_e_res["pdf_bytes"],
+                                    file_name=f"Orcamento_{_e_res['codigo']}.pdf",
+                                    mime="application/pdf",
+                                    use_container_width=True,
+                                )
+                        else:
+                            st.error(f"❌ Erro: {_e_res['msg']}")
 
     # ── Formulário Novo Orçamento (visível na área principal quando acionado) ──
     if st.session_state.get("modulo_ativo") == "orcamento" and st.session_state.get("_show_orc_form"):
