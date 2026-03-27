@@ -71,10 +71,13 @@ iframe{border:none!important;}
 div[data-testid="stSidebar"]{background:#0d1b2a;}
 div[data-testid="stSidebar"] *{color:#e0e8f0!important;}
 div[data-testid="stSidebar"] hr{border-color:#1e3550!important;}
-div[data-testid="stSidebar"] .stButton button{
-    background:#1e40af;color:#fff;border:none;border-radius:6px;
+div[data-testid="stSidebar"] button{
+    background:#16a34a!important;color:#fff!important;border:none!important;
+    border-radius:8px!important;padding:.55rem 1rem!important;
+    font-weight:600!important;font-size:.95rem!important;
+    cursor:pointer!important;
 }
-div[data-testid="stSidebar"] .stButton button:hover{background:#2563eb;}
+div[data-testid="stSidebar"] button:hover{background:#22c55e!important;}
 /* Oculta toolbar superior (Share, Edit, Deploy, Github) */
 [data-testid="stToolbar"]{display:none!important;}
 [data-testid="stDecoration"]{display:none!important;}
@@ -404,8 +407,9 @@ with st.sidebar:
     )
 
     if modulo_sel == "orcamento":
+        st.markdown("")
         if st.button("➕ Criar Novo Orçamento", use_container_width=True,
-                     key="_btn_orc_sidebar"):
+                     key="_btn_orc_sidebar", type="primary"):
             st.session_state["_show_orc_form"] = True
             st.rerun()
         st.markdown("---")
