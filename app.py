@@ -282,7 +282,6 @@ with st.sidebar:
 # ═══════════════════════════════════════════════════════════════════
 st.title("📊 Dashboard — LOCVIX")
 st.caption("Análise de Vendas · Financeiro · Clientes · OS · Contratos via GestãoClick ERP")
-st.caption("🔧 **Build f18f86f-v2** — debug: sidebar + botão orçamento")
 
 HTML_KEY   = "locvix_html_v9"   # bump this when JS/HTML changes break cached output
 STATUS_KEY = "locvix_status"
@@ -508,8 +507,8 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         )
     st.success("✅ Dashboard gerado com sucesso!")
 
-    # ── Botão Novo Orçamento na área principal (— SEMPRE visível) ──
-    if not st.session_state.get("_show_orc_form"):
+    # ── Botão Novo Orçamento na área principal (só no módulo Orçamento) ──
+    if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form"):
         st.markdown('<div class="orc-btn-main">', unsafe_allow_html=True)
         st.button("➕ Criar Novo Orçamento no GestãoClick",
                   use_container_width=True, key="_btn_orc_main",
@@ -517,7 +516,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Formulário Novo Orçamento (visível na área principal quando acionado) ──
-    if st.session_state.get("_show_orc_form"):
+    if st.session_state.get("modulo_ativo") == "orcamento" and st.session_state.get("_show_orc_form"):
         with st.container(border=True):
             _col_tit, _col_fechar = st.columns([6, 1])
             with _col_tit:
