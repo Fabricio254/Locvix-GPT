@@ -1549,46 +1549,67 @@ def deletar_orcamento_api(orc_id: str, loja_id: str | None = None) -> dict:
 
 def buscar_orcamento_por_id(orc_id: str, loja_id: str | None = None) -> dict:
     """
-    Busca dados resumidos de um orçamento pelo ID.
-    Retorna {"ok": bool, "codigo": str, "cliente": str, "valor": float,
+    Busca dados resumidos de um orçamento pelo código/número visível ou ID interno.
+    Tenta 3 estratégias: GET direto por ID, lista filtrada por numero, lista por codigo.
+    Retorna {"ok": bool, "id": str, "codigo": str, "cliente": str, "valor": float,
              "data": str, "situacao": str, "msg": str}
     """
+    def _parse(det: dict) -> dict:
+        dt = det.get("data", "") or ""
+        if dt and "-" in dt:
+            p = dt.split("-")
+            dt = f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else dt
+        return {
+            "ok":       True,
+            "id":       str(det.get("id", orc_id)),
+            "codigo":   str(det.get("codigo", "")),
+            "cliente":  det.get("nome_cliente") or det.get("cliente") or "—",
+            "valor":    round(float(det.get("valor_total", 0) or 0), 2),
+            "data":     dt,
+            "situacao": det.get("nome_situacao") or det.get("situacao") or "—",
+            "msg":      "ok",
+        }
+
     global LOJA_FILTRO
     _loja_orig = LOJA_FILTRO
     if loja_id:
         LOJA_FILTRO = loja_id
     try:
         gck = _gck()
+        _lid = {"loja_id": loja_id} if loja_id else {}
+
+        # 1) Tenta GET direto por ID interno
         resp = gck.get(f"orcamentos/{orc_id}")
+        if resp:
+            det = resp.get("data", {}) or {}
+            if det:
+                return _parse(det)
+
+        # 2) Tenta listagem com filtro por numero
+        lista = gck.paginar("orcamentos", {**_lid, "numero": orc_id})
+        if lista:
+            # pega o que tem codigo ou id igual
+            match = next(
+                (o for o in lista if str(o.get("codigo","")) == str(orc_id)
+                 or str(o.get("numero","")) == str(orc_id)
+                 or str(o.get("id","")) == str(orc_id)),
+                lista[0]
+            )
+            return _parse(match)
+
+        # 3) Tenta filtro por codigo
+        lista2 = gck.paginar("orcamentos", {**_lid, "codigo": orc_id})
+        if lista2:
+            match2 = next(
+                (o for o in lista2 if str(o.get("codigo","")) == str(orc_id)
+                 or str(o.get("id","")) == str(orc_id)),
+                lista2[0]
+            )
+            return _parse(match2)
+
+        return {"ok": False, "msg": f"Orçamento '{orc_id}' não encontrado."}
     finally:
         LOJA_FILTRO = _loja_orig
-
-    if not resp:
-        return {"ok": False, "msg": f"Orçamento '{orc_id}' não encontrado."}
-    det = resp.get("data", {}) or {}
-    if not det:
-        return {"ok": False, "msg": f"Orçamento '{orc_id}' não encontrado."}
-    dt = det.get("data", "") or ""
-    if dt and "-" in dt:
-        p = dt.split("-")
-        dt = f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else dt
-    return {
-        "ok":       True,
-        "id":       str(det.get("id", orc_id)),
-        "codigo":   str(det.get("codigo", "")),
-        "cliente":  det.get("nome_cliente") or det.get("cliente") or "—",
-        "valor":    round(float(det.get("valor_total", 0) or 0), 2),
-        "data":     dt,
-        "situacao": det.get("nome_situacao") or det.get("situacao") or "—",
-        "msg":      "ok",
-    }
-    """Busca dados completos de um cliente pelo ID."""
-    try:
-        gck = _gck()
-        resp = gck.get(f"clientes/{cli_id}")
-        return (resp.get("data", {}) if resp else {}) or {}
-    except Exception:
-        return {}
 
 
 def buscar_orcamentos():
