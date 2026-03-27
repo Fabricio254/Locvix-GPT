@@ -536,7 +536,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
     # ── Botão Novo Orçamento na área principal (só no módulo Orçamento) ──
     if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form"):
         st.markdown('<div class="orc-btn-main">', unsafe_allow_html=True)
-        st.button("➕ Criar Novo Orçamento no GestãoClick",
+        st.button("➕ Criar Novo Orçamento",
                   use_container_width=True, key="_btn_orc_main",
                   on_click=lambda: st.session_state.update({"_show_orc_form": True}))
         st.markdown('</div>', unsafe_allow_html=True)
@@ -546,7 +546,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         with st.container(border=True):
             _col_tit, _col_fechar = st.columns([6, 1])
             with _col_tit:
-                st.markdown("### ➕ Criar Novo Orçamento no GestãoClick")
+                st.markdown("### ➕ Criar Novo Orçamento")
             with _col_fechar:
                 if st.button("❌ Fechar", key="_btn_fechar_orc"):
                     st.session_state["_show_orc_form"] = False
