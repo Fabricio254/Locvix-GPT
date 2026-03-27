@@ -1508,7 +1508,7 @@ def buscar_cliente_por_id(cli_id: str) -> dict:
         return {}
 
 
-
+def buscar_orcamentos():
     """
     Busca orçamentos da API GestãoClick (GET /orcamentos).
     Para cada orçamento faz GET /orcamentos/{id} e GET /clientes/{id}
