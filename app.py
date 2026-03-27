@@ -562,53 +562,93 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
                 if st.button("❌ Fechar", key="_btn_fechar_del"):
                     st.session_state["_show_del_orc"] = False
                     st.session_state.pop("_del_confirmado", None)
+                    st.session_state.pop("_del_orc_dados", None)
                     st.rerun()
             st.warning("⚠️ **Atenção:** a exclusão é permanente e não pode ser desfeita.")
             _loja_del = st.selectbox("🏢 Loja do orçamento",
                                       ["G & J — Locvix (padrão)", "W & A Locações"],
                                       key="_del_loja")
-            _orc_num = st.text_input("Nº do Orçamento (ID ou código)",
-                                      key="_del_orc_num",
-                                      placeholder="Ex: 7")
+            _c_num, _c_buscar = st.columns([4, 1])
+            with _c_num:
+                _orc_num = st.text_input("Nº do Orçamento (ID ou código)",
+                                          key="_del_orc_num", placeholder="Ex: 7")
+            with _c_buscar:
+                st.markdown("<div style='margin-top:1.75rem'>", unsafe_allow_html=True)
+                _btn_buscar = st.button("🔍 Buscar", use_container_width=True, key="_btn_del_buscar")
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            if not st.session_state.get("_del_confirmado"):
-                if st.button("🗑️ Excluir este orçamento", type="primary",
-                              use_container_width=True, key="_btn_del_confirmar"):
-                    if not _orc_num.strip():
-                        st.error("❌ Informe o número do orçamento.")
+            # ── Busca dados do orçamento ──
+            if _btn_buscar:
+                if not _orc_num.strip():
+                    st.error("❌ Informe o número do orçamento.")
+                    st.session_state.pop("_del_orc_dados", None)
+                else:
+                    import locvix as _lv3, importlib as _il3, os as _os3, sys as _sys3
+                    _base3 = _os3.path.dirname(_os3.path.abspath(__file__))
+                    if _base3 not in _sys3.path: _sys3.path.insert(0, _base3)
+                    if "locvix" in _sys3.modules:
+                        _lv3 = _sys3.modules["locvix"]; _il3.reload(_lv3)
                     else:
-                        st.session_state["_del_confirmado"] = True
-                        st.rerun()
-            else:
-                st.error(f"⚠️ Confirma a exclusão do orçamento **nº {_orc_num.strip()}**? Esta ação é irreversível!")
-                _c1, _c2 = st.columns(2)
-                with _c1:
-                    if st.button("✅ Sim, excluir", type="primary", use_container_width=True, key="_btn_del_sim"):
-                        import locvix as _lv3, importlib as _il3, os as _os3, sys as _sys3
-                        _base3 = _os3.path.dirname(_os3.path.abspath(__file__))
-                        if _base3 not in _sys3.path:
-                            _sys3.path.insert(0, _base3)
-                        if "locvix" in _sys3.modules:
-                            _lv3 = _sys3.modules["locvix"]; _il3.reload(_lv3)
-                        else:
-                            import locvix as _lv3
-                        _lv3.GCK_ACCESS_TOKEN = _os3.getenv("GCK_ACCESS_TOKEN", _lv3.GCK_ACCESS_TOKEN)
-                        _lv3.GCK_SECRET_TOKEN = _os3.getenv("GCK_SECRET_TOKEN", _lv3.GCK_SECRET_TOKEN)
-                        _loja3 = _lv3.LOJA_WA_ID if "W & A" in _loja_del else _lv3.LOJA_GJ_ID
-                        with st.spinner("⏳ Excluindo..."):
-                            _res_del = _lv3.deletar_orcamento_api(_orc_num.strip(), loja_id=_loja3)
-                        if _res_del["ok"]:
-                            st.success(f"✅ {_res_del['msg']}")
-                            st.session_state["_show_del_orc"] = False
-                            st.session_state.pop("_del_confirmado", None)
+                        import locvix as _lv3
+                    _lv3.GCK_ACCESS_TOKEN = _os3.getenv("GCK_ACCESS_TOKEN", _lv3.GCK_ACCESS_TOKEN)
+                    _lv3.GCK_SECRET_TOKEN = _os3.getenv("GCK_SECRET_TOKEN", _lv3.GCK_SECRET_TOKEN)
+                    _loja3 = _lv3.LOJA_WA_ID if "W & A" in _loja_del else _lv3.LOJA_GJ_ID
+                    with st.spinner("🔍 Buscando orçamento..."):
+                        _dados = _lv3.buscar_orcamento_por_id(_orc_num.strip(), loja_id=_loja3)
+                    st.session_state["_del_orc_dados"] = _dados
+                    st.session_state.pop("_del_confirmado", None)
+
+            # ── Exibe dados encontrados ──
+            _dados_orc = st.session_state.get("_del_orc_dados")
+            if _dados_orc:
+                if not _dados_orc["ok"]:
+                    st.error(f"❌ {_dados_orc['msg']}")
+                else:
+                    _valor_fmt = f"R$ {_dados_orc['valor']:,.2f}".replace(",","X").replace(".",",").replace("X",".")
+                    st.info(
+                        f"**Orçamento nº {_dados_orc['codigo']}**  \n"
+                        f"👤 Cliente: **{_dados_orc['cliente']}**  \n"
+                        f"📅 Data: {_dados_orc['data']}  |  "
+                        f"📌 Situação: {_dados_orc['situacao']}  |  "
+                        f"💰 Valor: {_valor_fmt}"
+                    )
+                    if not st.session_state.get("_del_confirmado"):
+                        if st.button("🗑️ Excluir este orçamento", type="primary",
+                                      use_container_width=True, key="_btn_del_confirmar"):
+                            st.session_state["_del_confirmado"] = True
                             st.rerun()
-                        else:
-                            st.error(f"❌ {_res_del['msg']}")
-                            st.session_state.pop("_del_confirmado", None)
-                with _c2:
-                    if st.button("↩️ Cancelar", use_container_width=True, key="_btn_del_nao"):
-                        st.session_state.pop("_del_confirmado", None)
-                        st.rerun()
+                    else:
+                        st.error(f"⚠️ Confirma a exclusão do orçamento **nº {_dados_orc['codigo']}** "
+                                  f"do cliente **{_dados_orc['cliente']}**? Esta ação é irreversível!")
+                        _c1, _c2 = st.columns(2)
+                        with _c1:
+                            if st.button("✅ Sim, excluir definitivamente", type="primary",
+                                          use_container_width=True, key="_btn_del_sim"):
+                                import locvix as _lv3, importlib as _il3, os as _os3, sys as _sys3
+                                _base3 = _os3.path.dirname(_os3.path.abspath(__file__))
+                                if _base3 not in _sys3.path: _sys3.path.insert(0, _base3)
+                                if "locvix" in _sys3.modules:
+                                    _lv3 = _sys3.modules["locvix"]; _il3.reload(_lv3)
+                                else:
+                                    import locvix as _lv3
+                                _lv3.GCK_ACCESS_TOKEN = _os3.getenv("GCK_ACCESS_TOKEN", _lv3.GCK_ACCESS_TOKEN)
+                                _lv3.GCK_SECRET_TOKEN = _os3.getenv("GCK_SECRET_TOKEN", _lv3.GCK_SECRET_TOKEN)
+                                _loja3 = _lv3.LOJA_WA_ID if "W & A" in _loja_del else _lv3.LOJA_GJ_ID
+                                with st.spinner("⏳ Excluindo..."):
+                                    _res_del = _lv3.deletar_orcamento_api(_dados_orc["id"], loja_id=_loja3)
+                                if _res_del["ok"]:
+                                    st.success(f"✅ {_res_del['msg']}")
+                                    st.session_state["_show_del_orc"] = False
+                                    st.session_state.pop("_del_confirmado", None)
+                                    st.session_state.pop("_del_orc_dados", None)
+                                    st.rerun()
+                                else:
+                                    st.error(f"❌ {_res_del['msg']}")
+                                    st.session_state.pop("_del_confirmado", None)
+                        with _c2:
+                            if st.button("↩️ Cancelar", use_container_width=True, key="_btn_del_nao"):
+                                st.session_state.pop("_del_confirmado", None)
+                                st.rerun()
 
     # ── Formulário Novo Orçamento (visível na área principal quando acionado) ──
     if st.session_state.get("modulo_ativo") == "orcamento" and st.session_state.get("_show_orc_form"):

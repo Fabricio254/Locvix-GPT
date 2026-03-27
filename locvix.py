@@ -1547,7 +1547,41 @@ def deletar_orcamento_api(orc_id: str, loja_id: str | None = None) -> dict:
     return {"ok": False, "msg": str(erros)}
 
 
-def buscar_cliente_por_id(cli_id: str) -> dict:
+def buscar_orcamento_por_id(orc_id: str, loja_id: str | None = None) -> dict:
+    """
+    Busca dados resumidos de um orçamento pelo ID.
+    Retorna {"ok": bool, "codigo": str, "cliente": str, "valor": float,
+             "data": str, "situacao": str, "msg": str}
+    """
+    global LOJA_FILTRO
+    _loja_orig = LOJA_FILTRO
+    if loja_id:
+        LOJA_FILTRO = loja_id
+    try:
+        gck = _gck()
+        resp = gck.get(f"orcamentos/{orc_id}")
+    finally:
+        LOJA_FILTRO = _loja_orig
+
+    if not resp:
+        return {"ok": False, "msg": f"Orçamento '{orc_id}' não encontrado."}
+    det = resp.get("data", {}) or {}
+    if not det:
+        return {"ok": False, "msg": f"Orçamento '{orc_id}' não encontrado."}
+    dt = det.get("data", "") or ""
+    if dt and "-" in dt:
+        p = dt.split("-")
+        dt = f"{p[2]}/{p[1]}/{p[0]}" if len(p) == 3 else dt
+    return {
+        "ok":       True,
+        "id":       str(det.get("id", orc_id)),
+        "codigo":   str(det.get("codigo", "")),
+        "cliente":  det.get("nome_cliente") or det.get("cliente") or "—",
+        "valor":    round(float(det.get("valor_total", 0) or 0), 2),
+        "data":     dt,
+        "situacao": det.get("nome_situacao") or det.get("situacao") or "—",
+        "msg":      "ok",
+    }
     """Busca dados completos de um cliente pelo ID."""
     try:
         gck = _gck()
