@@ -480,7 +480,8 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
     #  NOVO ORÇAMENTO — visível ACIMA do iframe (módulo Orçamento)
     # ══════════════════════════════════════════════════════════════
     if st.session_state.get("modulo_ativo") == "orcamento":
-        with st.expander("➕ Criar Novo Orçamento no GestãoClick", expanded=st.session_state.get("_orc_form_open", False)):
+        st.markdown("---")
+        with st.expander("➕ Criar Novo Orçamento no GestãoClick", expanded=True):
 
             # ── carrega dados auxiliares (com cache de sessão) ────
             @st.cache_data(ttl=300, show_spinner="Carregando dados do ERP...")
