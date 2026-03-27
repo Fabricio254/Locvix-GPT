@@ -71,19 +71,17 @@ iframe{border:none!important;}
 div[data-testid="stSidebar"]{background:#0d1b2a;}
 div[data-testid="stSidebar"] *{color:#e0e8f0!important;}
 div[data-testid="stSidebar"] hr{border-color:#1e3550!important;}
-div[data-testid="stSidebar"] button{
-    background:#16a34a!important;color:#fff!important;border:none!important;
-    border-radius:8px!important;padding:.55rem 1rem!important;
-    font-weight:600!important;font-size:.95rem!important;
-    cursor:pointer!important;
-}
-div[data-testid="stSidebar"] button:hover{background:#22c55e!important;}
 /* Oculta toolbar superior (Share, Edit, Deploy, Github) */
 [data-testid="stToolbar"]{display:none!important;}
 [data-testid="stDecoration"]{display:none!important;}
-[data-testid="stHeader"]{display:none!important;}
 #MainMenu{display:none!important;}
 footer{display:none!important;}
+/* Botão verde para Novo Orçamento na sidebar */
+.orc-btn-sidebar button{
+    background:#16a34a!important;color:#fff!important;border:none!important;
+    border-radius:8px!important;padding:.6rem 1rem!important;
+    font-weight:700!important;font-size:1rem!important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -233,10 +231,13 @@ with st.sidebar:
 
     if modulo_sel == "orcamento":
         st.markdown("")
-        if st.button("➕ Criar Novo Orçamento", use_container_width=True,
-                     key="_btn_orc_sidebar", type="primary"):
-            st.session_state["_show_orc_form"] = True
-            st.rerun()
+        with st.container():
+            st.markdown('<div class="orc-btn-sidebar">', unsafe_allow_html=True)
+            if st.button("➕ Criar Novo Orçamento", use_container_width=True,
+                         key="_btn_orc_sidebar"):
+                st.session_state["_show_orc_form"] = True
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
         st.markdown("---")
 
     # ── Fonte das Vendas ──────────────────────────────────────────
