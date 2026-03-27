@@ -196,6 +196,29 @@ class GCKClient:
                 time.sleep(2 * (t + 1))
         return None
 
+    def delete(self, endpoint: str) -> dict | None:
+        """DELETE com retry e rate-limit."""
+        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        for t in range(3):
+            self._throttle()
+            try:
+                r = self.session.delete(url, timeout=60)
+                if r.status_code == 429:
+                    time.sleep(30 * (t + 1))
+                    continue
+                if r.status_code == 204:
+                    return {"code": 204, "status": "success"}
+                r.raise_for_status()
+                return r.json()
+            except requests.exceptions.HTTPError as e:
+                print(f"  [ERRO] DELETE HTTP {e.response.status_code} em {url}: {e.response.text[:200]}")
+                return {"code": e.response.status_code, "status": "error",
+                        "errors": e.response.text[:500]}
+            except Exception as e:
+                print(f"  [AVISO] DELETE {endpoint} tentativa {t+1}: {e}")
+                time.sleep(2 * (t + 1))
+        return None
+
     def paginar(self, endpoint: str, params: dict | None = None,
                 campo_dados: str = "data", limite: int = 100) -> list[dict]:
         """
@@ -1498,6 +1521,30 @@ def criar_orcamento_api(payload: dict, loja_id: str | None = None) -> dict:
         "msg":       f"Orçamento nº {orc_cod} criado com sucesso!",
         "pdf_bytes": pdf_bytes,
     }
+
+
+def deletar_orcamento_api(orc_id: str, loja_id: str | None = None) -> dict:
+    """
+    Envia DELETE /orcamentos/{id} para o GestãoClick.
+    Retorna {"ok": bool, "msg": str}.
+    """
+    global LOJA_FILTRO
+    _loja_orig = LOJA_FILTRO
+    if loja_id:
+        LOJA_FILTRO = loja_id
+    try:
+        gck = _gck()
+        resp = gck.delete(f"orcamentos/{orc_id}")
+    finally:
+        LOJA_FILTRO = _loja_orig
+
+    if resp is None:
+        return {"ok": False, "msg": "Sem resposta da API"}
+    code = resp.get("code", 0)
+    if code in (200, 204) or resp.get("status") == "success":
+        return {"ok": True, "msg": f"Orçamento {orc_id} excluído com sucesso."}
+    erros = resp.get("errors") or resp.get("message") or str(resp)
+    return {"ok": False, "msg": str(erros)}
 
 
 def buscar_cliente_por_id(cli_id: str) -> dict:
