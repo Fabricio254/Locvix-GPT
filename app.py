@@ -68,12 +68,21 @@ st.markdown("""
 <style>
 .block-container{padding-top:.6rem!important;padding-bottom:0!important;}
 iframe{border:none!important;}
-div[data-testid="stSidebar"]{background:#0d1b2a;}
+/* Sidebar sempre visível — impede colapso */
+div[data-testid="stSidebar"]{
+    background:#0d1b2a;
+    min-width:280px!important;
+    max-width:320px!important;
+    transform:none!important;
+}
 div[data-testid="stSidebar"] *{color:#e0e8f0!important;}
 div[data-testid="stSidebar"] hr{border-color:#1e3550!important;}
+/* Esconde botão de colapsar sidebar */
+button[data-testid="stSidebarCollapseButton"]{display:none!important;}
 /* Oculta toolbar superior (Share, Edit, Deploy, Github) */
 [data-testid="stToolbar"]{display:none!important;}
 [data-testid="stDecoration"]{display:none!important;}
+[data-testid="stHeader"]{background:transparent!important;}
 #MainMenu{display:none!important;}
 footer{display:none!important;}
 /* Botão verde para Novo Orçamento na sidebar */
@@ -81,6 +90,13 @@ footer{display:none!important;}
     background:#16a34a!important;color:#fff!important;border:none!important;
     border-radius:8px!important;padding:.6rem 1rem!important;
     font-weight:700!important;font-size:1rem!important;
+}
+/* Botão Criar Orçamento na área principal */
+.orc-btn-main button{
+    background:#16a34a!important;color:#fff!important;border:none!important;
+    border-radius:10px!important;padding:.75rem 1.5rem!important;
+    font-weight:700!important;font-size:1.1rem!important;
+    margin:.5rem 0!important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -488,9 +504,11 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
 
     # ── Botão Novo Orçamento na área principal ──
     if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form"):
+        st.markdown('<div class="orc-btn-main">', unsafe_allow_html=True)
         st.button("➕ Criar Novo Orçamento no GestãoClick",
                   use_container_width=True, key="_btn_orc_main",
                   on_click=lambda: st.session_state.update({"_show_orc_form": True}))
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Formulário Novo Orçamento (visível na área principal quando acionado) ──
     if st.session_state.get("modulo_ativo") == "orcamento" and st.session_state.get("_show_orc_form"):
