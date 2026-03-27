@@ -103,6 +103,13 @@ footer{display:none!important;}
     font-weight:700!important;font-size:1.1rem!important;
     margin:.5rem 0!important;
 }
+/* Alinha os dois botões de ação do módulo Orçamento */
+div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] button{
+    height:3.2rem!important;
+    font-size:1rem!important;
+    font-weight:600!important;
+    border-radius:8px!important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -537,11 +544,9 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
     if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form") and not st.session_state.get("_show_del_orc"):
         _col_criar, _col_excluir = st.columns(2)
         with _col_criar:
-            st.markdown('<div class="orc-btn-main">', unsafe_allow_html=True)
             st.button("➕ Criar Novo Orçamento",
                       use_container_width=True, key="_btn_orc_main",
                       on_click=lambda: st.session_state.update({"_show_orc_form": True}))
-            st.markdown('</div>', unsafe_allow_html=True)
         with _col_excluir:
             st.button("🗑️ Excluir Orçamento Existente",
                       use_container_width=True, key="_btn_del_orc",
