@@ -155,31 +155,11 @@ _usuario_modulos = [m for m in st.session_state.get("_usuario_modulos", list(_AL
 if not _usuario_modulos:
     _usuario_modulos = ["geral"]
 
-# ─── Auxiliar de orçamento (cache compartilhado) ──────────────────
-@st.cache_data(ttl=300, show_spinner="Carregando dados do ERP...")
-def _load_aux_orc():
-    import locvix as _lv, importlib as _il, os as _os, sys as _sys
-    _base = _os.path.dirname(_os.path.abspath(__file__))
-    if _base not in _sys.path:
-        _sys.path.insert(0, _base)
-    if "locvix" in _sys.modules:
-        _lv = _sys.modules["locvix"]; _il.reload(_lv)
-    else:
-        import locvix as _lv
-    _lv.GCK_ACCESS_TOKEN = _os.getenv("GCK_ACCESS_TOKEN", _lv.GCK_ACCESS_TOKEN)
-    _lv.GCK_SECRET_TOKEN = _os.getenv("GCK_SECRET_TOKEN", _lv.GCK_SECRET_TOKEN)
-    return {
-        "clientes":   _lv.buscar_clientes(),
-        "centros_cc": _lv.buscar_centros_custo(),
-        "situacoes":  _lv.buscar_situacoes_orcamento(),
-        "formas_pag": _lv.buscar_formas_pagamento(),
-        "servicos":   _lv.buscar_servicos(),
-        "vendedores": _lv.buscar_vendedores(),
-    }
+# ─── Sidebar ──────────────────────────────────────────────────────_SIDEBAR_MARKER_
 
 
-@st.dialog("➕ Criar Novo Orçamento no GestãoClick", width="large")
-def _dialog_novo_orcamento():
+# (dialog removed — form now rendered inline in main content)
+def _dialog_novo_orcamento_UNUSED():
     _aux = _load_aux_orc()
     _clientes   = _aux["clientes"]
     _centros    = _aux["centros_cc"]
@@ -430,7 +410,8 @@ with st.sidebar:
         st.markdown("---")
         if st.button("➕ Criar Novo Orçamento", use_container_width=True,
                      type="primary", key="_btn_orc_sidebar"):
-            _dialog_novo_orcamento()
+            st.session_state["_show_orc_form"] = True
+            st.rerun()
 
     st.markdown("---")
 
@@ -679,6 +660,200 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
             use_container_width=True,
         )
     st.success("✅ Dashboard gerado com sucesso!")
+
+    # ── Formulário Novo Orçamento (visível na área principal quando acionado) ──
+    if st.session_state.get("modulo_ativo") == "orcamento" and st.session_state.get("_show_orc_form"):
+        with st.container(border=True):
+            _col_tit, _col_fechar = st.columns([6, 1])
+            with _col_tit:
+                st.markdown("### ➕ Criar Novo Orçamento no GestãoClick")
+            with _col_fechar:
+                if st.button("❌ Fechar", key="_btn_fechar_orc"):
+                    st.session_state["_show_orc_form"] = False
+                    st.rerun()
+
+            @st.cache_data(ttl=300, show_spinner="Carregando dados do ERP...")
+            def _load_aux_orc():
+                import locvix as _lv, importlib as _il, os as _os, sys as _sys
+                _base = _os.path.dirname(_os.path.abspath(__file__))
+                if _base not in _sys.path:
+                    _sys.path.insert(0, _base)
+                if "locvix" in _sys.modules:
+                    _lv = _sys.modules["locvix"]; _il.reload(_lv)
+                else:
+                    import locvix as _lv
+                _lv.GCK_ACCESS_TOKEN = _os.getenv("GCK_ACCESS_TOKEN", _lv.GCK_ACCESS_TOKEN)
+                _lv.GCK_SECRET_TOKEN = _os.getenv("GCK_SECRET_TOKEN", _lv.GCK_SECRET_TOKEN)
+                return {
+                    "clientes":   _lv.buscar_clientes(),
+                    "centros_cc": _lv.buscar_centros_custo(),
+                    "situacoes":  _lv.buscar_situacoes_orcamento(),
+                    "formas_pag": _lv.buscar_formas_pagamento(),
+                    "servicos":   _lv.buscar_servicos(),
+                    "vendedores": _lv.buscar_vendedores(),
+                }
+
+            _aux = _load_aux_orc()
+            _clientes   = _aux["clientes"]
+            _centros    = _aux["centros_cc"]
+            _situacoes  = _aux["situacoes"]
+            _formas     = _aux["formas_pag"]
+            _servicos   = _aux["servicos"]
+            _vendedores = _aux["vendedores"]
+
+            def _opts(lista, campo="nome"): return [""] + [x[campo] for x in lista]
+            def _id_por_nome(lista, nome): return next((x["id"] for x in lista if x.get("nome") == nome), "")
+            def _preco_serv(nome): return next((x["preco"] for x in _servicos if x.get("nome") == nome), 0.0)
+
+            st.markdown("#### 📋 Dados do Orçamento")
+            _loja_opts = ["G & J — Locvix (padrão)", "W & A Locações"]
+            col_a, col_b, col_c = st.columns([2, 1, 1])
+            with col_a:
+                loja_sel = st.selectbox("🏢 Empresa (Loja)", _loja_opts, key="_orc_loja")
+            with col_b:
+                data_orc = st.date_input("📅 Data", value=date.today(), format="DD/MM/YYYY", key="_orc_data")
+            with col_c:
+                validade_orc = st.text_input("⏳ Validade", value="30 dias", key="_orc_validade")
+
+            col_d, col_e = st.columns([3, 2])
+            with col_d:
+                cli_nome = st.selectbox("👤 Cliente *", _opts(_clientes), key="_orc_cliente",
+                                        help="Comece a digitar para filtrar")
+            with col_e:
+                vend_nome = st.selectbox("🧑\u200d💼 Vendedor", _opts(_vendedores), key="_orc_vendedor")
+
+            col_f, col_g = st.columns([2, 2])
+            with col_f:
+                cc_nome = st.selectbox("🏷️ Centro de Custo / Equipamento", _opts(_centros), key="_orc_cc")
+            with col_g:
+                sit_nome = st.selectbox("📌 Situação", _opts(_situacoes),
+                                        index=1 if _situacoes else 0, key="_orc_sit")
+
+            cuidados_orc = st.text_input("📬 Aos cuidados de", key="_orc_cuidados",
+                                         placeholder="Nome do responsável no cliente (opcional)")
+            intro_orc = st.text_area("📝 Introdução", key="_orc_intro", height=80,
+                                     placeholder="Texto introdutório da proposta (opcional)")
+            obs_orc = st.text_area("📄 Observações", key="_orc_obs", height=60,
+                                   placeholder="Observações adicionais (opcional)")
+
+            st.markdown("#### 🔧 Serviços (Horas de Máquina)")
+            n_serv = st.number_input("Quantidade de itens", min_value=1, max_value=20,
+                                     value=1, step=1, key="_orc_n_serv")
+            servicos_form = []
+            for _i in range(int(n_serv)):
+                st.markdown(f"**Item {_i + 1}**")
+                _c1, _c2, _c3, _c4 = st.columns([3, 1, 1.2, 1.2])
+                with _c1:
+                    _svc_nome = st.selectbox("Serviço", _opts(_servicos), key=f"_orc_svc_nome_{_i}")
+                with _c2:
+                    _svc_qtd = st.number_input("Qtd (h)", min_value=0.0, value=1.0,
+                                               step=0.5, format="%.2f", key=f"_orc_svc_qtd_{_i}")
+                with _c3:
+                    _svc_preco = st.number_input("Vlr Unit (R$)", min_value=0.0,
+                                                 value=float(_preco_serv(_svc_nome) if _svc_nome else 0.0),
+                                                 step=0.01, format="%.2f", key=f"_orc_svc_preco_{_i}")
+                with _c4:
+                    _svc_desc = st.number_input("Desconto (R$)", min_value=0.0, value=0.0,
+                                                step=0.01, format="%.2f", key=f"_orc_svc_desc_{_i}")
+                _svc_det = st.text_input(f"Detalhes item {_i+1}", key=f"_orc_svc_det_{_i}",
+                                         placeholder="Ex: Turno diurno 10h/dia")
+                _svc_id = _id_por_nome(_servicos, _svc_nome) if _svc_nome else ""
+                if _svc_nome:
+                    servicos_form.append({"servico": {
+                        "id": _svc_id, "servico_id": _svc_id, "nome_servico": _svc_nome,
+                        "detalhes": _svc_det, "sigla_unidade": "H",
+                        "quantidade": str(_svc_qtd), "valor_venda": str(_svc_preco),
+                        "tipo_desconto": "R$", "desconto_valor": str(_svc_desc),
+                        "desconto_porcentagem": "0",
+                    }})
+
+            _total = sum(
+                float(s["servico"]["quantidade"]) * float(s["servico"]["valor_venda"])
+                - float(s["servico"]["desconto_valor"]) for s in servicos_form
+            ) if servicos_form else 0.0
+            st.markdown(f"**💰 Total estimado: R$ {_total:,.2f}**".replace(",","X").replace(".",",").replace("X","."))
+
+            st.markdown("#### 💳 Pagamento")
+            _pc1, _pc2 = st.columns(2)
+            with _pc1:
+                cond_pag = st.radio("Condição", ["À vista", "Parcelado"], horizontal=True, key="_orc_cond")
+            with _pc2:
+                forma_nome = st.selectbox("Forma de Pagamento", _opts(_formas), key="_orc_forma")
+            if cond_pag == "Parcelado":
+                _pp1, _pp2 = st.columns(2)
+                with _pp1:
+                    n_parcelas = st.number_input("Nº de parcelas", min_value=1, max_value=60,
+                                                 value=1, key="_orc_parcelas")
+                with _pp2:
+                    d1_parcela = st.date_input("Data 1ª parcela", value=date.today(),
+                                               format="DD/MM/YYYY", key="_orc_d1parc")
+                intervalo_dias = st.number_input("Intervalo (dias)", min_value=0, value=30, key="_orc_intervalo")
+            else:
+                n_parcelas = 1; d1_parcela = date.today(); intervalo_dias = 0
+
+            st.markdown("")
+            if st.button("📤 Criar Orçamento no GestãoClick", type="primary",
+                         use_container_width=True, key="_btn_criar_orc"):
+                if not cli_nome:
+                    st.error("❌ Selecione um cliente.")
+                elif not servicos_form:
+                    st.error("❌ Adicione pelo menos um serviço.")
+                elif not sit_nome:
+                    st.error("❌ Selecione a situação.")
+                else:
+                    import locvix as _lv2, importlib as _il2, os as _os2, sys as _sys2
+                    _base2 = _os2.path.dirname(_os2.path.abspath(__file__))
+                    if _base2 not in _sys2.path:
+                        _sys2.path.insert(0, _base2)
+                    if "locvix" in _sys2.modules:
+                        _lv2 = _sys2.modules["locvix"]; _il2.reload(_lv2)
+                    else:
+                        import locvix as _lv2
+                    _lv2.GCK_ACCESS_TOKEN = _os2.getenv("GCK_ACCESS_TOKEN", _lv2.GCK_ACCESS_TOKEN)
+                    _lv2.GCK_SECRET_TOKEN = _os2.getenv("GCK_SECRET_TOKEN", _lv2.GCK_SECRET_TOKEN)
+
+                    _cli_id   = _id_por_nome(_clientes, cli_nome)
+                    _vend_id  = _id_por_nome(_vendedores, vend_nome) if vend_nome else ""
+                    _cc_id    = _id_por_nome(_centros, cc_nome) if cc_nome else ""
+                    _sit_id   = _id_por_nome(_situacoes, sit_nome) if sit_nome else ""
+                    _forma_id = _id_por_nome(_formas, forma_nome) if forma_nome else ""
+                    _loja_id  = _lv2.LOJA_WA_ID if "W & A" in loja_sel else _lv2.LOJA_GJ_ID
+
+                    _payload = {
+                        "cliente_id": int(_cli_id) if _cli_id else None,
+                        "data": data_orc.strftime("%Y-%m-%d"),
+                        "validade": validade_orc or "30 dias",
+                        "situacao_id": _sit_id,
+                        "condicao_pagamento": "a_vista" if cond_pag == "À vista" else "parcelado",
+                        "servicos": servicos_form,
+                    }
+                    if _vend_id:     _payload["vendedor_id"]      = _vend_id
+                    if _cc_id:       _payload["centro_custo_id"]  = int(_cc_id)
+                    if cuidados_orc: _payload["aos_cuidados_de"]  = cuidados_orc
+                    if intro_orc:    _payload["introducao"]        = intro_orc
+                    if obs_orc:      _payload["observacoes"]       = obs_orc
+                    if _forma_id:
+                        _payload["forma_pagamento_id"]    = _forma_id
+                        _payload["numero_parcelas"]       = int(n_parcelas)
+                        _payload["data_primeira_parcela"] = d1_parcela.strftime("%Y-%m-%d")
+                        if intervalo_dias:
+                            _payload["intervalo_dias"] = int(intervalo_dias)
+
+                    with st.spinner("⏳ Enviando orçamento ao GestãoClick..."):
+                        _res = _lv2.criar_orcamento_api(_payload, loja_id=_loja_id)
+
+                    if _res["ok"]:
+                        st.success(f"✅ {_res['msg']}")
+                        if _res["pdf_bytes"]:
+                            st.download_button(
+                                label=f"📄 Baixar PDF — Orçamento Nº {_res['codigo']}",
+                                data=_res["pdf_bytes"],
+                                file_name=f"Orcamento_{_res['codigo']}.pdf",
+                                mime="application/pdf",
+                                use_container_width=True,
+                            )
+                    else:
+                        st.error(f"❌ Erro: {_res['msg']}")
 
     _ctx_dash = st.container()
 
