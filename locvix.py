@@ -171,6 +171,31 @@ class GCKClient:
                 time.sleep(2 * (t + 1))
         return None
 
+    def post(self, endpoint: str, body: dict, loja_id: str | None = None) -> dict | None:
+        """POST com retry e rate-limit."""
+        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        if loja_id:
+            body = {**body, "loja_id": loja_id}
+        for t in range(5):
+            self._throttle()
+            try:
+                r = self.session.post(url, json=body, timeout=60)
+                if r.status_code == 429:
+                    espera = 30 * (t + 1)
+                    print(f"  [AVISO] Rate limit (429), aguardando {espera}s...")
+                    time.sleep(espera)
+                    continue
+                r.raise_for_status()
+                return r.json()
+            except requests.exceptions.HTTPError as e:
+                print(f"  [ERRO] POST HTTP {e.response.status_code} em {url}: {e.response.text[:200]}")
+                return {"code": e.response.status_code, "status": "error",
+                        "errors": e.response.text[:500]}
+            except Exception as e:
+                print(f"  [AVISO] POST {endpoint} tentativa {t+1}: {e}")
+                time.sleep(2 * (t + 1))
+        return None
+
     def paginar(self, endpoint: str, params: dict | None = None,
                 campo_dados: str = "data", limite: int = 100) -> list[dict]:
         """
@@ -1336,7 +1361,154 @@ def _gerar_pdf_orc_bytes(d: dict, cli_data: dict) -> bytes | None:
 # ══════════════════════════════════════════════════════════════════
 #  LEITURA DE PROPOSTAS (PDF) — PERDIDAS E FECHADAS
 # ══════════════════════════════════════════════════════════════════
-def buscar_orcamentos() -> list[dict]:
+def buscar_centros_custo() -> list[dict]:
+    """Retorna lista de centros de custo cadastrados no GestãoClick."""
+    try:
+        raw = _paginar_lojas("centros_custos")
+        return [{"id": str(c.get("id","")), "nome": c.get("nome","") or c.get("descricao","")} for c in raw]
+    except Exception as e:
+        print(f"  [AVISO] centros_custos: {e}")
+        return []
+
+
+def buscar_situacoes_orcamento() -> list[dict]:
+    """Retorna situações de orçamento cadastradas."""
+    try:
+        raw = _paginar_lojas("situacoes_orcamentos")
+        return [{"id": str(s.get("id","")), "nome": s.get("nome","") or s.get("descricao","")} for s in raw]
+    except Exception as e:
+        print(f"  [AVISO] situacoes_orcamentos: {e}")
+        return []
+
+
+def buscar_formas_pagamento() -> list[dict]:
+    """Retorna formas de pagamento cadastradas."""
+    try:
+        raw = _paginar_lojas("formas_pagamentos")
+        return [{"id": str(f.get("id","")), "nome": f.get("nome","") or f.get("descricao","")} for f in raw]
+    except Exception as e:
+        print(f"  [AVISO] formas_pagamentos: {e}")
+        return []
+
+
+def buscar_servicos() -> list[dict]:
+    """Retorna serviços cadastrados no GestãoClick."""
+    try:
+        raw = _paginar_lojas("servicos")
+        return [
+            {
+                "id":    str(s.get("id","")),
+                "nome":  s.get("nome","") or s.get("descricao",""),
+                "preco": float(s.get("valor_venda") or s.get("preco") or 0),
+                "unidade": s.get("unidade") or s.get("sigla_unidade") or "H",
+            }
+            for s in raw
+        ]
+    except Exception as e:
+        print(f"  [AVISO] servicos: {e}")
+        return []
+
+
+def buscar_vendedores() -> list[dict]:
+    """Retorna lista de vendedores/usuários."""
+    try:
+        raw = _paginar_lojas("usuarios")
+        return [{"id": str(u.get("id","")), "nome": u.get("nome","") or u.get("name","")} for u in raw if u.get("nome") or u.get("name")]
+    except Exception as e:
+        print(f"  [AVISO] usuarios: {e}")
+        return []
+
+
+def criar_orcamento_api(payload: dict, loja_id: str | None = None) -> dict:
+    """
+    Envia POST /orcamentos para o GestãoClick e retorna:
+    {
+        "ok":      bool,
+        "id":      str,
+        "codigo":  str,
+        "msg":     str,
+        "pdf_bytes": bytes | None,   # PDF gerado com layout corporativo Locvix
+    }
+
+    payload deve seguir a estrutura do APIB:
+    {
+        "cliente_id": int,
+        "vendedor_id": str (opcional),
+        "centro_custo_id": int (opcional),
+        "situacao_id": str,
+        "data": "YYYY-MM-DD",
+        "validade": "30 dias",
+        "aos_cuidados_de": str (opcional),
+        "introducao": str (opcional),
+        "observacoes": str (opcional),
+        "servicos": [
+            {"servico": {"id": str, "nome_servico": str, "quantidade": str,
+                         "valor_venda": str, "detalhes": str,
+                         "desconto_valor": "0", "desconto_porcentagem": "0"}}
+        ],
+        "condicao_pagamento": "a_vista" | "parcelado",
+        "forma_pagamento_id": str (se parcelado),
+        "numero_parcelas": int (se parcelado),
+        "data_primeira_parcela": "YYYY-MM-DD" (se parcelado),
+    }
+    """
+    global LOJA_FILTRO
+    _loja_orig = LOJA_FILTRO
+    if loja_id:
+        LOJA_FILTRO = loja_id
+    try:
+        gck = _gck()
+        resp = gck.post("orcamentos", payload)
+    finally:
+        LOJA_FILTRO = _loja_orig
+
+    if not resp:
+        return {"ok": False, "id": "", "codigo": "", "msg": "Sem resposta da API", "pdf_bytes": None}
+
+    if resp.get("code") not in (200, 201) and resp.get("status") != "success":
+        erros = resp.get("errors") or resp.get("message") or resp.get("data") or str(resp)
+        return {"ok": False, "id": "", "codigo": "", "msg": str(erros), "pdf_bytes": None}
+
+    det = resp.get("data", {}) or {}
+    orc_id  = str(det.get("id", ""))
+    orc_cod = str(det.get("codigo", ""))
+
+    # Gera PDF com os dados retornados pela API
+    pdf_bytes = None
+    try:
+        if loja_id:
+            det["loja_id"] = str(loja_id)
+        cli_id = str(det.get("cliente_id") or payload.get("cliente_id") or "")
+        cli_data: dict = {}
+        if cli_id:
+            resp_cli = gck.get(f"clientes/{cli_id}")
+            cli_data = (resp_cli.get("data", {}) if resp_cli else {}) or {}
+        if not cli_data.get("nome") and not cli_data.get("razao_social"):
+            cli_data["razao_social"] = det.get("nome_cliente", "")
+        pdf_bytes = _gerar_pdf_orc_bytes(det, cli_data)
+    except Exception as e:
+        print(f"  [AVISO] PDF novo orçamento: {e}")
+
+    return {
+        "ok":        True,
+        "id":        orc_id,
+        "codigo":    orc_cod,
+        "msg":       f"Orçamento nº {orc_cod} criado com sucesso!",
+        "pdf_bytes": pdf_bytes,
+    }
+
+
+def buscar_cliente_por_id(cli_id: str) -> dict:
+    """Busca dados completos de um cliente pelo ID."""
+    try:
+        gck = _gck()
+        resp = gck.get(f"clientes/{cli_id}")
+        return (resp.get("data", {}) if resp else {}) or {}
+    except Exception:
+        return {}
+
+
+
     """
     Busca orçamentos da API GestãoClick (GET /orcamentos).
     Para cada orçamento faz GET /orcamentos/{id} e GET /clientes/{id}
