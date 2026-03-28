@@ -316,7 +316,7 @@ components.html("""<script>
 st.title("📊 Dashboard — LOCVIX")
 st.caption("Análise de Vendas · Financeiro · Clientes · OS · Contratos via GestãoClick ERP")
 
-HTML_KEY   = "locvix_html_v9"   # bump this when JS/HTML changes break cached output
+HTML_KEY   = "locvix_html_v10"   # bump this when JS/HTML changes break cached output
 STATUS_KEY = "locvix_status"
 TIME_KEY   = "locvix_time"
 PERIOD_KEY = "locvix_period"

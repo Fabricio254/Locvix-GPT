@@ -2501,7 +2501,19 @@ def gerar_dashboard_html(
                 "cc":       r.get("Centro Custo",""),
                 "tipo":     tipo,
                 "loja":     r.get("Loja",""),
+                "parc_n":   0,
+                "parc_tot": 0,
             })
+        # Detecta parcelas: agrupa por (cc, desc) e numera
+        from collections import Counter
+        key_count = Counter((row["cc"], row["desc"].strip()) for row in rows)
+        key_idx = {}
+        for row in sorted(rows, key=lambda x: (x["cc"], x["desc"].strip(), x["venc"])):
+            k = (row["cc"], row["desc"].strip())
+            if key_count[k] > 1:
+                key_idx[k] = key_idx.get(k, 0) + 1
+                row["parc_n"]   = key_idx[k]
+                row["parc_tot"] = key_count[k]
         return rows
 
     def prep_os():
@@ -2658,6 +2670,12 @@ body[data-theme="dark"] .fin-filter-bar{{background:#1e293b;border-color:#334155
 .cc-modal tr:hover td{{background:#1e3a5f33;}}
 .cc-modal tfoot td{{background:#0f172a;color:#f59e0b;font-weight:700;padding:8px;}}
 .cc-modal tfoot td.num{{color:#fcd34d;font-size:13px;}}
+.tip-cell{{position:relative;cursor:help;}}
+.tip-cell::after{{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:0;
+  background:#0f172a;color:#f1f5f9;padding:5px 12px;border-radius:8px;font-size:11px;
+  white-space:nowrap;border:1px solid #334155;opacity:0;pointer-events:none;
+  transition:opacity .18s;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.4);}}
+.tip-cell:hover::after{{opacity:1;}}
 /* ── MODAL AJUDA ── */
 .fab-help{{position:fixed;bottom:24px;right:136px;width:48px;height:48px;border-radius:50%;
   background:#1a3a4a;color:#fff;border:2px solid rgba(255,255,255,.18);font-size:20px;font-weight:800;
@@ -4109,13 +4127,26 @@ function abrirCCModal(ccNome) {{
     const cc = (r.cc || '').trim() || 'SEM CENTRO DE CUSTO';
     if (EXCLUIR.includes(cc.toUpperCase())) return false;
     return cc === ccNome;
-  }}).sort((a, b) => (a.desc || '').localeCompare(b.desc || '', 'pt-BR'));
+  }}).sort((a, b) => {{
+    const d = (a.desc || '').localeCompare(b.desc || '', 'pt-BR');
+    if (d !== 0) return d;
+    return (a.venc || '').localeCompare(b.venc || '');
+  }});
   const total = rows.reduce((s, r) => s + r.valor, 0);
-  document.getElementById('ccModalTitle').textContent = '🏷️ ' + ccNome + ' — Discriminação dos Lançamentos';
-  let html = '<table><thead><tr><th>#</th><th>Descrição</th><th>Fornecedor</th><th>Vencimento</th><th class="num">Valor</th></tr></thead><tbody>';
+  document.getElementById('ccModalTitle').textContent = '\uD83C\uDFF7\uFE0F ' + ccNome + ' \u2014 Discrimina\u00E7\u00E3o dos Lan\u00E7amentos';
+  let html = '<table><thead><tr><th>#</th><th>Descri\u00E7\u00E3o</th><th>Fornecedor</th><th>Vencimento</th><th class="num">Valor</th></tr></thead><tbody>';
   rows.forEach((r, i) => {{
-    const venc = r.venc ? r.venc.split('-').reverse().join('/') : '—';
-    html += `<tr><td style="color:#64748b;font-size:11px">${{i+1}}</td><td>${{r.desc||'—'}}</td><td style="color:#94a3b8">${{r.pessoa||'—'}}</td><td style="color:#94a3b8">${{venc}}</td><td class="num">${{BRL(r.valor)}}</td></tr>`;
+    const venc = r.venc ? r.venc.split('-').reverse().join('/') : '\u2014';
+    const desc = r.desc || '\u2014';
+    let descHtml = desc;
+    let extraClass = '';
+    let dataTip = '';
+    if (r.parc_n > 0) {{
+      descHtml += ' <span style="background:#f59e0b;color:#1e293b;font-size:10px;font-weight:700;padding:1px 8px;border-radius:10px;white-space:nowrap;vertical-align:middle">Parcela ' + r.parc_n + ' de ' + r.parc_tot + '</span>';
+      extraClass = ' class="tip-cell"';
+      dataTip = ' data-tip="Parcela ' + r.parc_n + ' de ' + r.parc_tot + ' \u2014 mesma descri\u00E7\u00E3o/fornecedor"';
+    }}
+    html += '<tr><td style="color:#64748b;font-size:11px">' + (i+1) + '</td><td' + extraClass + dataTip + '>' + descHtml + '</td><td style="color:#94a3b8">' + (r.pessoa||'\u2014') + '</td><td style="color:#94a3b8">' + venc + '</td><td class="num">' + BRL(r.valor) + '</td></tr>';
   }});
   html += `</tbody><tfoot><tr><td colspan="4">TOTAL (${{rows.length}} lançamentos)</td><td class="num">${{BRL(total)}}</td></tr></tfoot></table>`;
   document.getElementById('ccModalBody').innerHTML = html;
