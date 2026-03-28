@@ -353,58 +353,10 @@ with col2:
         use_container_width=True,
         type="primary",
     )
-with col3:
-    btn_atualizar_orc = st.button(
-        "📋 Atualizar Orçamentos",
-        use_container_width=True,
-        help="Atualiza somente os dados de orçamentos (mais rápido)",
-        disabled=(HTML_KEY not in st.session_state),
-    )
+btn_atualizar_orc = False  # controlado dentro do módulo Orçamento
 
 # Sempre carrega as duas lojas; seleção de loja fica dentro do HTML
 _loja_filtro = "ambas"
-
-# ── Atualização parcial — somente Orçamentos ─────────────────────
-if btn_atualizar_orc and HTML_KEY in st.session_state:
-    import re as _re, json as _json
-    _prog_orc = st.progress(0, text="⏳ Buscando orçamentos...")
-    try:
-        if _BASE_DIR not in sys.path:
-            sys.path.insert(0, _BASE_DIR)
-        if "locvix" in sys.modules:
-            lv = sys.modules["locvix"]
-            importlib.reload(lv)
-        else:
-            import locvix as lv
-        lv.GCK_ACCESS_TOKEN  = os.getenv("GCK_ACCESS_TOKEN", lv.GCK_ACCESS_TOKEN)
-        lv.GCK_SECRET_TOKEN  = os.getenv("GCK_SECRET_TOKEN", lv.GCK_SECRET_TOKEN)
-        lv.SUPABASE_URL      = os.getenv("SUPABASE_URL",     lv.SUPABASE_URL)
-        lv.SUPABASE_ANON     = os.getenv("SUPABASE_ANON",    lv.SUPABASE_ANON)
-        lv._SKIP_CACHE       = True   # ignora cache para forçar fetch fresco
-        lv._empresa_cache    = {}     # limpa cache da empresa também
-
-        _prog_orc.progress(0.2, text="⏳ Conectando ao ERP...")
-        novos_orc = lv.buscar_orcamentos()
-
-        _prog_orc.progress(0.85, text="⏳ Atualizando dashboard...")
-        # Serializa igual ao jv() do locvix.py
-        _orc_json = _json.dumps(novos_orc, ensure_ascii=True, default=str).replace("</" , r"<\/")
-        # Substitui o bloco JSON de orçamentos no HTML armazenado
-        _html_atual = st.session_state[HTML_KEY]
-        _html_novo = _re.sub(
-            r'(<script type="application/json" id="_dORCAMENTOS">).*?(</script>)',
-            r'\g<1>' + _orc_json + r'\2',
-            _html_atual,
-            flags=_re.DOTALL,
-        )
-        st.session_state[HTML_KEY] = _html_novo
-        st.session_state[TIME_KEY] = datetime.now(_BRT).strftime("%d/%m/%Y %H:%M:%S")
-        _prog_orc.progress(1.0, text=f"✅ {len(novos_orc)} orçamentos atualizados!")
-        st.success(f"✅ Orçamentos atualizados: {len(novos_orc)} registros.")
-        st.rerun()
-    except Exception as _e_orc:
-        _prog_orc.empty()
-        st.error(f"❌ Erro ao atualizar orçamentos: {_e_orc}")
 
 # ── Executa coleta ────────────────────────────────────────────────
 if btn_atualizar or HTML_KEY not in st.session_state:
@@ -542,19 +494,65 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
 
     # ── Ações do módulo Orçamento ──
     if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form") and not st.session_state.get("_show_del_orc") and not st.session_state.get("_show_edit_orc"):
-        _col_criar, _col_editar, _col_excluir = st.columns(3)
+        _col_criar, _col_editar, _col_excluir, _col_atualizar = st.columns(4)
         with _col_criar:
             st.button("➕ Criar Novo Orçamento",
                       use_container_width=True, key="_btn_orc_main",
                       on_click=lambda: st.session_state.update({"_show_orc_form": True}))
         with _col_editar:
-            st.button("✏️ Alterar Orçamento Existente",
+            st.button("✏️ Alterar Orçamento",
                       use_container_width=True, key="_btn_edit_orc",
                       on_click=lambda: st.session_state.update({"_show_edit_orc": True}))
         with _col_excluir:
-            st.button("🗑️ Excluir Orçamento Existente",
+            st.button("🗑️ Excluir Orçamento",
                       use_container_width=True, key="_btn_del_orc",
                       on_click=lambda: st.session_state.update({"_show_del_orc": True}))
+        with _col_atualizar:
+            btn_atualizar_orc = st.button(
+                "🔄 Atualizar Orçamentos",
+                use_container_width=True,
+                key="_btn_atualizar_orc",
+                help="Rebusca os orçamentos no ERP GestãoClick",
+                disabled=(HTML_KEY not in st.session_state),
+            )
+
+        # ── Lógica de atualização parcial de orçamentos ──
+        if btn_atualizar_orc and HTML_KEY in st.session_state:
+            import re as _re, json as _json
+            _prog_orc = st.progress(0, text="⏳ Buscando orçamentos...")
+            try:
+                if _BASE_DIR not in sys.path:
+                    sys.path.insert(0, _BASE_DIR)
+                if "locvix" in sys.modules:
+                    lv = sys.modules["locvix"]
+                    importlib.reload(lv)
+                else:
+                    import locvix as lv
+                lv.GCK_ACCESS_TOKEN  = os.getenv("GCK_ACCESS_TOKEN", lv.GCK_ACCESS_TOKEN)
+                lv.GCK_SECRET_TOKEN  = os.getenv("GCK_SECRET_TOKEN", lv.GCK_SECRET_TOKEN)
+                lv.SUPABASE_URL      = os.getenv("SUPABASE_URL",     lv.SUPABASE_URL)
+                lv.SUPABASE_ANON     = os.getenv("SUPABASE_ANON",    lv.SUPABASE_ANON)
+                lv._SKIP_CACHE       = True
+                lv._empresa_cache    = {}
+                _prog_orc.progress(0.2, text="⏳ Conectando ao ERP...")
+                novos_orc = lv.buscar_orcamentos()
+                _prog_orc.progress(0.85, text="⏳ Atualizando dashboard...")
+                _orc_json = _json.dumps(novos_orc, ensure_ascii=True, default=str).replace("</", r"<\/")
+                _html_atual = st.session_state[HTML_KEY]
+                _html_novo = _re.sub(
+                    r'(<script type="application/json" id="_dORCAMENTOS">).*?(</script>)',
+                    r'\g<1>' + _orc_json + r'\2',
+                    _html_atual,
+                    flags=_re.DOTALL,
+                )
+                st.session_state[HTML_KEY] = _html_novo
+                st.session_state[TIME_KEY] = datetime.now(_BRT).strftime("%d/%m/%Y %H:%M:%S")
+                _prog_orc.progress(1.0, text=f"✅ {len(novos_orc)} orçamentos atualizados!")
+                st.success(f"✅ Orçamentos atualizados: {len(novos_orc)} registros.")
+                st.rerun()
+            except Exception as _e_orc:
+                _prog_orc.empty()
+                st.error(f"❌ Erro ao atualizar orçamentos: {_e_orc}")
 
     # ── Painel Excluir Orçamento ──
     if st.session_state.get("modulo_ativo") == "orcamento" and st.session_state.get("_show_del_orc"):
