@@ -1015,7 +1015,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
             with col_c:
                 validade_orc = st.text_input("⏳ Validade", value="30 dias", key="_orc_validade")
 
-            col_d, col_e = st.columns([3, 2])
+            col_d, col_e = st.columns(2)
             with col_d:
                 cli_nome = st.selectbox("👤 Cliente *", _opts(_clientes), key="_orc_cliente",
                                         help="Comece a digitar para filtrar")
