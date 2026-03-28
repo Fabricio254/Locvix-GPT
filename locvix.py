@@ -1460,10 +1460,20 @@ def buscar_servicos() -> list[dict]:
 
 
 def buscar_vendedores() -> list[dict]:
-    """Retorna lista de vendedores/usuários."""
+    """Retorna lista de vendedores/usuários de AMBAS as lojas (sem duplicatas)."""
     try:
-        raw = _paginar_lojas("usuarios")
-        return [{"id": str(u.get("id","")), "nome": u.get("nome","") or u.get("name","")} for u in raw if u.get("nome") or u.get("name")]
+        gck = _gck()
+        # Busca em cada loja separadamente para garantir todos os usuários
+        todos: dict[str, dict] = {}
+        for loja in [LOJA_GJ_ID, LOJA_WA_ID, None]:
+            params = {"loja_id": loja} if loja else {}
+            raw = gck.paginar("usuarios", params)
+            for u in raw:
+                uid = str(u.get("id", ""))
+                nome = u.get("nome") or u.get("name") or ""
+                if uid and nome and uid not in todos:
+                    todos[uid] = {"id": uid, "nome": nome}
+        return list(todos.values())
     except Exception as e:
         print(f"  [AVISO] usuarios: {e}")
         return []
