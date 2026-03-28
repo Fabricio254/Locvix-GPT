@@ -1017,8 +1017,7 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
 
             col_d, col_e = st.columns(2)
             with col_d:
-                cli_nome = st.selectbox("👤 Cliente *", _opts(_clientes), key="_orc_cliente",
-                                        help="Comece a digitar para filtrar")
+                cli_nome = st.selectbox("👤 Cliente *", _opts(_clientes), key="_orc_cliente")
             with col_e:
                 vend_nome = st.selectbox("🧑\u200d💼 Vendedor", _opts(_vendedores), key="_orc_vendedor")
 
