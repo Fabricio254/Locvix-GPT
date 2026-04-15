@@ -2685,6 +2685,10 @@ def gerar_dashboard_html(
         return o
     jv = lambda v: _json.dumps(_clean_surrogates(v), ensure_ascii=True).replace('</', r'<\/')
 
+    # Supabase — para uso no JS do formulário de manutenção
+    supabase_url  = (SUPABASE_URL  or "").replace("'", "")
+    supabase_anon = (SUPABASE_ANON or "").replace("'", "")
+
     # Ponto data
     ponto_func = (ponto_data or {}).get("funcionarios", [])
     ponto_marc = (ponto_data or {}).get("marcacoes", [])
@@ -3367,6 +3371,36 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
   <div class="mod-section" data-mod="manutencao">
     <div class="section-title">🛠 Manutenção Preventiva — Equipamentos</div>
 
+    <!-- Formulário de registro -->
+    <div class="chart-card" style="margin-bottom:20px;">
+      <h3 style="margin-bottom:12px;">🔧 Registrar / Atualizar Manutenção</h3>
+      <p style="font-size:13px;color:#64748b;margin:0 0 14px">Preencha abaixo para registrar a data da última manutenção. O próximo ciclo será calculado automaticamente (2 meses).</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:2;min-width:180px;">
+          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Equipamento / Centro de Custo</label>
+          <input id="mFormEquip" type="text" placeholder="Ex: GUINDASTE GJ-01"
+            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Data da última manutenção</label>
+          <input id="mFormData" type="date"
+            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div style="flex:2;min-width:180px;">
+          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">E-mail do responsável</label>
+          <input id="mFormEmail" type="email" placeholder="responsavel@locvix.com.br"
+            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div style="flex:none;">
+          <button onclick="salvarManutencao()"
+            style="background:#1e3a5f;color:#fff;border:none;border-radius:6px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            💾 Salvar
+          </button>
+        </div>
+      </div>
+      <div id="mFormMsg" style="margin-top:10px;font-size:13px;display:none;"></div>
+    </div>
+
     <!-- KPIs Manutenção -->
     <div class="kpi-grid col3">
       <div class="kpi-card red">
@@ -3717,6 +3751,8 @@ const HORAS_APP  = _pd('_dHORAS_APP');
 const MANUTENCAO = _pd('_dMANUTENCAO');
 const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do per\u00EDodo selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
+const _SB_URL  = '{supabase_url}';
+const _SB_ANON = '{supabase_anon}';
 
 const BRL = v => 'R$\u00a0' + v.toLocaleString('pt-BR',{{minimumFractionDigits:2,maximumFractionDigits:2}});
 const NUM = v => v.toLocaleString('pt-BR');
@@ -4438,6 +4474,59 @@ function mkManutencao() {{
   document.getElementById('kManutVencidas').textContent = vencidas;
   document.getElementById('kManutProximas').textContent = proximas;
   document.getElementById('kManutOk').textContent = ok;
+}}
+
+// ── Salvar manutenção via Supabase REST (fetch direto do browser) ──
+async function salvarManutencao() {{
+  const equip = (document.getElementById('mFormEquip').value || '').trim();
+  const data  = (document.getElementById('mFormData').value  || '').trim();
+  const email = (document.getElementById('mFormEmail').value || '').trim();
+  const msg   = document.getElementById('mFormMsg');
+
+  if (!equip) {{ _mMsg(msg, '\u274c Informe o nome do equipamento.', '#dc2626'); return; }}
+  if (!data)  {{ _mMsg(msg, '\u274c Selecione a data da \u00faltima manuten\u00e7\u00e3o.', '#dc2626'); return; }}
+
+  const sbUrl  = _SB_URL;
+  const sbAnon = _SB_ANON;
+  if (!sbUrl || sbUrl === '') {{
+    _mMsg(msg, '\u26a0\ufe0f Supabase n\u00e3o configurado. Use o formul\u00e1rio do Streamlit.', '#d97706');
+    return;
+  }}
+
+  const hdrs = {{
+    'apikey': sbAnon, 'Authorization': 'Bearer ' + sbAnon,
+    'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'
+  }};
+  const payload = JSON.stringify({{
+    equipamento: equip, ultima_manutencao: data,
+    responsavel_email: email || null, intervalo_meses: 2,
+    updated_at: new Date().toISOString()
+  }});
+  _mMsg(msg, '\u23f3 Salvando...', '#0891b2');
+  try {{
+    const r = await fetch(sbUrl + '/rest/v1/manutencoes_equipamentos', {{
+      method: 'POST', headers: hdrs, body: payload
+    }});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    _mMsg(msg, '\u2705 ' + equip + ' \u2014 manuten\u00e7\u00e3o registrada em ' + data.split('-').reverse().join('/'), '#059669');
+    document.getElementById('mFormEquip').value = '';
+    document.getElementById('mFormEmail').value = '';
+    // Atualiza tabela de status localmente
+    const idx = MANUTENCAO.findIndex(r => r.cc === equip);
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const dt = new Date(data + 'T00:00:00');
+    const prox = new Date(dt); prox.setDate(prox.getDate() + 60);
+    const dias = Math.round((prox - hoje) / 86400000);
+    const st = dias < 0 ? 'vencida' : (dias <= 15 ? 'proxima' : 'ok');
+    const rec = {{ cc: equip, ultima: data, proxima: prox.toISOString().slice(0,10), status: st, dias: dias, email: email }};
+    if (idx >= 0) MANUTENCAO[idx] = rec; else MANUTENCAO.push(rec);
+    mkManutencao();
+  }} catch(e) {{
+    _mMsg(msg, '\u274c Erro ao salvar: ' + e.message, '#dc2626');
+  }}
+}}
+function _mMsg(el, txt, cor) {{
+  el.textContent = txt; el.style.color = cor; el.style.display = '';
 }}
 
 function mkPagarCentroCusto() {{
@@ -5456,6 +5545,9 @@ function abrirTelaCheia() {{
 
 document.addEventListener('DOMContentLoaded', () => {{
   const i = document.getElementById('pg-inp'); if(i) i.focus();
+  // Define data padrão do formulário de manutenção como hoje
+  const mfd = document.getElementById('mFormData');
+  if (mfd) mfd.value = new Date().toISOString().slice(0,10);
   try {{
     const saved = localStorage.getItem('locvix-theme');
     if (saved === 'dark') {{

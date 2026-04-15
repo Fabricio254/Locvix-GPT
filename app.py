@@ -316,7 +316,7 @@ components.html("""<script>
 st.title("📊 Dashboard — LOCVIX")
 st.caption("Análise de Vendas · Financeiro · Clientes · OS · Contratos via GestãoClick ERP")
 
-HTML_KEY   = "locvix_html_v11"   # bump this when JS/HTML changes break cached output
+HTML_KEY   = "locvix_html_v12"   # bump this when JS/HTML changes break cached output
 STATUS_KEY = "locvix_status"
 TIME_KEY   = "locvix_time"
 PERIOD_KEY = "locvix_period"
@@ -1157,66 +1157,6 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
     _ctx_dash = st.container()
 
     with _ctx_dash:
-        # ── Formulário de manutenção — aparece ACIMA do dashboard quando módulo ativo ──
-        if st.session_state.get("modulo_ativo") == "manutencao":
-            st.markdown(
-                "<div style='background:#1e3a5f;border-radius:10px;padding:16px 20px;margin-bottom:12px;'>"
-                "<span style='color:#fff;font-size:17px;font-weight:700'>🔧 Registrar / Atualizar Manutenção</span>"
-                "<br><span style='color:#93c5fd;font-size:13px'>Preencha abaixo para registrar a data da última manutenção. "
-                "O sistema calculará automaticamente a próxima (ciclo de 2 meses).</span></div>",
-                unsafe_allow_html=True,
-            )
-            _c_eq, _c_dt, _c_em, _c_btn = st.columns([3, 2, 3, 1])
-            with _c_eq:
-                _manut_equip = st.text_input(
-                    "Equipamento / Centro de Custo",
-                    key="_manut_equip",
-                    placeholder="Ex: GUINDASTE GJ-01",
-                )
-            with _c_dt:
-                _manut_data = st.date_input(
-                    "Data da última manutenção",
-                    value=date.today(),
-                    format="DD/MM/YYYY",
-                    key="_manut_data",
-                )
-            with _c_em:
-                _manut_email = st.text_input(
-                    "E-mail do responsável",
-                    key="_manut_email",
-                    placeholder="responsavel@locvix.com.br",
-                )
-            with _c_btn:
-                st.markdown("<div style='margin-top:1.75rem'>", unsafe_allow_html=True)
-                _btn_salvar_m = st.button("💾 Salvar", use_container_width=True, key="_btn_salvar_manut", type="primary")
-                st.markdown("</div>", unsafe_allow_html=True)
-            if _btn_salvar_m:
-                if not _manut_equip.strip():
-                    st.error("❌ Informe o nome do equipamento / Centro de Custo.")
-                else:
-                    try:
-                        if _BASE_DIR not in sys.path:
-                            sys.path.insert(0, _BASE_DIR)
-                        _lv_m = sys.modules.get("locvix")
-                        if _lv_m is None:
-                            import locvix as _lv_m
-                        _lv_m.SUPABASE_URL  = os.getenv("SUPABASE_URL",  _lv_m.SUPABASE_URL)
-                        _lv_m.SUPABASE_ANON = os.getenv("SUPABASE_ANON", _lv_m.SUPABASE_ANON)
-                        _ok_m = _lv_m.salvar_manutencao(
-                            equipamento=_manut_equip.strip(),
-                            data_str=_manut_data.strftime("%Y-%m-%d"),
-                            email=_manut_email.strip(),
-                        )
-                        if _ok_m:
-                            st.success(f"✅ **{_manut_equip.strip()}** — manutenção registrada em {_manut_data.strftime('%d/%m/%Y')}")
-                            st.session_state.pop(HTML_KEY, None)
-                            st.rerun()
-                        else:
-                            st.error("❌ Erro ao salvar. Verifique as credenciais Supabase nos secrets.")
-                    except Exception as _e_manut:
-                        st.error(f"❌ Erro: {_e_manut}")
-            st.markdown("<hr style='margin:12px 0 8px;border-color:#e2e8f0'>", unsafe_allow_html=True)
-
         _html_safe = st.session_state[HTML_KEY].encode("ascii", errors="xmlcharrefreplace").decode("ascii")
 
         # Inject module-activation script based on sidebar selection
