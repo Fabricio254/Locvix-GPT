@@ -3378,8 +3378,10 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
         <div style="flex:2;min-width:180px;">
           <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Equipamento / Centro de Custo</label>
-          <input id="mFormEquip" type="text" placeholder="Ex: GUINDASTE GJ-01"
-            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
+          <select id="mFormEquip"
+            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff;cursor:pointer;">
+            <option value="">— Selecione o equipamento —</option>
+          </select>
         </div>
         <div style="flex:1;min-width:140px;">
           <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Data da última manutenção</label>
@@ -4483,7 +4485,7 @@ async function salvarManutencao() {{
   const email = (document.getElementById('mFormEmail').value || '').trim();
   const msg   = document.getElementById('mFormMsg');
 
-  if (!equip) {{ _mMsg(msg, '\u274c Informe o nome do equipamento.', '#dc2626'); return; }}
+  if (!equip) {{ _mMsg(msg, '\u274c Selecione o equipamento.', '#dc2626'); return; }}
   if (!data)  {{ _mMsg(msg, '\u274c Selecione a data da \u00faltima manuten\u00e7\u00e3o.', '#dc2626'); return; }}
 
   const sbUrl  = _SB_URL;
@@ -5548,6 +5550,20 @@ document.addEventListener('DOMContentLoaded', () => {{
   // Define data padrão do formulário de manutenção como hoje
   const mfd = document.getElementById('mFormData');
   if (mfd) mfd.value = new Date().toISOString().slice(0,10);
+  // Popula select de equipamentos
+  const mSel = document.getElementById('mFormEquip');
+  if (mSel && MANUTENCAO && MANUTENCAO.length) {{
+    MANUTENCAO.slice().sort((a,b) => a.cc.localeCompare(b.cc)).forEach(r => {{
+      const o = document.createElement('option'); o.value = r.cc; o.textContent = r.cc; mSel.appendChild(o);
+    }});
+    mSel.addEventListener('change', () => {{
+      const rec = MANUTENCAO.find(r => r.cc === mSel.value);
+      const em = document.getElementById('mFormEmail');
+      if (em && rec && rec.email) em.value = rec.email;
+      const dt = document.getElementById('mFormData');
+      if (dt && rec && rec.ultima) dt.value = rec.ultima;
+    }});
+  }}
   try {{
     const saved = localStorage.getItem('locvix-theme');
     if (saved === 'dark') {{
