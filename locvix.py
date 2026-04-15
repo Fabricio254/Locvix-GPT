@@ -2169,6 +2169,94 @@ def buscar_horas_app(data_ini: str, data_fim: str) -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════
+#  MANUTENÇÃO PREVENTIVA (Supabase — tabela manutencoes_equipamentos)
+# ══════════════════════════════════════════════════════════════════
+
+def buscar_manutencoes() -> list[dict]:
+    """
+    Busca registros de manutenção preventiva de equipamentos via Supabase.
+    Tabela: manutencoes_equipamentos
+    Colunas: id, equipamento, ultima_manutencao, responsavel_email,
+             intervalo_meses, updated_at
+    """
+    try:
+        if not SUPABASE_URL or not SUPABASE_ANON:
+            return []
+        hdrs = {
+            "apikey":        SUPABASE_ANON,
+            "Authorization": f"Bearer {SUPABASE_ANON}",
+        }
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/manutencoes_equipamentos",
+            headers=hdrs,
+            params={
+                "select": "id,equipamento,ultima_manutencao,responsavel_email,intervalo_meses,updated_at",
+                "order":  "equipamento.asc",
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        registros = resp.json()
+        print(f"  ✔ Manutenções: {len(registros)} equipamentos")
+        return registros
+    except Exception as e:
+        print(f"  [AVISO] buscar_manutencoes: {e}")
+        return []
+
+
+def salvar_manutencao(equipamento: str, data_str: str,
+                      email: str = "", intervalo_meses: int = 2) -> bool:
+    """
+    Salva ou atualiza um registro de manutenção no Supabase.
+    data_str: formato 'YYYY-MM-DD'
+    Retorna True em caso de sucesso.
+    """
+    try:
+        if not SUPABASE_URL or not SUPABASE_ANON:
+            return False
+        hdrs = {
+            "apikey":        SUPABASE_ANON,
+            "Authorization": f"Bearer {SUPABASE_ANON}",
+            "Content-Type":  "application/json",
+        }
+        base = f"{SUPABASE_URL}/rest/v1/manutencoes_equipamentos"
+        equip = equipamento.strip()
+
+        # Verifica se já existe registro para este equipamento
+        r_get = requests.get(
+            base, headers=hdrs,
+            params={"equipamento": f"eq.{equip}", "select": "id"},
+            timeout=10,
+        )
+        r_get.raise_for_status()
+        existing = r_get.json()
+
+        payload = {
+            "ultima_manutencao": data_str,
+            "responsavel_email": email.strip() if email.strip() else None,
+            "intervalo_meses":   int(intervalo_meses),
+            "updated_at":        datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+
+        if existing:
+            r_up = requests.patch(
+                base, headers=hdrs,
+                params={"equipamento": f"eq.{equip}"},
+                json=payload, timeout=10,
+            )
+            r_up.raise_for_status()
+        else:
+            payload["equipamento"] = equip
+            r_ins = requests.post(base, headers=hdrs, json=payload, timeout=10)
+            r_ins.raise_for_status()
+
+        return True
+    except Exception as e:
+        print(f"  [ERRO] salvar_manutencao: {e}")
+        return False
+
+
+# ══════════════════════════════════════════════════════════════════
 #  GERADOR DE EXCEL
 # ══════════════════════════════════════════════════════════════════
 COR_HD   = "1F4E79"
@@ -2395,10 +2483,11 @@ def gerar_dashboard_html(
     caminho:   str,
     data_ini:  str,
     data_fim:  str,
-    ponto_data: dict | None = None,
-    orcamentos: list | None = None,
-    medicoes:   list | None = None,
-    horas_app:  list | None = None,
+    ponto_data:   dict | None = None,
+    orcamentos:   list | None = None,
+    medicoes:     list | None = None,
+    horas_app:    list | None = None,
+    manutencoes:  list | None = None,
 ) -> str:
     """Gera dashboard HTML interativo completo para Locvix."""
     import json as _json
@@ -2551,6 +2640,41 @@ def gerar_dashboard_html(
     raw_orc = orcamentos or []  # já preparado em buscar_orcamentos()
     raw_med = medicoes or []    # já preparado em buscar_medicoes()
     raw_horas_app = horas_app or []  # registros do LocvixApp via Supabase
+
+    # ── Status de manutenção preventiva por Centro de Custo ─────────
+    EXCLUIR_CC = {'ADM/FINANCEIRO','SUBLOCAÇÕES - TERCEIROS','SEM CENTRO DE CUSTO','MANUTENÇÃO'}
+    _cc_set = sorted({
+        r["cc"].strip() for r in raw_pag_all
+        if r["cc"] and r["cc"].strip().upper() not in EXCLUIR_CC
+    })
+    _manut_dict = {rec["equipamento"]: rec for rec in (manutencoes or [])}
+    _hoje_d = date.today()
+    raw_manutencoes = []
+    for _cc in _cc_set:
+        _rec = _manut_dict.get(_cc, {})
+        _ultima   = (_rec.get("ultima_manutencao") or "")[:10]
+        _intervalo = int(_rec.get("intervalo_meses") or 2)
+        _email    = _rec.get("responsavel_email") or ""
+        if _ultima:
+            try:
+                _dt_ultima  = date.fromisoformat(_ultima)
+                _dt_proxima = _dt_ultima + timedelta(days=_intervalo * 30)
+                _dias       = (_dt_proxima - _hoje_d).days
+                _status     = "vencida" if _dias < 0 else ("proxima" if _dias <= 15 else "ok")
+                _proxima_s  = _dt_proxima.isoformat()
+            except Exception:
+                _status, _dias, _proxima_s = "vencida", -9999, ""
+        else:
+            _status, _dias, _proxima_s = "vencida", -9999, ""
+        raw_manutencoes.append({
+            "cc":       _cc,
+            "ultima":   _ultima,
+            "proxima":  _proxima_s,
+            "status":   _status,
+            "dias":     _dias,
+            "email":    _email,
+            "intervalo": _intervalo,
+        })
 
     def _clean_surrogates(o):
         """Remove lone surrogate characters that break UTF-8/JSON serialization."""
@@ -3241,8 +3365,48 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
   </div><!-- /mod operacoes -->
 
   <div class="mod-section" data-mod="manutencao">
-    <div class="section-title">🛠 Manutenção — Despesas por Equipamento</div>
-    <div class="chart-row" style="align-items:start;">
+    <div class="section-title">🛠 Manutenção Preventiva — Equipamentos</div>
+
+    <!-- KPIs Manutenção -->
+    <div class="kpi-grid col3">
+      <div class="kpi-card red">
+        <div class="kpi-label">🔴 Vencidas</div>
+        <div class="kpi-value" id="kManutVencidas">—</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">⚠️ Próximas (≤15 dias)</div>
+        <div class="kpi-value" id="kManutProximas">—</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">✅ Em Dia</div>
+        <div class="kpi-value" id="kManutOk">—</div>
+      </div>
+    </div>
+
+    <!-- Tabela de status por equipamento -->
+    <div class="table-card" style="margin-top:16px;">
+      <h3>📋 Status de Manutenção por Equipamento (ciclo a cada 2 meses)</h3>
+      <div style="overflow-x:auto;">
+        <table class="data-tbl" id="tblManutencao">
+          <thead>
+            <tr>
+              <th>Equipamento / Centro de Custo</th>
+              <th>Status</th>
+              <th>Última Manutenção</th>
+              <th>Próxima Manutenção</th>
+              <th class="num">Dias Restantes</th>
+            </tr>
+          </thead>
+          <tbody id="tblManutencaoBdy"></tbody>
+        </table>
+      </div>
+      <div id="manutVazioMsg" style="display:none;padding:24px;text-align:center;color:#94a3b8;font-size:14px;">
+        Nenhum equipamento encontrado nas despesas do período.
+      </div>
+    </div>
+
+    <!-- Gráfico de despesas por CC -->
+    <div class="chart-row" style="align-items:start;margin-top:24px;">
       <div class="chart-card" style="flex:1;">
         <h3>🏷️ Despesas por Centro de Custo (Equipamentos)</h3>
         <div id="wrapManutCC" style="position:relative;height:320px;"><canvas id="chartManutCC"></canvas></div>
@@ -3528,6 +3692,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
 <script type="application/json" id="_dORCAMENTOS">{jv(raw_orc)}</script>
 <script type="application/json" id="_dMEDICOES">{jv(raw_med)}</script>
 <script type="application/json" id="_dHORAS_APP">{jv(raw_horas_app)}</script>
+<script type="application/json" id="_dMANUTENCAO">{jv(raw_manutencoes)}</script>
 
 <script>
 // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -3549,6 +3714,7 @@ const PONTO_MARC = _pd('_dPONTO_MARC');
 const ORCAMENTOS = _pd('_dORCAMENTOS');
 const MEDICOES   = _pd('_dMEDICOES');
 const HORAS_APP  = _pd('_dHORAS_APP');
+const MANUTENCAO = _pd('_dMANUTENCAO');
 const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do per\u00EDodo selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
 
@@ -4208,6 +4374,70 @@ function mkManutencaoCC() {{
     }}
   }});
   canvas.style.cursor = 'pointer';
+}}
+
+// ── Tabela de Status de Manutenção Preventiva ──────────────────────
+function mkManutencao() {{
+  const tbody = document.getElementById('tblManutencaoBdy');
+  const vazioMsg = document.getElementById('manutVazioMsg');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const data = MANUTENCAO;
+  if (!data || !data.length) {{
+    if (vazioMsg) vazioMsg.style.display = '';
+    document.getElementById('kManutVencidas').textContent = '0';
+    document.getElementById('kManutProximas').textContent = '0';
+    document.getElementById('kManutOk').textContent = '0';
+    return;
+  }}
+  if (vazioMsg) vazioMsg.style.display = 'none';
+  let vencidas = 0, proximas = 0, ok = 0;
+  data.forEach(r => {{
+    const st = r.status || 'vencida';
+    if (st === 'vencida') vencidas++;
+    else if (st === 'proxima') proximas++;
+    else ok++;
+    let badge, rowBg;
+    if (st === 'vencida') {{
+      badge  = '<span style="background:#dc2626;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">&#128308; VENCIDA</span>';
+      rowBg  = 'background:rgba(220,38,38,.07)';
+    }} else if (st === 'proxima') {{
+      badge  = '<span style="background:#d97706;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">&#9888; PR&#211;XIMA</span>';
+      rowBg  = 'background:rgba(217,119,6,.07)';
+    }} else {{
+      badge  = '<span style="background:#059669;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">&#9989; EM DIA</span>';
+      rowBg  = '';
+    }}
+    const fmtDt = s => s ? s.split('-').reverse().join('/') : '<em style="color:#94a3b8">Não registrada</em>';
+    let diasTxt = '—', diasStyle = '';
+    if (r.dias !== undefined && r.ultima) {{
+      if (r.dias < 0) {{
+        diasTxt  = Math.abs(r.dias) + ' dias atrás';
+        diasStyle = 'color:#dc2626;font-weight:600';
+      }} else if (r.dias <= 15) {{
+        diasTxt  = r.dias + ' dias';
+        diasStyle = 'color:#d97706;font-weight:600';
+      }} else {{
+        diasTxt  = r.dias + ' dias';
+        diasStyle = 'color:#059669';
+      }}
+    }} else if (!r.ultima) {{
+      diasTxt  = 'Nunca realizada';
+      diasStyle = 'color:#dc2626;font-weight:600';
+    }}
+    const tr = document.createElement('tr');
+    if (rowBg) tr.setAttribute('style', rowBg);
+    tr.innerHTML =
+      '<td><strong>' + r.cc + '</strong></td>' +
+      '<td>' + badge + '</td>' +
+      '<td>' + fmtDt(r.ultima) + '</td>' +
+      '<td>' + fmtDt(r.proxima) + '</td>' +
+      '<td class="num" style="' + diasStyle + '">' + diasTxt + '</td>';
+    tbody.appendChild(tr);
+  }});
+  document.getElementById('kManutVencidas').textContent = vencidas;
+  document.getElementById('kManutProximas').textContent = proximas;
+  document.getElementById('kManutOk').textContent = ok;
 }}
 
 function mkPagarCentroCusto() {{
@@ -5164,6 +5394,7 @@ function atualizar() {{
   try {{ initPonto(pontoMarcFilt); }} catch(e) {{ console.warn('initPonto:', e); }}
   try {{ mkOrcamento(); }} catch(e) {{ console.warn('mkOrcamento:', e); }}
   try {{ mkManutencaoCC(); }} catch(e) {{ console.warn('mkManutencaoCC:', e); }}
+  try {{ mkManutencao(); }} catch(e) {{ console.warn('mkManutencao:', e); }}
   try {{ mkMedicoes(); }} catch(e) {{ console.warn('mkMedicoes:', e); }}
   try {{ mkHorasApp(); }} catch(e) {{ console.warn('mkHorasApp:', e); }}
 }}
@@ -5394,11 +5625,12 @@ def main(
     clientes  = buscar_clientes()
     produtos  = buscar_produtos()
     contratos = buscar_contratos()
-    orcamentos = buscar_orcamentos()
-    medicoes   = buscar_medicoes()
-    horas_app  = buscar_horas_app(d_ini, d_fim)
-    os_list   = buscar_ordens_servico(d_ini, d_fim)
-    ponto_data = buscar_ponto(d_ini, d_fim)
+    orcamentos  = buscar_orcamentos()
+    medicoes    = buscar_medicoes()
+    horas_app   = buscar_horas_app(d_ini, d_fim)
+    manutencoes = buscar_manutencoes()
+    os_list     = buscar_ordens_servico(d_ini, d_fim)
+    ponto_data  = buscar_ponto(d_ini, d_fim)
 
     receber = financ.get("receber", [])
     pagar   = financ.get("pagar", [])
@@ -5429,7 +5661,7 @@ def main(
         os_list=os_list, contratos=contratos,
         caminho=h_path, data_ini=d_ini, data_fim=d_fim,
         ponto_data=ponto_data, orcamentos=orcamentos, medicoes=medicoes,
-        horas_app=horas_app,
+        horas_app=horas_app, manutencoes=manutencoes,
     )
 
     _prog(1.0, "✔ Concluído!")
