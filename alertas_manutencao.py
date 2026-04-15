@@ -161,15 +161,16 @@ def enviar_email(destinatario: str, equipamentos: list[dict]) -> None:
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"🔔 Locvix — Alerta de Manutenção ({len(equipamentos)} equipamento(s))"
     msg["From"]    = EMAIL_FROM
-    msg["To"]      = destinatario
+    msg["To"]      = destinatario if isinstance(destinatario, str) else ", ".join(destinatario)
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
+    rcpt_list = [destinatario] if isinstance(destinatario, str) else list(destinatario)
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
         smtp.ehlo()
         smtp.starttls()
         smtp.login(SMTP_USER, SMTP_PASS)
-        smtp.sendmail(EMAIL_FROM, [destinatario], msg.as_string())
-    print(f"  ✅ E-mail enviado → {destinatario} ({len(equipamentos)} equipamento(s))")
+        smtp.sendmail(EMAIL_FROM, rcpt_list, msg.as_string())
+    print(f"  ✅ E-mail enviado → {', '.join(rcpt_list)} ({len(equipamentos)} equipamento(s))")
 
 
 # ── Main ──────────────────────────────────────────────────────────
@@ -210,7 +211,7 @@ def main() -> int:
         }
         email = (rec.get("responsavel_email") or "").strip()
         # Sempre envia para os e-mails padrão
-        defaults = [e.strip() for e in EMAIL_DEFAULT.split(",") if e.strip()]
+        defaults = [e.strip() for e in EMAIL_DEFAULT.replace("\n", ",").split(",") if e.strip()]
         destinos = set(defaults)
         if email:
             destinos.add(email)
@@ -224,20 +225,29 @@ def main() -> int:
         print("  ✅ Todos os equipamentos estão em dia. Nenhum alerta necessário.")
         return 0
 
-    print(f"  {total_alertas} equipamento(s) requerem atenção.")
+    # Consolida: todos os equipamentos vão num único e-mail para todos os destinos padrão
+    defaults = [e.strip() for e in EMAIL_DEFAULT.replace("\n", ",").split(",") if e.strip()]
+    todos_equipamentos = []
+    seen = set()
+    for eqs in por_email.values():
+        for eq in eqs:
+            if eq["cc"] not in seen:
+                seen.add(eq["cc"])
+                todos_equipamentos.append(eq)
+
+    print(f"  {len(todos_equipamentos)} equipamento(s) requerem atenção.")
+    print(f"  Destinatários: {', '.join(defaults) if defaults else '(nenhum)'}")
 
     erros = 0
-    for email, equipamentos in por_email.items():
+    if defaults and todos_equipamentos:
         try:
-            enviar_email(email, equipamentos)
+            enviar_email(defaults, todos_equipamentos)
         except Exception as e:
-            print(f"  [ERRO] Falha ao enviar para {email}: {e}")
+            print(f"  [ERRO] Falha ao enviar: {e}")
             erros += 1
 
     if sem_email:
-        print(f"  [AVISO] {len(sem_email)} equipamento(s) sem e-mail responsável definido:")
-        for e in sem_email:
-            print(f"    • {e['cc']} ({e['status']})")
+        print(f"  [AVISO] {len(sem_email)} equipamento(s) sem e-mail responsável definido.")
 
     print("\n  Concluído.")
     return 1 if erros else 0
