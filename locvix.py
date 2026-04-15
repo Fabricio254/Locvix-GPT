@@ -3409,7 +3409,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
         <div class="kpi-value" id="kManutVencidas">—</div>
       </div>
       <div class="kpi-card orange">
-        <div class="kpi-label">⚠️ Próximas (≤15 dias)</div>
+        <div class="kpi-label">⚠️ Próximas (≤5 dias)</div>
         <div class="kpi-value" id="kManutProximas">—</div>
       </div>
       <div class="kpi-card green">
