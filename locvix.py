@@ -3388,11 +3388,6 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
           <input id="mFormData" type="date"
             style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
         </div>
-        <div style="flex:2;min-width:180px;">
-          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">E-mail do responsável</label>
-          <input id="mFormEmail" type="email" placeholder="responsavel@locvix.com.br"
-            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
-        </div>
         <div style="flex:none;display:flex;gap:8px;">
           <button onclick="salvarManutencao()"
             style="background:#1e3a5f;color:#fff;border:none;border-radius:6px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
@@ -4486,7 +4481,6 @@ function mkManutencao() {{
 async function salvarManutencao() {{
   const equip = (document.getElementById('mFormEquip').value || '').trim();
   const data  = (document.getElementById('mFormData').value  || '').trim();
-  const email = (document.getElementById('mFormEmail').value || '').trim();
   const msg   = document.getElementById('mFormMsg');
 
   if (!equip) {{ _mMsg(msg, '\u274c Selecione o equipamento.', '#dc2626'); return; }}
@@ -4495,7 +4489,7 @@ async function salvarManutencao() {{
   const sbUrl  = _SB_URL;
   const sbAnon = _SB_ANON;
   if (!sbUrl || sbUrl === '') {{
-    _mMsg(msg, '\u26a0\ufe0f Supabase n\u00e3o configurado. Use o formul\u00e1rio do Streamlit.', '#d97706');
+    _mMsg(msg, '\u26a0\ufe0f Supabase n\u00e3o configurado.', '#d97706');
     return;
   }}
 
@@ -4505,8 +4499,7 @@ async function salvarManutencao() {{
   }};
   const payload = JSON.stringify({{
     equipamento: equip, ultima_manutencao: data,
-    responsavel_email: email || null, intervalo_meses: 2,
-    updated_at: new Date().toISOString()
+    intervalo_meses: 2, updated_at: new Date().toISOString()
   }});
   _mMsg(msg, '\u23f3 Salvando...', '#0891b2');
   try {{
@@ -4516,7 +4509,6 @@ async function salvarManutencao() {{
     if (!r.ok) throw new Error('HTTP ' + r.status);
     _mMsg(msg, '\u2705 ' + equip + ' \u2014 manuten\u00e7\u00e3o registrada em ' + data.split('-').reverse().join('/'), '#059669');
     document.getElementById('mFormEquip').value = '';
-    document.getElementById('mFormEmail').value = '';
     // Atualiza tabela de status localmente
     const idx = MANUTENCAO.findIndex(r => r.cc === equip);
     const hoje = new Date(); hoje.setHours(0,0,0,0);
@@ -4524,7 +4516,7 @@ async function salvarManutencao() {{
     const prox = new Date(dt); prox.setDate(prox.getDate() + 60);
     const dias = Math.round((prox - hoje) / 86400000);
     const st = dias < 0 ? 'vencida' : (dias <= 5 ? 'proxima' : 'ok');
-    const rec = {{ cc: equip, ultima: data, proxima: prox.toISOString().slice(0,10), status: st, dias: dias, email: email }};
+    const rec = {{ cc: equip, ultima: data, proxima: prox.toISOString().slice(0,10), status: st, dias: dias }};
     if (idx >= 0) MANUTENCAO[idx] = rec; else MANUTENCAO.push(rec);
     mkManutencao();
   }} catch(e) {{
@@ -4560,7 +4552,6 @@ async function deletarManutencao() {{
     }}
     mkManutencao();
     sel.value = '';
-    document.getElementById('mFormEmail').value = '';
     document.getElementById('mFormData').value = new Date().toISOString().slice(0,10);
   }} catch(e) {{
     _mMsg(msg, '\u274c Erro ao excluir: ' + e.message, '#dc2626');
@@ -5594,8 +5585,6 @@ document.addEventListener('DOMContentLoaded', () => {{
     }});
     mSel.addEventListener('change', () => {{
       const rec = MANUTENCAO.find(r => r.cc === mSel.value);
-      const em = document.getElementById('mFormEmail');
-      if (em && rec && rec.email) em.value = rec.email;
       const dt = document.getElementById('mFormData');
       if (dt && rec && rec.ultima) dt.value = rec.ultima;
     }});

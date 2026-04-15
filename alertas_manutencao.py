@@ -209,16 +209,15 @@ def main() -> int:
             "dias":   dias,
         }
         email = (rec.get("responsavel_email") or "").strip()
+        # Sempre envia para os e-mails padrão
+        defaults = [e.strip() for e in EMAIL_DEFAULT.split(",") if e.strip()]
+        destinos = set(defaults)
         if email:
-            por_email.setdefault(email, []).append(entry)
-        else:
-            # EMAIL_DEFAULT pode conter múltiplos e-mails separados por vírgula
-            defaults = [e.strip() for e in EMAIL_DEFAULT.split(",") if e.strip()]
-            if defaults:
-                for def_em in defaults:
-                    por_email.setdefault(def_em, []).append(entry)
-            else:
-                sem_email.append(entry)
+            destinos.add(email)
+        for dest in destinos:
+            por_email.setdefault(dest, []).append(entry)
+        if not destinos:
+            sem_email.append(entry)
 
     total_alertas = sum(len(v) for v in por_email.values()) + len(sem_email)
     if total_alertas == 0:
