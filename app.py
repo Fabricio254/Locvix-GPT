@@ -492,62 +492,6 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
         )
     st.success("✅ Dashboard gerado com sucesso!")
 
-    # ── Painel de Manutenção Preventiva ──
-    if st.session_state.get("modulo_ativo") == "manutencao":
-        with st.expander("🔧 Registrar / Atualizar Manutenção", expanded=False):
-            st.markdown(
-                "Registre a **data da última manutenção** de cada equipamento. "
-                "O sistema calculará automaticamente a próxima data (2 meses) e exibirá o status no dashboard.",
-                unsafe_allow_html=False,
-            )
-            _c_eq, _c_dt, _c_em = st.columns([3, 2, 3])
-            with _c_eq:
-                _manut_equip = st.text_input(
-                    "Equipamento / Centro de Custo",
-                    key="_manut_equip",
-                    placeholder="Ex: GUINDASTE GJ-01",
-                )
-            with _c_dt:
-                _manut_data = st.date_input(
-                    "Data da última manutenção",
-                    value=date.today(),
-                    format="DD/MM/YYYY",
-                    key="_manut_data",
-                )
-            with _c_em:
-                _manut_email = st.text_input(
-                    "E-mail do responsável (alertas automáticos)",
-                    key="_manut_email",
-                    placeholder="responsavel@locvix.com.br",
-                )
-            _cb_salvar, _ = st.columns([1, 4])
-            with _cb_salvar:
-                if st.button("💾 Salvar Manutenção", use_container_width=True, key="_btn_salvar_manut"):
-                    if not _manut_equip.strip():
-                        st.error("❌ Informe o nome do equipamento / Centro de Custo.")
-                    else:
-                        try:
-                            if _BASE_DIR not in sys.path:
-                                sys.path.insert(0, _BASE_DIR)
-                            _lv_m = sys.modules.get("locvix")
-                            if _lv_m is None:
-                                import locvix as _lv_m
-                            _lv_m.SUPABASE_URL  = os.getenv("SUPABASE_URL",  _lv_m.SUPABASE_URL)
-                            _lv_m.SUPABASE_ANON = os.getenv("SUPABASE_ANON", _lv_m.SUPABASE_ANON)
-                            _ok_m = _lv_m.salvar_manutencao(
-                                equipamento=_manut_equip.strip(),
-                                data_str=_manut_data.strftime("%Y-%m-%d"),
-                                email=_manut_email.strip(),
-                            )
-                            if _ok_m:
-                                st.success(f"✅ Manutenção registrada: **{_manut_equip.strip()}** — {_manut_data.strftime('%d/%m/%Y')}")
-                                st.session_state.pop(HTML_KEY, None)   # força regeneração do dashboard
-                                st.rerun()
-                            else:
-                                st.error("❌ Erro ao salvar. Verifique as credenciais Supabase nos secrets.")
-                        except Exception as _e_manut:
-                            st.error(f"❌ Erro: {_e_manut}")
-
     # ── Ações do módulo Orçamento ──
     if st.session_state.get("modulo_ativo") == "orcamento" and not st.session_state.get("_show_orc_form") and not st.session_state.get("_show_del_orc") and not st.session_state.get("_show_edit_orc"):
         _col_criar, _col_editar, _col_excluir, _col_atualizar = st.columns(4)
@@ -1213,6 +1157,66 @@ if HTML_KEY in st.session_state and st.session_state.get(STATUS_KEY) == "ok":
     _ctx_dash = st.container()
 
     with _ctx_dash:
+        # ── Formulário de manutenção — aparece ACIMA do dashboard quando módulo ativo ──
+        if st.session_state.get("modulo_ativo") == "manutencao":
+            st.markdown(
+                "<div style='background:#1e3a5f;border-radius:10px;padding:16px 20px;margin-bottom:12px;'>"
+                "<span style='color:#fff;font-size:17px;font-weight:700'>🔧 Registrar / Atualizar Manutenção</span>"
+                "<br><span style='color:#93c5fd;font-size:13px'>Preencha abaixo para registrar a data da última manutenção. "
+                "O sistema calculará automaticamente a próxima (ciclo de 2 meses).</span></div>",
+                unsafe_allow_html=True,
+            )
+            _c_eq, _c_dt, _c_em, _c_btn = st.columns([3, 2, 3, 1])
+            with _c_eq:
+                _manut_equip = st.text_input(
+                    "Equipamento / Centro de Custo",
+                    key="_manut_equip",
+                    placeholder="Ex: GUINDASTE GJ-01",
+                )
+            with _c_dt:
+                _manut_data = st.date_input(
+                    "Data da última manutenção",
+                    value=date.today(),
+                    format="DD/MM/YYYY",
+                    key="_manut_data",
+                )
+            with _c_em:
+                _manut_email = st.text_input(
+                    "E-mail do responsável",
+                    key="_manut_email",
+                    placeholder="responsavel@locvix.com.br",
+                )
+            with _c_btn:
+                st.markdown("<div style='margin-top:1.75rem'>", unsafe_allow_html=True)
+                _btn_salvar_m = st.button("💾 Salvar", use_container_width=True, key="_btn_salvar_manut", type="primary")
+                st.markdown("</div>", unsafe_allow_html=True)
+            if _btn_salvar_m:
+                if not _manut_equip.strip():
+                    st.error("❌ Informe o nome do equipamento / Centro de Custo.")
+                else:
+                    try:
+                        if _BASE_DIR not in sys.path:
+                            sys.path.insert(0, _BASE_DIR)
+                        _lv_m = sys.modules.get("locvix")
+                        if _lv_m is None:
+                            import locvix as _lv_m
+                        _lv_m.SUPABASE_URL  = os.getenv("SUPABASE_URL",  _lv_m.SUPABASE_URL)
+                        _lv_m.SUPABASE_ANON = os.getenv("SUPABASE_ANON", _lv_m.SUPABASE_ANON)
+                        _ok_m = _lv_m.salvar_manutencao(
+                            equipamento=_manut_equip.strip(),
+                            data_str=_manut_data.strftime("%Y-%m-%d"),
+                            email=_manut_email.strip(),
+                        )
+                        if _ok_m:
+                            st.success(f"✅ **{_manut_equip.strip()}** — manutenção registrada em {_manut_data.strftime('%d/%m/%Y')}")
+                            st.session_state.pop(HTML_KEY, None)
+                            st.rerun()
+                        else:
+                            st.error("❌ Erro ao salvar. Verifique as credenciais Supabase nos secrets.")
+                    except Exception as _e_manut:
+                        st.error(f"❌ Erro: {_e_manut}")
+            st.markdown("<hr style='margin:12px 0 8px;border-color:#e2e8f0'>", unsafe_allow_html=True)
+
         _html_safe = st.session_state[HTML_KEY].encode("ascii", errors="xmlcharrefreplace").decode("ascii")
 
         # Inject module-activation script based on sidebar selection
