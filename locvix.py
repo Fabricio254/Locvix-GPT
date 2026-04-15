@@ -2660,7 +2660,7 @@ def gerar_dashboard_html(
                 _dt_ultima  = date.fromisoformat(_ultima)
                 _dt_proxima = _dt_ultima + timedelta(days=_intervalo * 30)
                 _dias       = (_dt_proxima - _hoje_d).days
-                _status     = "vencida" if _dias < 0 else ("proxima" if _dias <= 15 else "ok")
+                _status     = "vencida" if _dias < 0 else ("proxima" if _dias <= 5 else "ok")
                 _proxima_s  = _dt_proxima.isoformat()
             except Exception:
                 _status, _dias, _proxima_s = "vencida", -9999, ""
@@ -3393,10 +3393,14 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
           <input id="mFormEmail" type="email" placeholder="responsavel@locvix.com.br"
             style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
         </div>
-        <div style="flex:none;">
+        <div style="flex:none;display:flex;gap:8px;">
           <button onclick="salvarManutencao()"
             style="background:#1e3a5f;color:#fff;border:none;border-radius:6px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
             💾 Salvar
+          </button>
+          <button onclick="deletarManutencao()"
+            style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            🗑 Excluir
           </button>
         </div>
       </div>
@@ -4452,7 +4456,7 @@ function mkManutencao() {{
       if (r.dias < 0) {{
         diasTxt  = Math.abs(r.dias) + ' dias atrás';
         diasStyle = 'color:#dc2626;font-weight:600';
-      }} else if (r.dias <= 15) {{
+      }} else if (r.dias <= 5) {{
         diasTxt  = r.dias + ' dias';
         diasStyle = 'color:#d97706;font-weight:600';
       }} else {{
@@ -4519,7 +4523,7 @@ async function salvarManutencao() {{
     const dt = new Date(data + 'T00:00:00');
     const prox = new Date(dt); prox.setDate(prox.getDate() + 60);
     const dias = Math.round((prox - hoje) / 86400000);
-    const st = dias < 0 ? 'vencida' : (dias <= 15 ? 'proxima' : 'ok');
+    const st = dias < 0 ? 'vencida' : (dias <= 5 ? 'proxima' : 'ok');
     const rec = {{ cc: equip, ultima: data, proxima: prox.toISOString().slice(0,10), status: st, dias: dias, email: email }};
     if (idx >= 0) MANUTENCAO[idx] = rec; else MANUTENCAO.push(rec);
     mkManutencao();
@@ -4529,6 +4533,38 @@ async function salvarManutencao() {{
 }}
 function _mMsg(el, txt, cor) {{
   el.textContent = txt; el.style.color = cor; el.style.display = '';
+}}
+
+// ── Excluir manutenção via Supabase REST ───────────────────────────
+async function deletarManutencao() {{
+  const sel   = document.getElementById('mFormEquip');
+  const equip = (sel ? sel.value : '').trim();
+  const msg   = document.getElementById('mFormMsg');
+  if (!equip) {{ _mMsg(msg, '\u274c Selecione o equipamento a excluir.', '#dc2626'); return; }}
+  if (!confirm('Tem certeza que deseja excluir o registro de manuten\u00e7\u00e3o de "' + equip + '"?')) return;
+  const sbUrl  = _SB_URL;
+  const sbAnon = _SB_ANON;
+  if (!sbUrl) {{ _mMsg(msg, '\u26a0\ufe0f Supabase n\u00e3o configurado.', '#d97706'); return; }}
+  _mMsg(msg, '\u23f3 Excluindo...', '#0891b2');
+  try {{
+    const r = await fetch(
+      sbUrl + '/rest/v1/manutencoes_equipamentos?equipamento=eq.' + encodeURIComponent(equip),
+      {{ method: 'DELETE', headers: {{ 'apikey': sbAnon, 'Authorization': 'Bearer ' + sbAnon }} }}
+    );
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    _mMsg(msg, '\u2705 Registro de ' + equip + ' exclu\u00eddo.', '#059669');
+    // Reseta localmente
+    const idx = MANUTENCAO.findIndex(x => x.cc === equip);
+    if (idx >= 0) {{
+      MANUTENCAO[idx] = {{ cc: equip, ultima: null, proxima: null, status: 'vencida', dias: -9999, email: null }};
+    }}
+    mkManutencao();
+    sel.value = '';
+    document.getElementById('mFormEmail').value = '';
+    document.getElementById('mFormData').value = new Date().toISOString().slice(0,10);
+  }} catch(e) {{
+    _mMsg(msg, '\u274c Erro ao excluir: ' + e.message, '#dc2626');
+  }}
 }}
 
 function mkPagarCentroCusto() {{

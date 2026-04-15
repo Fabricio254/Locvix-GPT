@@ -32,7 +32,7 @@ EMAIL_FROM      = os.environ.get("EMAIL_FROM", SMTP_USER)
 EMAIL_DEFAULT   = os.environ.get("EMAIL_DEFAULT", "")  # fallback para equipamentos sem e-mail
 
 # Dias de antecedência para emitir alerta de "próxima"
-AVISO_DIAS = 15
+AVISO_DIAS = 5
 
 
 # ── Busca registros ────────────────────────────────────────────────
@@ -211,10 +211,14 @@ def main() -> int:
         email = (rec.get("responsavel_email") or "").strip()
         if email:
             por_email.setdefault(email, []).append(entry)
-        elif EMAIL_DEFAULT:
-            por_email.setdefault(EMAIL_DEFAULT, []).append(entry)
         else:
-            sem_email.append(entry)
+            # EMAIL_DEFAULT pode conter múltiplos e-mails separados por vírgula
+            defaults = [e.strip() for e in EMAIL_DEFAULT.split(",") if e.strip()]
+            if defaults:
+                for def_em in defaults:
+                    por_email.setdefault(def_em, []).append(entry)
+            else:
+                sem_email.append(entry)
 
     total_alertas = sum(len(v) for v in por_email.values()) + len(sem_email)
     if total_alertas == 0:
