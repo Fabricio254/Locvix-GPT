@@ -2173,12 +2173,12 @@ def buscar_horas_app(data_ini: str, data_fim: str) -> list[dict]:
 # ══════════════════════════════════════════════════════════════════
 
 def buscar_manutencoes() -> list[dict]:
-  """
-  Busca registros de manutenção preventiva de equipamentos via Supabase.
-  Tabela: manutencoes_equipamentos
-  Colunas: id, equipamento, ultima_manutencao, responsavel_email,
-       intervalo_meses, tipo_servico, updated_at
-  """
+    """
+    Busca registros de manutenção preventiva de equipamentos via Supabase.
+    Tabela: manutencoes_equipamentos
+    Colunas: id, equipamento, ultima_manutencao, responsavel_email,
+             intervalo_meses, tipo_servico, updated_at
+    """
     try:
         if not SUPABASE_URL or not SUPABASE_ANON:
             return []
@@ -2659,7 +2659,7 @@ def gerar_dashboard_html(
         _ultima   = (_rec.get("ultima_manutencao") or "")[:10]
         _intervalo = int(_rec.get("intervalo_meses") or 2)
         _email    = _rec.get("responsavel_email") or ""
-      _tipo_srv = _rec.get("tipo_servico") or ""
+        _tipo_srv = _rec.get("tipo_servico") or ""
         if _ultima:
             try:
                 _dt_ultima  = date.fromisoformat(_ultima)
