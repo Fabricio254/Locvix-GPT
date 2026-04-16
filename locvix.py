@@ -3432,6 +3432,14 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
       <h3>📋 Status de Manutenção por Equipamento (ciclo a cada 2 meses)</h3>
       <div style="overflow-x:auto;">
         <table class="data-tbl" id="tblManutencao">
+          <colgroup>
+            <col style="width:24%"/>
+            <col style="width:10%"/>
+            <col style="width:24%"/>
+            <col style="width:14%"/>
+            <col style="width:14%"/>
+            <col style="width:14%"/>
+          </colgroup>
           <thead>
             <tr>
               <th>Equipamento / Centro de Custo</th>
