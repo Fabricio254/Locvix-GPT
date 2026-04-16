@@ -3433,9 +3433,9 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
       <div style="overflow-x:auto;">
         <table class="data-tbl" id="tblManutencao">
           <colgroup>
-            <col style="width:24%"/>
-            <col style="width:10%"/>
-            <col style="width:24%"/>
+            <col style="width:23%"/>
+            <col style="width:12%"/>
+            <col style="width:23%"/>
             <col style="width:14%"/>
             <col style="width:14%"/>
             <col style="width:14%"/>
