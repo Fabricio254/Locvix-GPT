@@ -3436,6 +3436,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
             <tr>
               <th>Equipamento / Centro de Custo</th>
               <th>Status</th>
+              <th>Tipo de Serviço</th>
               <th>Última Manutenção</th>
               <th>Próxima Manutenção</th>
               <th class="num">Dias Restantes</th>
@@ -4473,9 +4474,11 @@ function mkManutencao() {{
     }}
     const tr = document.createElement('tr');
     if (rowBg) tr.setAttribute('style', rowBg);
+    const srvTxt = r.tipo_servico ? r.tipo_servico : '<em style="color:#94a3b8">Não informado</em>';
     tr.innerHTML =
       '<td><strong>' + r.cc + '</strong></td>' +
       '<td>' + badge + '</td>' +
+      '<td>' + srvTxt + '</td>' +
       '<td>' + fmtDt(r.ultima) + '</td>' +
       '<td>' + fmtDt(r.proxima) + '</td>' +
       '<td class="num" style="' + diasStyle + '">' + diasTxt + '</td>';
