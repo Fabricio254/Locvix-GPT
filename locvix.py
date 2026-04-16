@@ -2490,7 +2490,6 @@ def gerar_dashboard_html(
     medicoes:     list | None = None,
     horas_app:    list | None = None,
     manutencoes:  list | None = None,
-  servicos:     list | None = None,
 ) -> str:
     """Gera dashboard HTML interativo completo para Locvix."""
     import json as _json
@@ -2643,7 +2642,6 @@ def gerar_dashboard_html(
     raw_orc = orcamentos or []  # já preparado em buscar_orcamentos()
     raw_med = medicoes or []    # já preparado em buscar_medicoes()
     raw_horas_app = horas_app or []  # registros do LocvixApp via Supabase
-    raw_servicos = servicos or []
 
     # ── Status de manutenção preventiva por Centro de Custo ─────────
     EXCLUIR_CC = {'ADM/FINANCEIRO','SUBLOCAÇÕES - TERCEIROS','SEM CENTRO DE CUSTO','MANUTENÇÃO'}
@@ -3396,10 +3394,8 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
         </div>
         <div style="flex:2;min-width:180px;">
           <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Tipo de serviço</label>
-          <select id="mFormServico"
-            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff;cursor:pointer;">
-            <option value="">— Selecione o serviço —</option>
-          </select>
+          <input id="mFormServico" type="text" placeholder="Ex: Troca de óleo"
+            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
         </div>
         <div style="flex:none;display:flex;gap:8px;">
           <button onclick="salvarManutencao()"
@@ -3741,7 +3737,6 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
 <script type="application/json" id="_dMEDICOES">{jv(raw_med)}</script>
 <script type="application/json" id="_dHORAS_APP">{jv(raw_horas_app)}</script>
 <script type="application/json" id="_dMANUTENCAO">{jv(raw_manutencoes)}</script>
-<script type="application/json" id="_dSERVICOS">{jv(raw_servicos)}</script>
 
 <script>
 // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -3764,7 +3759,6 @@ const ORCAMENTOS = _pd('_dORCAMENTOS');
 const MEDICOES   = _pd('_dMEDICOES');
 const HORAS_APP  = _pd('_dHORAS_APP');
 const MANUTENCAO = _pd('_dMANUTENCAO');
-const SERVICOS  = _pd('_dSERVICOS');
 const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do per\u00EDodo selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
 const _SB_URL  = '{supabase_url}';
@@ -5610,16 +5604,7 @@ document.addEventListener('DOMContentLoaded', () => {{
       if (srv && rec && rec.tipo_servico) srv.value = rec.tipo_servico;
     }});
   }}
-  // Popula select de serviços (GestãoClick)
   const mSrv = document.getElementById('mFormServico');
-  if (mSrv && SERVICOS && SERVICOS.length) {{
-    SERVICOS.slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||'')).forEach(s => {{
-      const nome = s.nome || s.descricao || s.Nome || '';
-      if (!nome) return;
-      const o = document.createElement('option');
-      o.value = nome; o.textContent = nome; mSrv.appendChild(o);
-    }});
-  }}
   try {{
     const saved = localStorage.getItem('locvix-theme');
     if (saved === 'dark') {{
@@ -5793,7 +5778,6 @@ def main(
     medicoes    = buscar_medicoes()
     horas_app   = buscar_horas_app(d_ini, d_fim)
     manutencoes = buscar_manutencoes()
-    servicos    = buscar_servicos()
     os_list     = buscar_ordens_servico(d_ini, d_fim)
     ponto_data  = buscar_ponto(d_ini, d_fim)
 
@@ -5826,7 +5810,7 @@ def main(
         os_list=os_list, contratos=contratos,
         caminho=h_path, data_ini=d_ini, data_fim=d_fim,
         ponto_data=ponto_data, orcamentos=orcamentos, medicoes=medicoes,
-      horas_app=horas_app, manutencoes=manutencoes, servicos=servicos,
+      horas_app=horas_app, manutencoes=manutencoes,
     )
 
     _prog(1.0, "✔ Concluído!")
