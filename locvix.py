@@ -3433,11 +3433,11 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
       <div style="overflow-x:auto;">
         <table class="data-tbl" id="tblManutencao">
           <colgroup>
-            <col style="width:23%"/>
-            <col style="width:12%"/>
-            <col style="width:23%"/>
-            <col style="width:14%"/>
-            <col style="width:14%"/>
+            <col style="width:28%"/>
+            <col style="width:11%"/>
+            <col style="width:19%"/>
+            <col style="width:13%"/>
+            <col style="width:15%"/>
             <col style="width:14%"/>
           </colgroup>
           <thead>
