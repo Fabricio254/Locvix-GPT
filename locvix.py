@@ -2173,12 +2173,12 @@ def buscar_horas_app(data_ini: str, data_fim: str) -> list[dict]:
 # ══════════════════════════════════════════════════════════════════
 
 def buscar_manutencoes() -> list[dict]:
-    """
-    Busca registros de manutenção preventiva de equipamentos via Supabase.
-    Tabela: manutencoes_equipamentos
-    Colunas: id, equipamento, ultima_manutencao, responsavel_email,
-             intervalo_meses, updated_at
-    """
+  """
+  Busca registros de manutenção preventiva de equipamentos via Supabase.
+  Tabela: manutencoes_equipamentos
+  Colunas: id, equipamento, ultima_manutencao, responsavel_email,
+       intervalo_meses, tipo_servico, updated_at
+  """
     try:
         if not SUPABASE_URL or not SUPABASE_ANON:
             return []
@@ -2190,7 +2190,7 @@ def buscar_manutencoes() -> list[dict]:
             f"{SUPABASE_URL}/rest/v1/manutencoes_equipamentos",
             headers=hdrs,
             params={
-                "select": "id,equipamento,ultima_manutencao,responsavel_email,intervalo_meses,updated_at",
+            "select": "id,equipamento,ultima_manutencao,responsavel_email,intervalo_meses,tipo_servico,updated_at",
                 "order":  "equipamento.asc",
             },
             timeout=15,
@@ -2205,7 +2205,8 @@ def buscar_manutencoes() -> list[dict]:
 
 
 def salvar_manutencao(equipamento: str, data_str: str,
-                      email: str = "", intervalo_meses: int = 2) -> bool:
+                      email: str = "", intervalo_meses: int = 2,
+                      tipo_servico: str = "") -> bool:
     """
     Salva ou atualiza um registro de manutenção no Supabase.
     data_str: formato 'YYYY-MM-DD'
@@ -2235,6 +2236,7 @@ def salvar_manutencao(equipamento: str, data_str: str,
             "ultima_manutencao": data_str,
             "responsavel_email": email.strip() if email.strip() else None,
             "intervalo_meses":   int(intervalo_meses),
+          "tipo_servico":      tipo_servico.strip() if tipo_servico.strip() else None,
             "updated_at":        datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
@@ -2488,6 +2490,7 @@ def gerar_dashboard_html(
     medicoes:     list | None = None,
     horas_app:    list | None = None,
     manutencoes:  list | None = None,
+  servicos:     list | None = None,
 ) -> str:
     """Gera dashboard HTML interativo completo para Locvix."""
     import json as _json
@@ -2640,6 +2643,7 @@ def gerar_dashboard_html(
     raw_orc = orcamentos or []  # já preparado em buscar_orcamentos()
     raw_med = medicoes or []    # já preparado em buscar_medicoes()
     raw_horas_app = horas_app or []  # registros do LocvixApp via Supabase
+    raw_servicos = servicos or []
 
     # ── Status de manutenção preventiva por Centro de Custo ─────────
     EXCLUIR_CC = {'ADM/FINANCEIRO','SUBLOCAÇÕES - TERCEIROS','SEM CENTRO DE CUSTO','MANUTENÇÃO'}
@@ -2655,6 +2659,7 @@ def gerar_dashboard_html(
         _ultima   = (_rec.get("ultima_manutencao") or "")[:10]
         _intervalo = int(_rec.get("intervalo_meses") or 2)
         _email    = _rec.get("responsavel_email") or ""
+      _tipo_srv = _rec.get("tipo_servico") or ""
         if _ultima:
             try:
                 _dt_ultima  = date.fromisoformat(_ultima)
@@ -2674,6 +2679,7 @@ def gerar_dashboard_html(
             "dias":     _dias,
             "email":    _email,
             "intervalo": _intervalo,
+        "tipo_servico": _tipo_srv,
         })
 
     def _clean_surrogates(o):
@@ -3388,6 +3394,13 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
           <input id="mFormData" type="date"
             style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
         </div>
+        <div style="flex:2;min-width:180px;">
+          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Tipo de serviço</label>
+          <select id="mFormServico"
+            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff;cursor:pointer;">
+            <option value="">— Selecione o serviço —</option>
+          </select>
+        </div>
         <div style="flex:none;display:flex;gap:8px;">
           <button onclick="salvarManutencao()"
             style="background:#1e3a5f;color:#fff;border:none;border-radius:6px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
@@ -3728,6 +3741,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
 <script type="application/json" id="_dMEDICOES">{jv(raw_med)}</script>
 <script type="application/json" id="_dHORAS_APP">{jv(raw_horas_app)}</script>
 <script type="application/json" id="_dMANUTENCAO">{jv(raw_manutencoes)}</script>
+<script type="application/json" id="_dSERVICOS">{jv(raw_servicos)}</script>
 
 <script>
 // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -3750,6 +3764,7 @@ const ORCAMENTOS = _pd('_dORCAMENTOS');
 const MEDICOES   = _pd('_dMEDICOES');
 const HORAS_APP  = _pd('_dHORAS_APP');
 const MANUTENCAO = _pd('_dMANUTENCAO');
+const SERVICOS  = _pd('_dSERVICOS');
 const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do per\u00EDodo selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
 const _SB_URL  = '{supabase_url}';
@@ -4481,6 +4496,7 @@ function mkManutencao() {{
 async function salvarManutencao() {{
   const equip = (document.getElementById('mFormEquip').value || '').trim();
   const data  = (document.getElementById('mFormData').value  || '').trim();
+  const serv  = (document.getElementById('mFormServico').value || '').trim();
   const msg   = document.getElementById('mFormMsg');
 
   if (!equip) {{ _mMsg(msg, '\u274c Selecione o equipamento.', '#dc2626'); return; }}
@@ -4499,6 +4515,7 @@ async function salvarManutencao() {{
   }};
   const payload = JSON.stringify({{
     equipamento: equip, ultima_manutencao: data,
+    tipo_servico: serv || null,
     intervalo_meses: 2, updated_at: new Date().toISOString()
   }});
   _mMsg(msg, '\u23f3 Salvando...', '#0891b2');
@@ -4509,6 +4526,7 @@ async function salvarManutencao() {{
     if (!r.ok) throw new Error('HTTP ' + r.status);
     _mMsg(msg, '\u2705 ' + equip + ' \u2014 manuten\u00e7\u00e3o registrada em ' + data.split('-').reverse().join('/'), '#059669');
     document.getElementById('mFormEquip').value = '';
+    document.getElementById('mFormServico').value = '';
     // Atualiza tabela de status localmente
     const idx = MANUTENCAO.findIndex(r => r.cc === equip);
     const hoje = new Date(); hoje.setHours(0,0,0,0);
@@ -4516,7 +4534,7 @@ async function salvarManutencao() {{
     const prox = new Date(dt); prox.setDate(prox.getDate() + 60);
     const dias = Math.round((prox - hoje) / 86400000);
     const st = dias < 0 ? 'vencida' : (dias <= 5 ? 'proxima' : 'ok');
-    const rec = {{ cc: equip, ultima: data, proxima: prox.toISOString().slice(0,10), status: st, dias: dias }};
+    const rec = {{ cc: equip, ultima: data, proxima: prox.toISOString().slice(0,10), status: st, dias: dias, tipo_servico: serv }};
     if (idx >= 0) MANUTENCAO[idx] = rec; else MANUTENCAO.push(rec);
     mkManutencao();
   }} catch(e) {{
@@ -4553,6 +4571,7 @@ async function deletarManutencao() {{
     mkManutencao();
     sel.value = '';
     document.getElementById('mFormData').value = new Date().toISOString().slice(0,10);
+    document.getElementById('mFormServico').value = '';
   }} catch(e) {{
     _mMsg(msg, '\u274c Erro ao excluir: ' + e.message, '#dc2626');
   }}
@@ -5587,6 +5606,18 @@ document.addEventListener('DOMContentLoaded', () => {{
       const rec = MANUTENCAO.find(r => r.cc === mSel.value);
       const dt = document.getElementById('mFormData');
       if (dt && rec && rec.ultima) dt.value = rec.ultima;
+      const srv = document.getElementById('mFormServico');
+      if (srv && rec && rec.tipo_servico) srv.value = rec.tipo_servico;
+    }});
+  }}
+  // Popula select de serviços (GestãoClick)
+  const mSrv = document.getElementById('mFormServico');
+  if (mSrv && SERVICOS && SERVICOS.length) {{
+    SERVICOS.slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||'')).forEach(s => {{
+      const nome = s.nome || s.descricao || s.Nome || '';
+      if (!nome) return;
+      const o = document.createElement('option');
+      o.value = nome; o.textContent = nome; mSrv.appendChild(o);
     }});
   }}
   try {{
@@ -5762,6 +5793,7 @@ def main(
     medicoes    = buscar_medicoes()
     horas_app   = buscar_horas_app(d_ini, d_fim)
     manutencoes = buscar_manutencoes()
+    servicos    = buscar_servicos()
     os_list     = buscar_ordens_servico(d_ini, d_fim)
     ponto_data  = buscar_ponto(d_ini, d_fim)
 
@@ -5794,7 +5826,7 @@ def main(
         os_list=os_list, contratos=contratos,
         caminho=h_path, data_ini=d_ini, data_fim=d_fim,
         ponto_data=ponto_data, orcamentos=orcamentos, medicoes=medicoes,
-        horas_app=horas_app, manutencoes=manutencoes,
+      horas_app=horas_app, manutencoes=manutencoes, servicos=servicos,
     )
 
     _prog(1.0, "✔ Concluído!")
