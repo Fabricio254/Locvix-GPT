@@ -198,12 +198,17 @@ def main() -> int:
     sem_email: list = []
 
     for rec in registros:
+        # Ignora registros de teste para não disparar alertas em produção.
+        equipamento_nome = (rec.get("equipamento") or "").strip()
+        if "TESTE" in equipamento_nome.upper():
+            continue
+
         status, dt_proxima, dias = calcular_status(rec)
         if status == "ok":
             continue   # em dia, sem alerta
 
         entry = {
-            "cc":     rec["equipamento"],
+            "cc":     equipamento_nome,
             "status": status,
             "ultima": (rec.get("ultima_manutencao") or "")[:10],
             "proxima": dt_proxima,
