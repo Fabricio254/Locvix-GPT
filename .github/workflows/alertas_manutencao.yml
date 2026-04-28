@@ -32,4 +32,6 @@ jobs:
           SMTP_PASS:      ${{ secrets.SMTP_PASS }}
           EMAIL_FROM:     ${{ secrets.EMAIL_FROM }}
           EMAIL_DEFAULT:  ${{ secrets.EMAIL_DEFAULT }}
+          FULLTRACK_API_KEY:     ${{ secrets.FULLTRACK_API_KEY }}
+          FULLTRACK_SECRET_KEY:  ${{ secrets.FULLTRACK_SECRET_KEY }}
         run: python alertas_manutencao.py
