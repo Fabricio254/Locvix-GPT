@@ -2169,6 +2169,43 @@ def buscar_horas_app(data_ini: str, data_fim: str) -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════
+#  FULLTRACK (Fulltime RESTrack API)
+# ══════════════════════════════════════════════════════════════════
+
+FULLTRACK_API_KEY    = os.getenv("FULLTRACK_API_KEY",    "530fdb8a61907a2f9904477a335f1a8eee0ea5d9")
+FULLTRACK_SECRET_KEY = os.getenv("FULLTRACK_SECRET_KEY", "8c002f8a04533e2f2ed428820f89dca5b3e9996a")
+FULLTRACK_BASE       = "https://ws.fulltrack2.com"
+
+def buscar_veiculos_fulltrack() -> list[dict]:
+    """
+    Busca lista de veículos/equipamentos via FullTrack (Fulltime RESTrack API).
+    Headers: apikey + secretkey (tudo minúsculo, sem hífen).
+    Retorna lista de dicts com keys: id, nome, placa.
+    """
+    try:
+        r = requests.get(
+            f"{FULLTRACK_BASE}/vehicles/all",
+            headers={"apikey": FULLTRACK_API_KEY, "secretkey": FULLTRACK_SECRET_KEY},
+            timeout=10,
+        )
+        data = r.json()
+        if data.get("status") and data.get("data"):
+            veiculos = [
+                {
+                    "id":    v.get("ras_vei_id", ""),
+                    "nome":  v.get("ras_vei_veiculo", ""),
+                    "placa": v.get("ras_vei_placa", ""),
+                }
+                for v in data["data"]
+            ]
+            print(f"  ✔ FullTrack: {len(veiculos)} veículos")
+            return veiculos
+    except Exception as e:
+        print(f"  [AVISO] buscar_veiculos_fulltrack: {e}")
+    return []
+
+
+# ══════════════════════════════════════════════════════════════════
 #  MANUTENÇÃO PREVENTIVA (Supabase — tabela manutencoes_equipamentos)
 # ══════════════════════════════════════════════════════════════════
 
@@ -2490,6 +2527,7 @@ def gerar_dashboard_html(
     medicoes:     list | None = None,
     horas_app:    list | None = None,
     manutencoes:  list | None = None,
+    veiculos_ft:  list | None = None,
 ) -> str:
     """Gera dashboard HTML interativo completo para Locvix."""
     import json as _json
@@ -3746,6 +3784,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
 <script type="application/json" id="_dMEDICOES">{jv(raw_med)}</script>
 <script type="application/json" id="_dHORAS_APP">{jv(raw_horas_app)}</script>
 <script type="application/json" id="_dMANUTENCAO">{jv(raw_manutencoes)}</script>
+<script type="application/json" id="_dVEICULOS_FT">{jv(list(veiculos_ft or []))}</script>
 
 <script>
 // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -3767,7 +3806,8 @@ const PONTO_MARC = _pd('_dPONTO_MARC');
 const ORCAMENTOS = _pd('_dORCAMENTOS');
 const MEDICOES   = _pd('_dMEDICOES');
 const HORAS_APP  = _pd('_dHORAS_APP');
-const MANUTENCAO = _pd('_dMANUTENCAO');
+const MANUTENCAO   = _pd('_dMANUTENCAO');
+const VEICULOS_FT  = _pd('_dVEICULOS_FT');
 const PERIODO_INI = '{ponto_d_ini_iso}';  // yyyy-mm-dd do per\u00EDodo selecionado
 const PERIODO_FIM = '{ponto_d_fim_iso}';
 const _SB_URL  = '{supabase_url}';
@@ -5603,10 +5643,17 @@ document.addEventListener('DOMContentLoaded', () => {{
   if (mfd) mfd.value = new Date().toISOString().slice(0,10);
   // Popula select de equipamentos
   const mSel = document.getElementById('mFormEquip');
-  if (mSel && MANUTENCAO && MANUTENCAO.length) {{
-    MANUTENCAO.slice().sort((a,b) => a.cc.localeCompare(b.cc)).forEach(r => {{
-      const o = document.createElement('option'); o.value = r.cc; o.textContent = r.cc; mSel.appendChild(o);
+  if (mSel) {{
+    // Preferir lista do FullTrack; fallback para centros de custo do financeiro
+    const equipList = (VEICULOS_FT && VEICULOS_FT.length)
+      ? VEICULOS_FT.slice().sort((a,b) => a.nome.localeCompare(b.nome))
+          .map(v => ({{ value: v.nome, label: v.placa ? v.nome + ' — ' + v.placa : v.nome }}))
+      : MANUTENCAO.slice().sort((a,b) => a.cc.localeCompare(b.cc))
+          .map(r => ({{ value: r.cc, label: r.cc }}));
+    equipList.forEach(e => {{
+      const o = document.createElement('option'); o.value = e.value; o.textContent = e.label; mSel.appendChild(o);
     }});
+    if (equipList.length) {{
     mSel.addEventListener('change', () => {{
       const rec = MANUTENCAO.find(r => r.cc === mSel.value);
       const dt = document.getElementById('mFormData');
@@ -5614,6 +5661,7 @@ document.addEventListener('DOMContentLoaded', () => {{
       const srv = document.getElementById('mFormServico');
       if (srv && rec && rec.tipo_servico) srv.value = rec.tipo_servico;
     }});
+    }} // end if equipList.length
   }}
   const mSrv = document.getElementById('mFormServico');
   try {{
@@ -5789,6 +5837,7 @@ def main(
     medicoes    = buscar_medicoes()
     horas_app   = buscar_horas_app(d_ini, d_fim)
     manutencoes = buscar_manutencoes()
+    veiculos_ft = buscar_veiculos_fulltrack()
     os_list     = buscar_ordens_servico(d_ini, d_fim)
     ponto_data  = buscar_ponto(d_ini, d_fim)
 
@@ -5821,7 +5870,7 @@ def main(
         os_list=os_list, contratos=contratos,
         caminho=h_path, data_ini=d_ini, data_fim=d_fim,
         ponto_data=ponto_data, orcamentos=orcamentos, medicoes=medicoes,
-      horas_app=horas_app, manutencoes=manutencoes,
+        horas_app=horas_app, manutencoes=manutencoes, veiculos_ft=veiculos_ft,
     )
 
     _prog(1.0, "✔ Concluído!")
