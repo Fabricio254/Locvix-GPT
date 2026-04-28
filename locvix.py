@@ -2178,28 +2178,44 @@ FULLTRACK_BASE       = "https://ws.fulltrack2.com"
 
 def buscar_veiculos_fulltrack() -> list[dict]:
     """
-    Busca lista de veículos/equipamentos via FullTrack (Fulltime RESTrack API).
-    Headers: apikey + secretkey (tudo minúsculo, sem hífen).
-    Retorna lista de dicts com keys: id, nome, placa.
+    Busca lista de veículos/equipamentos via FullTrack com horímetro e hodômetro atuais.
+    Combina /vehicles/all (cadastro) com /events/all (posição e sensores atuais).
+    Retorna lista de dicts com keys: id, nome, placa, horimetro, hodometro, ignicao, data_evento.
     """
+    _h = {"apikey": FULLTRACK_API_KEY, "secretkey": FULLTRACK_SECRET_KEY}
     try:
-        r = requests.get(
-            f"{FULLTRACK_BASE}/vehicles/all",
-            headers={"apikey": FULLTRACK_API_KEY, "secretkey": FULLTRACK_SECRET_KEY},
-            timeout=10,
-        )
-        data = r.json()
-        if data.get("status") and data.get("data"):
-            veiculos = [
-                {
-                    "id":    v.get("ras_vei_id", ""),
-                    "nome":  v.get("ras_vei_veiculo", ""),
-                    "placa": v.get("ras_vei_placa", ""),
-                }
-                for v in data["data"]
-            ]
-            print(f"  ✔ FullTrack: {len(veiculos)} veículos")
-            return veiculos
+        # 1) Cadastro dos veículos
+        r_vei = requests.get(f"{FULLTRACK_BASE}/vehicles/all", headers=_h, timeout=10)
+        d_vei = r_vei.json()
+        if not (d_vei.get("status") and d_vei.get("data")):
+            return []
+
+        # 2) Eventos atuais (horímetro, hodômetro, ignição)
+        eventos_map: dict = {}
+        try:
+            r_ev = requests.get(f"{FULLTRACK_BASE}/events/all", headers=_h, timeout=10)
+            for ev in (r_ev.json().get("data") or []):
+                vid = str(ev.get("ras_vei_id", ""))
+                eventos_map[vid] = ev
+        except Exception as e_ev:
+            print(f"  [AVISO] events/all: {e_ev}")
+
+        veiculos = []
+        for v in d_vei["data"]:
+            vid = str(v.get("ras_vei_id", ""))
+            ev  = eventos_map.get(vid, {})
+            veiculos.append({
+                "id":          vid,
+                "nome":        v.get("ras_vei_veiculo", ""),
+                "placa":       v.get("ras_vei_placa", ""),
+                "horimetro":   float(ev.get("ras_eve_horimetro") or 0),
+                "hodometro":   float(ev.get("ras_eve_hodometro") or 0),
+                "ignicao":     int(ev.get("ras_eve_ignicao") or 0),
+                "velocidade":  float(ev.get("ras_eve_velocidade") or 0),
+                "data_evento": ev.get("ras_eve_data_gps", ""),
+            })
+        print(f"  ✔ FullTrack: {len(veiculos)} veículos (horímetro incluso)")
+        return veiculos
     except Exception as e:
         print(f"  [AVISO] buscar_veiculos_fulltrack: {e}")
     return []
@@ -2227,7 +2243,7 @@ def buscar_manutencoes() -> list[dict]:
             f"{SUPABASE_URL}/rest/v1/manutencoes_equipamentos",
             headers=hdrs,
             params={
-            "select": "id,equipamento,ultima_manutencao,responsavel_email,intervalo_meses,tipo_servico,updated_at",
+                "select": "id,equipamento,ultima_manutencao,responsavel_email,intervalo_meses,tipo_servico,horimetro_ultima_manutencao,intervalo_horas,updated_at",
                 "order":  "equipamento.asc",
             },
             timeout=15,
@@ -2241,12 +2257,14 @@ def buscar_manutencoes() -> list[dict]:
         return []
 
 
-def salvar_manutencao(equipamento: str, data_str: str,
+def salvar_manutencao(equipamento: str, data_str: str = "",
                       email: str = "", intervalo_meses: int = 2,
-                      tipo_servico: str = "") -> bool:
+                      tipo_servico: str = "",
+                      horimetro_ultima: float | None = None,
+                      intervalo_horas: float | None = None) -> bool:
     """
     Salva ou atualiza um registro de manutenção no Supabase.
-    data_str: formato 'YYYY-MM-DD'
+    data_str: formato 'YYYY-MM-DD' (opcional quando horimetro_ultima informado)
     Retorna True em caso de sucesso.
     """
     try:
@@ -2270,12 +2288,17 @@ def salvar_manutencao(equipamento: str, data_str: str,
         existing = r_get.json()
 
         payload = {
-            "ultima_manutencao": data_str,
             "responsavel_email": email.strip() if email.strip() else None,
             "intervalo_meses":   int(intervalo_meses),
-          "tipo_servico":      tipo_servico.strip() if tipo_servico.strip() else None,
+            "tipo_servico":      tipo_servico.strip() if tipo_servico.strip() else None,
             "updated_at":        datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
+        if data_str:
+            payload["ultima_manutencao"] = data_str
+        if horimetro_ultima is not None:
+            payload["horimetro_ultima_manutencao"] = float(horimetro_ultima)
+        if intervalo_horas is not None:
+            payload["intervalo_horas"] = float(intervalo_horas)
 
         if existing:
             r_up = requests.patch(
@@ -2681,41 +2704,84 @@ def gerar_dashboard_html(
     raw_med = medicoes or []    # já preparado em buscar_medicoes()
     raw_horas_app = horas_app or []  # registros do LocvixApp via Supabase
 
-    # ── Status de manutenção preventiva por Centro de Custo ─────────
+    # ── Status de manutenção preventiva ────────────────────────────
+    # Fonte primária: veículos FullTrack (com horímetro ao vivo)
+    # Fallback: centros de custo das despesas financeiras
     EXCLUIR_CC = {'ADM/FINANCEIRO','SUBLOCAÇÕES - TERCEIROS','SEM CENTRO DE CUSTO','MANUTENÇÃO'}
-    _cc_set = sorted({
-        r["cc"].strip() for r in raw_pag_all
-        if r["cc"] and r["cc"].strip().upper() not in EXCLUIR_CC
-    })
     _manut_dict = {rec["equipamento"]: rec for rec in (manutencoes or [])}
     _hoje_d = date.today()
     raw_manutencoes = []
-    for _cc in _cc_set:
-        _rec = _manut_dict.get(_cc, {})
-        _ultima   = (_rec.get("ultima_manutencao") or "")[:10]
-        _intervalo = int(_rec.get("intervalo_meses") or 2)
-        _email    = _rec.get("responsavel_email") or ""
+
+    # Fonte dos equipamentos
+    _vei_source = []
+    if veiculos_ft:
+        for _v in veiculos_ft:
+            _vei_source.append({
+                "cc":             _v["nome"],
+                "placa":          _v.get("placa", ""),
+                "horimetro_atual": float(_v.get("horimetro") or 0),
+                "hodometro_atual": float(_v.get("hodometro") or 0),
+                "ignicao":         int(_v.get("ignicao") or 0),
+                "data_evento":     _v.get("data_evento", ""),
+            })
+    else:
+        _cc_set = sorted({
+            r["cc"].strip() for r in raw_pag_all
+            if r["cc"] and r["cc"].strip().upper() not in EXCLUIR_CC
+        })
+        for _cc in _cc_set:
+            _vei_source.append({"cc": _cc, "placa": "", "horimetro_atual": None,
+                                 "hodometro_atual": None, "ignicao": 0, "data_evento": ""})
+
+    for _vei in _vei_source:
+        _cc      = _vei["cc"]
+        _rec     = _manut_dict.get(_cc, {})
         _tipo_srv = _rec.get("tipo_servico") or ""
-        if _ultima:
-            try:
-                _dt_ultima  = date.fromisoformat(_ultima)
-                _dt_proxima = _dt_ultima + timedelta(days=_intervalo * 30)
-                _dias       = (_dt_proxima - _hoje_d).days
-                _status     = "vencida" if _dias < 0 else ("proxima" if _dias <= 5 else "ok")
-                _proxima_s  = _dt_proxima.isoformat()
-            except Exception:
-                _status, _dias, _proxima_s = "vencida", -9999, ""
+        _email    = _rec.get("responsavel_email") or ""
+        _horimetro_atual = _vei["horimetro_atual"]
+
+        # Horímetro da última manutenção e intervalo em horas
+        _horo_ult = _rec.get("horimetro_ultima_manutencao")
+        _horo_ult = float(_horo_ult) if _horo_ult is not None else None
+        _int_horas = float(_rec.get("intervalo_horas") or 250)
+
+        # Status baseado em horímetro (preferido) ou data
+        _horas_rest = None
+        _horo_prox  = None
+        if _horimetro_atual is not None and _horo_ult is not None:
+            _horo_prox  = round(_horo_ult + _int_horas, 1)
+            _horas_rest = round(_horo_prox - _horimetro_atual, 1)
+            _status = "vencida" if _horas_rest < 0 else ("proxima" if _horas_rest <= 20 else "ok")
         else:
-            _status, _dias, _proxima_s = "vencida", -9999, ""
+            # Fallback: data
+            _ultima   = (_rec.get("ultima_manutencao") or "")[:10]
+            _intervalo = int(_rec.get("intervalo_meses") or 2)
+            if _ultima:
+                try:
+                    _dt_ultima  = date.fromisoformat(_ultima)
+                    _dt_proxima = _dt_ultima + timedelta(days=_intervalo * 30)
+                    _dias       = (_dt_proxima - _hoje_d).days
+                    _status     = "vencida" if _dias < 0 else ("proxima" if _dias <= 5 else "ok")
+                except Exception:
+                    _status = "vencida"
+            else:
+                _status = "vencida"
+
         raw_manutencoes.append({
-            "cc":       _cc,
-            "ultima":   _ultima,
-            "proxima":  _proxima_s,
-            "status":   _status,
-            "dias":     _dias,
-            "email":    _email,
-            "intervalo": _intervalo,
-        "tipo_servico": _tipo_srv,
+            "cc":              _cc,
+            "placa":           _vei.get("placa", ""),
+            "horimetro_atual": _horimetro_atual,
+            "hodometro_atual": _vei.get("hodometro_atual"),
+            "ignicao":         _vei.get("ignicao", 0),
+            "data_evento":     _vei.get("data_evento", ""),
+            "horimetro_ultima": _horo_ult,
+            "horimetro_proxima": _horo_prox,
+            "intervalo_horas": _int_horas,
+            "horas_restantes": _horas_rest,
+            "ultima":          (_rec.get("ultima_manutencao") or "")[:10],
+            "status":          _status,
+            "email":           _email,
+            "tipo_servico":    _tipo_srv,
         })
 
     def _clean_surrogates(o):
@@ -3416,23 +3482,28 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
     <!-- Formulário de registro -->
     <div class="chart-card" style="margin-bottom:20px;">
       <h3 style="margin-bottom:12px;">🔧 Registrar / Atualizar Manutenção</h3>
-      <p style="font-size:13px;color:#64748b;margin:0 0 14px">Preencha abaixo para registrar a data da última manutenção. O próximo ciclo será calculado automaticamente (2 meses).</p>
+      <p style="font-size:13px;color:#64748b;margin:0 0 14px">Informe o equipamento e o horímetro no momento da última manutenção. O status é calculado automaticamente pela diferença de horas trabalhadas.</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-        <div style="flex:2;min-width:180px;">
-          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Equipamento / Centro de Custo</label>
+        <div style="flex:2;min-width:200px;">
+          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Equipamento (FullTrack)</label>
           <select id="mFormEquip"
             style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff;cursor:pointer;">
             <option value="">— Selecione o equipamento —</option>
           </select>
         </div>
-        <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Data da última manutenção</label>
-          <input id="mFormData" type="date"
+        <div style="flex:1;min-width:130px;">
+          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">⏱ Horímetro na última manut. (h)</label>
+          <input id="mFormHoroUlt" type="number" min="0" step="0.1" placeholder="Ex: 1250.5"
             style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
         </div>
-        <div style="flex:2;min-width:180px;">
+        <div style="flex:1;min-width:120px;">
+          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">🔁 Intervalo (horas)</label>
+          <input id="mFormIntHoras" type="number" min="1" step="1" value="250" placeholder="250"
+            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div style="flex:2;min-width:160px;">
           <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Tipo de serviço</label>
-          <input id="mFormServico" type="text" placeholder="Ex: Troca de óleo"
+          <input id="mFormServico" type="text" placeholder="Ex: Troca de óleo, Revisão geral..."
             style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
         </div>
         <div style="flex:none;display:flex;gap:8px;">
@@ -3456,7 +3527,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
         <div class="kpi-value" id="kManutVencidas">—</div>
       </div>
       <div class="kpi-card orange">
-        <div class="kpi-label">⚠️ Próximas (≤5 dias)</div>
+        <div class="kpi-label">⚠️ Próximas (≤20h)</div>
         <div class="kpi-value" id="kManutProximas">—</div>
       </div>
       <div class="kpi-card green">
@@ -3467,32 +3538,36 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
 
     <!-- Tabela de status por equipamento -->
     <div class="table-card" style="margin-top:16px;">
-      <h3>📋 Status de Manutenção por Equipamento (ciclo a cada 2 meses)</h3>
+      <h3>📋 Status de Manutenção por Equipamento — Horímetro (FullTrack)</h3>
       <div style="overflow-x:auto;">
         <table class="data-tbl" id="tblManutencao">
           <colgroup>
-            <col style="width:28%"/>
+            <col style="width:22%"/>
+            <col style="width:8%"/>
+            <col style="width:10%"/>
             <col style="width:11%"/>
-            <col style="width:19%"/>
-            <col style="width:13%"/>
-            <col style="width:15%"/>
-            <col style="width:14%"/>
+            <col style="width:11%"/>
+            <col style="width:11%"/>
+            <col style="width:11%"/>
+            <col style="width:16%"/>
           </colgroup>
           <thead>
             <tr>
-              <th>Equipamento / Centro de Custo</th>
+              <th>Equipamento</th>
+              <th>Placa</th>
               <th>Status</th>
+              <th class="num">Hor. Atual (h)</th>
+              <th class="num">Hor. Últ. Manut.</th>
+              <th class="num">Próxima (h)</th>
+              <th class="num">Horas Rest.</th>
               <th>Tipo de Serviço</th>
-              <th>Última Manutenção</th>
-              <th>Próxima Manutenção</th>
-              <th class="num">Dias Restantes</th>
             </tr>
           </thead>
           <tbody id="tblManutencaoBdy"></tbody>
         </table>
       </div>
       <div id="manutVazioMsg" style="display:none;padding:24px;text-align:center;color:#94a3b8;font-size:14px;">
-        Nenhum equipamento encontrado nas despesas do período.
+        Nenhum equipamento encontrado.
       </div>
     </div>
 
@@ -4503,33 +4578,30 @@ function mkManutencao() {{
       badge  = '<span style="background:#059669;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">&#9989; EM DIA</span>';
       rowBg  = '';
     }}
-    const fmtDt = s => s ? s.split('-').reverse().join('/') : '<em style="color:#94a3b8">Não registrada</em>';
-    let diasTxt = '—', diasStyle = '';
-    if (r.dias !== undefined && r.ultima) {{
-      if (r.dias < 0) {{
-        diasTxt  = Math.abs(r.dias) + ' dias atrás';
-        diasStyle = 'color:#dc2626;font-weight:600';
-      }} else if (r.dias <= 5) {{
-        diasTxt  = r.dias + ' dias';
-        diasStyle = 'color:#d97706;font-weight:600';
+    const fmtH = h => (h !== null && h !== undefined && h !== '') ? Number(h).toLocaleString('pt-BR', {{minimumFractionDigits:1,maximumFractionDigits:1}}) + ' h' : '<em style="color:#94a3b8">—</em>';
+    let restTxt = fmtH(r.horas_restantes), restStyle = '';
+    if (r.horas_restantes !== null && r.horas_restantes !== undefined) {{
+      if (r.horas_restantes < 0) {{
+        restTxt  = Math.abs(r.horas_restantes).toLocaleString('pt-BR',{{maximumFractionDigits:1}}) + ' h atrás';
+        restStyle = 'color:#dc2626;font-weight:600';
+      }} else if (r.horas_restantes <= 20) {{
+        restStyle = 'color:#d97706;font-weight:600';
       }} else {{
-        diasTxt  = r.dias + ' dias';
-        diasStyle = 'color:#059669';
+        restStyle = 'color:#059669';
       }}
-    }} else if (!r.ultima) {{
-      diasTxt  = 'Nunca realizada';
-      diasStyle = 'color:#dc2626;font-weight:600';
     }}
+    const srvTxt = r.tipo_servico ? r.tipo_servico : '<em style="color:#94a3b8">Não informado</em>';
     const tr = document.createElement('tr');
     if (rowBg) tr.setAttribute('style', rowBg);
-    const srvTxt = r.tipo_servico ? r.tipo_servico : '<em style="color:#94a3b8">Não informado</em>';
     tr.innerHTML =
       '<td><strong>' + r.cc + '</strong></td>' +
+      '<td>' + (r.placa || '—') + '</td>' +
       '<td>' + badge + '</td>' +
-      '<td>' + srvTxt + '</td>' +
-      '<td>' + fmtDt(r.ultima) + '</td>' +
-      '<td>' + fmtDt(r.proxima) + '</td>' +
-      '<td class="num" style="' + diasStyle + '">' + diasTxt + '</td>';
+      '<td class="num">' + fmtH(r.horimetro_atual) + '</td>' +
+      '<td class="num">' + fmtH(r.horimetro_ultima) + '</td>' +
+      '<td class="num">' + fmtH(r.horimetro_proxima) + '</td>' +
+      '<td class="num" style="' + restStyle + '">' + restTxt + '</td>' +
+      '<td>' + srvTxt + '</td>';
     tbody.appendChild(tr);
   }});
   document.getElementById('kManutVencidas').textContent = vencidas;
@@ -4539,13 +4611,14 @@ function mkManutencao() {{
 
 // ── Salvar manutenção via Supabase REST (fetch direto do browser) ──
 async function salvarManutencao() {{
-  const equip = (document.getElementById('mFormEquip').value || '').trim();
-  const data  = (document.getElementById('mFormData').value  || '').trim();
-  const serv  = (document.getElementById('mFormServico').value || '').trim();
-  const msg   = document.getElementById('mFormMsg');
+  const equip    = (document.getElementById('mFormEquip').value || '').trim();
+  const horoUlt  = document.getElementById('mFormHoroUlt').value.trim();
+  const intHoras = document.getElementById('mFormIntHoras').value.trim() || '250';
+  const serv     = (document.getElementById('mFormServico').value || '').trim();
+  const msg      = document.getElementById('mFormMsg');
 
-  if (!equip) {{ _mMsg(msg, '\u274c Selecione o equipamento.', '#dc2626'); return; }}
-  if (!data)  {{ _mMsg(msg, '\u274c Selecione a data da \u00faltima manuten\u00e7\u00e3o.', '#dc2626'); return; }}
+  if (!equip)   {{ _mMsg(msg, '\u274c Selecione o equipamento.', '#dc2626'); return; }}
+  if (!horoUlt) {{ _mMsg(msg, '\u274c Informe o hor\u00edmetro da \u00faltima manuten\u00e7\u00e3o.', '#dc2626'); return; }}
 
   const sbUrl  = _SB_URL;
   const sbAnon = _SB_ANON;
@@ -4559,9 +4632,11 @@ async function salvarManutencao() {{
     'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'
   }};
   const payload = JSON.stringify({{
-    equipamento: equip, ultima_manutencao: data,
+    equipamento: equip,
+    horimetro_ultima_manutencao: parseFloat(horoUlt),
+    intervalo_horas: parseFloat(intHoras),
     tipo_servico: serv || null,
-    intervalo_meses: 2, updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString()
   }});
   _mMsg(msg, '\u23f3 Salvando...', '#0891b2');
   try {{
@@ -4569,17 +4644,23 @@ async function salvarManutencao() {{
       method: 'POST', headers: hdrs, body: payload
     }});
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    _mMsg(msg, '\u2705 ' + equip + ' \u2014 manuten\u00e7\u00e3o registrada em ' + data.split('-').reverse().join('/'), '#059669');
+    _mMsg(msg, '\u2705 ' + equip + ' \u2014 hor\u00edmetro ' + parseFloat(horoUlt).toLocaleString('pt-BR') + 'h registrado.', '#059669');
     document.getElementById('mFormEquip').value = '';
+    document.getElementById('mFormHoroUlt').value = '';
     document.getElementById('mFormServico').value = '';
-    // Atualiza tabela de status localmente
-    const idx = MANUTENCAO.findIndex(r => r.cc === equip);
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
-    const dt = new Date(data + 'T00:00:00');
-    const prox = new Date(dt); prox.setDate(prox.getDate() + 60);
-    const dias = Math.round((prox - hoje) / 86400000);
-    const st = dias < 0 ? 'vencida' : (dias <= 5 ? 'proxima' : 'ok');
-    const rec = {{ cc: equip, ultima: data, proxima: prox.toISOString().slice(0,10), status: st, dias: dias, tipo_servico: serv }};
+    // Atualiza localmente
+    const horoAtual = (VEICULOS_FT.find(v => v.nome === equip) || {{}}).horimetro || 0;
+    const horoUltN = parseFloat(horoUlt);
+    const intN     = parseFloat(intHoras);
+    const proxN    = Math.round((horoUltN + intN) * 10) / 10;
+    const restN    = Math.round((proxN - horoAtual) * 10) / 10;
+    const st = restN < 0 ? 'vencida' : (restN <= 20 ? 'proxima' : 'ok');
+    const rec = {{
+      cc: equip, placa: (VEICULOS_FT.find(v => v.nome === equip) || {{}}).placa || '',
+      horimetro_atual: horoAtual, horimetro_ultima: horoUltN, horimetro_proxima: proxN,
+      intervalo_horas: intN, horas_restantes: restN, status: st, tipo_servico: serv
+    }};
+    const idx = MANUTENCAO.findIndex(x => x.cc === equip);
     if (idx >= 0) MANUTENCAO[idx] = rec; else MANUTENCAO.push(rec);
     mkManutencao();
   }} catch(e) {{
@@ -5638,29 +5719,31 @@ function abrirTelaCheia() {{
 
 document.addEventListener('DOMContentLoaded', () => {{
   const i = document.getElementById('pg-inp'); if(i) i.focus();
-  // Define data padrão do formulário de manutenção como hoje
-  const mfd = document.getElementById('mFormData');
-  if (mfd) mfd.value = new Date().toISOString().slice(0,10);
-  // Popula select de equipamentos
+  // Popula select de equipamentos com horímetro atual
   const mSel = document.getElementById('mFormEquip');
   if (mSel) {{
     // Preferir lista do FullTrack; fallback para centros de custo do financeiro
     const equipList = (VEICULOS_FT && VEICULOS_FT.length)
       ? VEICULOS_FT.slice().sort((a,b) => a.nome.localeCompare(b.nome))
-          .map(v => ({{ value: v.nome, label: v.placa ? v.nome + ' — ' + v.placa : v.nome }}))
+          .map(v => {{
+            const h = v.horimetro ? '  \u23f1 ' + Number(v.horimetro).toLocaleString('pt-BR',{{maximumFractionDigits:1}}) + 'h' : '';
+            return {{ value: v.nome, label: v.placa ? v.nome + ' (' + v.placa + ')' + h : v.nome + h }};
+          }})
       : MANUTENCAO.slice().sort((a,b) => a.cc.localeCompare(b.cc))
           .map(r => ({{ value: r.cc, label: r.cc }}));
     equipList.forEach(e => {{
       const o = document.createElement('option'); o.value = e.value; o.textContent = e.label; mSel.appendChild(o);
     }});
     if (equipList.length) {{
-    mSel.addEventListener('change', () => {{
-      const rec = MANUTENCAO.find(r => r.cc === mSel.value);
-      const dt = document.getElementById('mFormData');
-      if (dt && rec && rec.ultima) dt.value = rec.ultima;
-      const srv = document.getElementById('mFormServico');
-      if (srv && rec && rec.tipo_servico) srv.value = rec.tipo_servico;
-    }});
+      mSel.addEventListener('change', () => {{
+        const rec = MANUTENCAO.find(r => r.cc === mSel.value);
+        const horoEl = document.getElementById('mFormHoroUlt');
+        if (horoEl && rec && rec.horimetro_ultima != null) horoEl.value = rec.horimetro_ultima;
+        const intEl = document.getElementById('mFormIntHoras');
+        if (intEl && rec && rec.intervalo_horas) intEl.value = rec.intervalo_horas;
+        const srv = document.getElementById('mFormServico');
+        if (srv && rec && rec.tipo_servico) srv.value = rec.tipo_servico;
+      }});
     }} // end if equipList.length
   }}
   const mSrv = document.getElementById('mFormServico');
