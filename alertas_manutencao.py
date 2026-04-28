@@ -61,10 +61,11 @@ def buscar_horimetros_fulltrack() -> dict[str, float]:
             nome  = (ev.get("ras_vei_veiculo") or "").strip()
             placa = (ev.get("ras_vei_placa")   or "").strip()
             horo  = ev.get("ras_eve_horimetro")
+            horo_h = round(float(horo or 0) / 3600, 1)
             if nome:
-                resultado[nome]  = float(horo or 0)
+                resultado[nome]  = horo_h
             if placa:
-                resultado[placa] = float(horo or 0)
+                resultado[placa] = horo_h
         print(f"  ✔ FullTrack: horímetro de {len(dados)} veículos obtido")
         return resultado
     except Exception as e:
