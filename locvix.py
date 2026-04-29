@@ -2176,6 +2176,132 @@ FULLTRACK_API_KEY    = os.getenv("FULLTRACK_API_KEY",    "530fdb8a61907a2f990447
 FULLTRACK_SECRET_KEY = os.getenv("FULLTRACK_SECRET_KEY", "8c002f8a04533e2f2ed428820f89dca5b3e9996a")
 FULLTRACK_BASE       = "https://ws.fulltrack2.com"
 
+
+def _ft_parse_dt(s: str | None) -> datetime | None:
+  """Converte data/hora FullTrack (dd/mm/YYYY HH:MM:SS) em datetime local."""
+  if not s:
+    return None
+  try:
+    return datetime.strptime(str(s), "%d/%m/%Y %H:%M:%S")
+  except Exception:
+    return None
+
+
+def _ft_horas_ignicao_intervalo(veiculo_id: str, dt_ini: datetime, dt_fim: datetime) -> float:
+  """
+  Soma horas de ignição ligada no intervalo via /events/interval.
+  Usa cache por janela para reduzir chamadas repetidas.
+  """
+  if not veiculo_id or dt_fim <= dt_ini:
+    return 0.0
+
+  hdrs = {"apikey": FULLTRACK_API_KEY, "secretkey": FULLTRACK_SECRET_KEY}
+  passo = timedelta(days=7)
+  cur = dt_ini
+  eventos: list[tuple[datetime, int]] = []
+
+  while cur < dt_fim:
+    nxt = min(cur + passo, dt_fim)
+    bts = int(cur.timestamp())
+    ets = int(nxt.timestamp())
+    ck = f"ft_ignicao|{veiculo_id}|{bts}|{ets}"
+    cached = _cache_load(ck, 900)
+
+    rows: list[tuple[datetime, int]] = []
+    if isinstance(cached, list):
+      for it in cached:
+        if isinstance(it, list) and len(it) == 2:
+          d = _ft_parse_dt(it[0])
+          if d is None:
+            continue
+          try:
+            ig = int(it[1])
+          except Exception:
+            continue
+          rows.append((d, 1 if ig == 1 else 0))
+    else:
+      try:
+        url = f"{FULLTRACK_BASE}/events/interval/id/{veiculo_id}/begin/{bts}/end/{ets}"
+        resp = requests.get(url, headers=hdrs, timeout=20)
+        data = resp.json()
+        for ev in (data.get("data") or []):
+          d = _ft_parse_dt(ev.get("ras_eve_data_gps"))
+          if d is None:
+            continue
+          try:
+            ig = int(ev.get("ras_eve_ignicao") or 0)
+          except Exception:
+            ig = 0
+          rows.append((d, 1 if ig == 1 else 0))
+        _cache_save(ck, [[d.strftime("%d/%m/%Y %H:%M:%S"), ig] for d, ig in rows])
+      except Exception:
+        pass
+
+    eventos.extend(rows)
+    cur = nxt
+
+  if not eventos:
+    return 0.0
+
+  eventos.sort(key=lambda x: x[0])
+
+  total_seg = 0.0
+  for i in range(len(eventos) - 1):
+    t0, ig = eventos[i]
+    t1, _ = eventos[i + 1]
+    if ig == 1 and t1 > t0:
+      total_seg += (t1 - t0).total_seconds()
+
+  if eventos[-1][1] == 1 and dt_fim > eventos[-1][0]:
+    total_seg += (dt_fim - eventos[-1][0]).total_seconds()
+
+  return round(total_seg / 3600.0, 1)
+
+
+def _ft_horas_ignicao_dia_direto(veiculo_id: str) -> float:
+  """
+  Cálculo direto (sem cache) das horas de ignição do dia atual.
+  Usado como fallback rápido para evitar horímetro zerado no painel.
+  """
+  if not veiculo_id:
+    return 0.0
+  try:
+    hdrs = {"apikey": FULLTRACK_API_KEY, "secretkey": FULLTRACK_SECRET_KEY}
+    now_dt = datetime.now()
+    ini_dia = datetime.combine(now_dt.date(), datetime.min.time())
+    bts = int(ini_dia.timestamp())
+    ets = int(now_dt.timestamp())
+    url = f"{FULLTRACK_BASE}/events/interval/id/{veiculo_id}/begin/{bts}/end/{ets}"
+    resp = requests.get(url, headers=hdrs, timeout=20)
+    data = resp.json()
+    rows: list[tuple[datetime, int]] = []
+    for ev in (data.get("data") or []):
+      d = _ft_parse_dt(ev.get("ras_eve_data_gps"))
+      if d is None:
+        continue
+      try:
+        ig = int(ev.get("ras_eve_ignicao") or 0)
+      except Exception:
+        ig = 0
+      rows.append((d, 1 if ig == 1 else 0))
+
+    if not rows:
+      return 0.0
+
+    rows.sort(key=lambda x: x[0])
+    total_seg = 0.0
+    for i in range(len(rows) - 1):
+      t0, ig = rows[i]
+      t1, _ = rows[i + 1]
+      if ig == 1 and t1 > t0:
+        total_seg += (t1 - t0).total_seconds()
+    if rows[-1][1] == 1 and now_dt > rows[-1][0]:
+      total_seg += (now_dt - rows[-1][0]).total_seconds()
+
+    return round(total_seg / 3600.0, 1)
+  except Exception:
+    return 0.0
+
 def buscar_veiculos_fulltrack() -> list[dict]:
     """
     Busca lista de veículos/equipamentos via FullTrack com horímetro e hodômetro atuais.
@@ -2204,12 +2330,31 @@ def buscar_veiculos_fulltrack() -> list[dict]:
         for v in d_vei["data"]:
             vid = str(v.get("ras_vei_id", ""))
             ev  = eventos_map.get(vid, {})
+
+            # Horímetro: sensor físico via evento (segundos→horas)
+            horo_raw = float(ev.get("ras_eve_horimetro") or 0)
+            horo_h   = round(horo_raw / 3600, 1)
+
+            # Fallback para veículos sem sensor de horímetro:
+            # usa horas de ignição acumuladas no dia atual para evitar 0,0h no painel.
+            if horo_h <= 0:
+              h_ign = _ft_horas_ignicao_dia_direto(vid)
+              if h_ign > 0:
+                horo_h = round(h_ign, 1)
+
+            # Hodômetro: sensor via evento (metros→km);
+            # fallback para ras_vei_odometro do cadastro (veículos sem sensor)
+            hodo_raw = float(ev.get("ras_eve_hodometro") or 0)
+            if hodo_raw == 0:
+                hodo_raw = float(v.get("ras_vei_odometro") or 0)
+            hodo_km  = round(hodo_raw / 1000, 1)
+
             veiculos.append({
                 "id":          vid,
                 "nome":        v.get("ras_vei_veiculo", ""),
                 "placa":       v.get("ras_vei_placa", ""),
-                "horimetro":   round(float(ev.get("ras_eve_horimetro") or 0) / 3600, 1),
-                "hodometro":   round(float(ev.get("ras_eve_hodometro") or 0) / 1000, 1),
+                "horimetro":   horo_h,
+                "hodometro":   hodo_km,
                 "ignicao":     int(ev.get("ras_eve_ignicao") or 0),
                 "velocidade":  float(ev.get("ras_eve_velocidade") or 0),
                 "data_evento": ev.get("ras_eve_data_gps", ""),
@@ -2717,6 +2862,7 @@ def gerar_dashboard_html(
     if veiculos_ft:
         for _v in veiculos_ft:
             _vei_source.append({
+                "id":              _v.get("id", ""),
                 "cc":             _v["nome"],
                 "placa":          _v.get("placa", ""),
                 "horimetro_atual": float(_v.get("horimetro") or 0),
@@ -2730,20 +2876,45 @@ def gerar_dashboard_html(
             if r["cc"] and r["cc"].strip().upper() not in EXCLUIR_CC
         })
         for _cc in _cc_set:
-            _vei_source.append({"cc": _cc, "placa": "", "horimetro_atual": None,
-                                 "hodometro_atual": None, "ignicao": 0, "data_evento": ""})
+            _vei_source.append({"id": "", "cc": _cc, "placa": "", "horimetro_atual": None,
+                                "hodometro_atual": None, "ignicao": 0, "data_evento": ""})
 
     for _vei in _vei_source:
+        _vei_id  = str(_vei.get("id") or "")
         _cc      = _vei["cc"]
         _rec     = _manut_dict.get(_cc, {})
         _tipo_srv = _rec.get("tipo_servico") or ""
         _email    = _rec.get("responsavel_email") or ""
         _horimetro_atual = _vei["horimetro_atual"]
+        _horo_fonte = "evento"
+        _horo_diag_dia = None
 
         # Horímetro da última manutenção e intervalo em horas
         _horo_ult = _rec.get("horimetro_ultima_manutencao")
         _horo_ult = float(_horo_ult) if _horo_ult is not None else None
         _int_horas = float(_rec.get("intervalo_horas") or 250)
+
+        # Fallback de horímetro para veículos sem sensor.
+        # 1) Sempre tenta horas de ignição do dia (evita exibir 0,0 h no painel).
+        # 2) Se houver base da última manutenção, usa acumulado desde a data base.
+        _ultima_iso = (_rec.get("ultima_manutencao") or "")[:10]
+        if (_horimetro_atual is None or _horimetro_atual <= 0) and _vei_id:
+            try:
+                _agora_dt = datetime.now()
+                _h_dia = _ft_horas_ignicao_dia_direto(_vei_id)
+                _horo_diag_dia = _h_dia
+                if _h_dia > 0:
+                    _horimetro_atual = round(_h_dia, 1)
+                    _horo_fonte = "ignicao_dia"
+
+                if _horo_ult is not None and _ultima_iso:
+                    _dt_ini = datetime.combine(date.fromisoformat(_ultima_iso), datetime.min.time())
+                    _delta_h = _ft_horas_ignicao_intervalo(_vei_id, _dt_ini, _agora_dt)
+                    if _delta_h > 0:
+                        _horimetro_atual = round(_horo_ult + _delta_h, 1)
+                        _horo_fonte = "ignicao_acumulada"
+            except Exception:
+                _horo_fonte = "fallback_erro"
 
         # Status baseado em horímetro (preferido) ou data
         _horas_rest = None
@@ -2771,6 +2942,8 @@ def gerar_dashboard_html(
             "cc":              _cc,
             "placa":           _vei.get("placa", ""),
             "horimetro_atual": _horimetro_atual,
+            "horimetro_fonte": _horo_fonte,
+            "horimetro_diag_dia": _horo_diag_dia,
             "hodometro_atual": _vei.get("hodometro_atual"),
             "ignicao":         _vei.get("ignicao", 0),
             "data_evento":     _vei.get("data_evento", ""),
@@ -3538,7 +3711,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
 
     <!-- Tabela de status por equipamento -->
     <div class="table-card" style="margin-top:16px;">
-      <h3>📋 Status de Manutenção por Equipamento — Horímetro (FullTrack)</h3>
+      <h3>📋 Status de Manutenção por Equipamento — Horímetro (FullTrack v24)</h3>
       <div style="overflow-x:auto;">
         <table class="data-tbl" id="tblManutencao">
           <colgroup>
@@ -4590,14 +4763,19 @@ function mkManutencao() {{
         restStyle = 'color:#059669';
       }}
     }}
-    const srvTxt = r.tipo_servico ? r.tipo_servico : '<em style="color:#94a3b8">Não informado</em>';
+    const srvBase = r.tipo_servico ? r.tipo_servico : '<em style="color:#94a3b8">Não informado</em>';
+    const src = r.horimetro_fonte || 'evento';
+    const diag = (r.horimetro_diag_dia !== null && r.horimetro_diag_dia !== undefined)
+      ? (' · ignição dia: ' + Number(r.horimetro_diag_dia).toLocaleString('pt-BR', {{minimumFractionDigits:1,maximumFractionDigits:1}}) + ' h')
+      : '';
+    const srvTxt = srvBase + '<div style="font-size:10px;color:#94a3b8;margin-top:2px">fonte: ' + src + diag + '</div>';
     const tr = document.createElement('tr');
     if (rowBg) tr.setAttribute('style', rowBg);
     tr.innerHTML =
       '<td><strong>' + r.cc + '</strong></td>' +
       '<td>' + (r.placa || '—') + '</td>' +
       '<td>' + badge + '</td>' +
-      '<td class="num">' + fmtH(r.horimetro_atual) + '</td>' +
+      '<td class="num" title="fonte: ' + src + diag + '">' + fmtH(r.horimetro_atual) + '</td>' +
       '<td class="num">' + fmtH(r.horimetro_ultima) + '</td>' +
       '<td class="num">' + fmtH(r.horimetro_proxima) + '</td>' +
       '<td class="num" style="' + restStyle + '">' + restTxt + '</td>' +
