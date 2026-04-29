@@ -2892,7 +2892,7 @@ def gerar_dashboard_html(
         # Horímetro da última manutenção e intervalo em horas
         _horo_ult = _rec.get("horimetro_ultima_manutencao")
         _horo_ult = float(_horo_ult) if _horo_ult is not None else None
-        _int_horas = float(_rec.get("intervalo_horas") or 250)
+        _int_horas = float(_rec.get("intervalo_horas") or 600)
 
         # Fallback de horímetro para veículos sem sensor.
         # 1) Sempre tenta horas de ignição do dia (evita exibir 0,0 h no painel).
@@ -3671,7 +3671,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
         </div>
         <div style="flex:1;min-width:120px;">
           <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">🔁 Intervalo (horas)</label>
-          <input id="mFormIntHoras" type="number" min="1" step="1" value="250" placeholder="250"
+          <input id="mFormIntHoras" type="number" min="1" step="1" value="600" placeholder="600"
             style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
         </div>
         <div style="flex:2;min-width:160px;">
@@ -4742,13 +4742,13 @@ function mkManutencao() {{
     else ok++;
     let badge, rowBg;
     if (st === 'vencida') {{
-      badge  = '<span style="background:#dc2626;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">&#128308; VENCIDA</span>';
+      badge  = '<span style="background:#dc2626;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block">&#128308; VENCIDA</span>';
       rowBg  = 'background:rgba(220,38,38,.07)';
     }} else if (st === 'proxima') {{
-      badge  = '<span style="background:#d97706;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">&#9888; PR&#211;XIMA</span>';
+      badge  = '<span style="background:#d97706;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block">&#9888; PR&#211;XIMA</span>';
       rowBg  = 'background:rgba(217,119,6,.07)';
     }} else {{
-      badge  = '<span style="background:#059669;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">&#9989; EM DIA</span>';
+      badge  = '<span style="background:#059669;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block">&#9989; EM DIA</span>';
       rowBg  = '';
     }}
     const fmtH = h => (h !== null && h !== undefined && h !== '') ? Number(h).toLocaleString('pt-BR', {{minimumFractionDigits:1,maximumFractionDigits:1}}) + ' h' : '<em style="color:#94a3b8">—</em>';
@@ -4791,7 +4791,7 @@ function mkManutencao() {{
 async function salvarManutencao() {{
   const equip    = (document.getElementById('mFormEquip').value || '').trim();
   const horoUlt  = document.getElementById('mFormHoroUlt').value.trim();
-  const intHoras = document.getElementById('mFormIntHoras').value.trim() || '250';
+  const intHoras = document.getElementById('mFormIntHoras').value.trim() || '600';
   const serv     = (document.getElementById('mFormServico').value || '').trim();
   const msg      = document.getElementById('mFormMsg');
 
@@ -4825,6 +4825,7 @@ async function salvarManutencao() {{
     _mMsg(msg, '\u2705 ' + equip + ' \u2014 hor\u00edmetro ' + parseFloat(horoUlt).toLocaleString('pt-BR') + 'h registrado.', '#059669');
     document.getElementById('mFormEquip').value = '';
     document.getElementById('mFormHoroUlt').value = '';
+    document.getElementById('mFormIntHoras').value = '600';
     document.getElementById('mFormServico').value = '';
     // Atualiza localmente
     const horoAtual = (VEICULOS_FT.find(v => v.nome === equip) || {{}}).horimetro || 0;
@@ -5916,11 +5917,11 @@ document.addEventListener('DOMContentLoaded', () => {{
       mSel.addEventListener('change', () => {{
         const rec = MANUTENCAO.find(r => r.cc === mSel.value);
         const horoEl = document.getElementById('mFormHoroUlt');
-        if (horoEl && rec && rec.horimetro_ultima != null) horoEl.value = rec.horimetro_ultima;
+        if (horoEl) horoEl.value = (rec && rec.horimetro_ultima != null) ? rec.horimetro_ultima : '';
         const intEl = document.getElementById('mFormIntHoras');
-        if (intEl && rec && rec.intervalo_horas) intEl.value = rec.intervalo_horas;
+        if (intEl) intEl.value = (rec && rec.intervalo_horas) ? rec.intervalo_horas : '600';
         const srv = document.getElementById('mFormServico');
-        if (srv && rec && rec.tipo_servico) srv.value = rec.tipo_servico;
+        if (srv) srv.value = (rec && rec.tipo_servico) ? rec.tipo_servico : '';
       }});
     }} // end if equipList.length
   }}
