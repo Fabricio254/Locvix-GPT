@@ -2580,6 +2580,16 @@ def calcular_status_manutencao(rec: dict, horo_atual: float | None = None,
     max_urgencia = 1
     criterio_max = None
     
+    # Verifica se nenhum critério foi configurado
+    tem_horas = resultado["status_horas"]["proxima"] is not None
+    tem_km = resultado["status_km"]["proxima"] is not None
+    tem_dias = resultado["status_dias"]["proxima"] is not None
+    
+    if not tem_horas and not tem_km and not tem_dias:
+        resultado["status_geral"] = "nao_configurado"
+        resultado["criterio_urgente"] = None
+        return resultado
+    
     for crit in ["status_horas", "status_km", "status_dias"]:
         st = resultado[crit]["status"]
         urg = urgencia_map.get(st, 1)
@@ -3162,6 +3172,7 @@ body[data-theme="dark"] .fin-filter-bar{{background:#1e293b;border-color:#334155
 .kpi-card.red{{border-top-color:#dc2626;}}
 .kpi-card.purple{{border-top-color:#7c3aed;}}
 .kpi-card.blue{{border-top-color:#2563eb;}}
+.kpi-card.gray{{border-top-color:#6b7280;}}
 /* ── BOTÕES FILTRO ORÇAMENTO ── */
 .btn-filter-orc{{background:#1e3a5f;color:#94a3b8;border:1px solid #334155;border-radius:6px;
   padding:5px 14px;font-size:12px;cursor:pointer;transition:all .2s;}}
@@ -3827,7 +3838,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
     </div>
 
     <!-- KPIs Manutenção -->
-    <div class="kpi-grid col3">
+    <div class="kpi-grid col4">
       <div class="kpi-card red">
         <div class="kpi-label">🔴 Vencidas</div>
         <div class="kpi-value" id="kManutVencidas">—</div>
@@ -3839,6 +3850,10 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
       <div class="kpi-card green">
         <div class="kpi-label">✅ Em Dia</div>
         <div class="kpi-value" id="kManutOk">—</div>
+      </div>
+      <div class="kpi-card gray">
+        <div class="kpi-label">⚙️ Não Configuradas</div>
+        <div class="kpi-value" id="kManutNaoConfig">—</div>
       </div>
     </div>
 
@@ -4864,14 +4879,16 @@ function mkManutencao() {{
     document.getElementById('kManutVencidas').textContent = '0';
     document.getElementById('kManutProximas').textContent = '0';
     document.getElementById('kManutOk').textContent = '0';
+    document.getElementById('kManutNaoConfig').textContent = '0';
     return;
   }}
   if (vazioMsg) vazioMsg.style.display = 'none';
-  let vencidas = 0, proximas = 0, ok = 0;
+  let vencidas = 0, proximas = 0, ok = 0, nao_config = 0;
   data.forEach(r => {{
     const st = r.status_geral || 'ok';
     if (st === 'vencida') vencidas++;
     else if (st === 'proxima') proximas++;
+    else if (st === 'nao_configurado') nao_config++;
     else ok++;
     
     let badge, rowBg;
@@ -4881,6 +4898,9 @@ function mkManutencao() {{
     }} else if (st === 'proxima') {{
       badge  = '<span style="background:#d97706;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block">&#9888; PR&#211;XIMA</span>';
       rowBg  = 'background:rgba(217,119,6,.07)';
+    }} else if (st === 'nao_configurado') {{
+      badge  = '<span style="background:#6b7280;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block">&#9888; N&#195;O CONFIGURADA</span>';
+      rowBg  = 'background:rgba(107,114,128,.07)';
     }} else {{
       badge  = '<span style="background:#059669;color:#fff;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block">&#9989; EM DIA</span>';
       rowBg  = '';
@@ -4949,6 +4969,7 @@ function mkManutencao() {{
   document.getElementById('kManutVencidas').textContent = vencidas;
   document.getElementById('kManutProximas').textContent = proximas;
   document.getElementById('kManutOk').textContent = ok;
+  document.getElementById('kManutNaoConfig').textContent = nao_config;
 }}
 
 // ── Salvar manutenção via Supabase REST (fetch direto do browser) ──
