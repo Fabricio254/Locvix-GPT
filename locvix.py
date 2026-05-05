@@ -4931,10 +4931,10 @@ function mkManutencao() {{
     if (rowBg) tr.setAttribute('style', rowBg);
     // Formata data para dd/mm/aaaa
     let dataBr = '—';
-    if (r.ultima_manutencao && /^\d{4}-\d{2}-\d{2}$/.test(r.ultima_manutencao)) {
+    if (r.ultima_manutencao && /^\d{{4}}-\d{{2}}-\d{{2}}$/.test(r.ultima_manutencao)) {{
       const [y, m, d] = r.ultima_manutencao.split('-');
-      dataBr = `${d}/${m}/${y}`;
-    }
+      dataBr = d + '/' + m + '/' + y;
+    }}
     tr.innerHTML =
       '<td><strong>' + r.cc + '</strong></td>' +
       '<td>' + (r.placa || '—') + '</td>' +
