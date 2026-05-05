@@ -3025,6 +3025,7 @@ def gerar_dashboard_html(
         _horimetro_atual = _vei["horimetro_atual"]
         _hodometro_atual = _vei["hodometro_atual"]
         _horo_fonte = "evento"
+        _ultima_manutencao = (_rec.get("ultima_manutencao") or "")[:10]
 
         # Fallback de horímetro para veículos sem sensor
         if (_horimetro_atual is None or _horimetro_atual <= 0) and _vei_id:
@@ -3035,10 +3036,9 @@ def gerar_dashboard_html(
                     _horimetro_atual = round(_h_dia, 1)
                     _horo_fonte = "ignicao_dia"
                 # Se há registro de última manutenção, usa acumulado desde lá
-                _ultima_iso = (_rec.get("ultima_manutencao") or "")[:10]
                 _horo_ult = _rec.get("horimetro_ultima_manutencao")
-                if _horo_ult is not None and _ultima_iso:
-                    _dt_ini = datetime.combine(date.fromisoformat(_ultima_iso), datetime.min.time())
+                if _horo_ult is not None and _ultima_manutencao:
+                    _dt_ini = datetime.combine(date.fromisoformat(_ultima_manutencao), datetime.min.time())
                     _delta_h = _ft_horas_ignicao_intervalo(_vei_id, _dt_ini, _agora_dt)
                     if _delta_h > 0:
                         _horimetro_atual = round(float(_horo_ult) + _delta_h, 1)
@@ -3057,6 +3057,7 @@ def gerar_dashboard_html(
             "hodometro_atual": _hodometro_atual,
             "ignicao":         _vei.get("ignicao", 0),
             "data_evento":     _vei.get("data_evento", ""),
+            "ultima_manutencao": _ultima_manutencao,
             "status_geral":    _st_info["status_geral"],
             "criterio_urgente": _st_info["criterio_urgente"],
             "status_horas":    _st_info["status_horas"],
@@ -3852,6 +3853,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
             <col style="width:9%"/>
             <col style="width:9%"/>
             <col style="width:9%"/>
+            <col style="width:9%"/>
             <col style="width:35%"/>
             <col style="width:13%"/>
           </colgroup>
@@ -3861,9 +3863,10 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
               <th>Placa</th>
               <th>Status Geral</th>
               <th class="num">Hor. Atual</th>
+              <th class="num">Data Ult. Manut.</th>
               <th class="num">Hod. Atual</th>
-              <th>Status por Critério</th>
-              <th>Tipo de Serviço</th>
+              <th>Status por Criterio</th>
+              <th>Tipo de Servico</th>
             </tr>
           </thead>
           <tbody id="tblManutencaoBdy"></tbody>
@@ -4931,6 +4934,7 @@ function mkManutencao() {{
       '<td>' + (r.placa || '—') + '</td>' +
       '<td>' + badge + '</td>' +
       '<td class="num">' + fmtH(r.horimetro_atual) + '</td>' +
+      '<td class="num">' + (r.ultima_manutencao || '—') + '</td>' +
       '<td class="num">' + fmtKm(r.hodometro_atual) + '</td>' +
       '<td>' + statusHtml + '</td>' +
       '<td>' + srvTxt + '</td>';
