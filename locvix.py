@@ -4929,12 +4929,18 @@ function mkManutencao() {{
     
     const tr = document.createElement('tr');
     if (rowBg) tr.setAttribute('style', rowBg);
+    // Formata data para dd/mm/aaaa
+    let dataBr = '—';
+    if (r.ultima_manutencao && /^\d{4}-\d{2}-\d{2}$/.test(r.ultima_manutencao)) {
+      const [y, m, d] = r.ultima_manutencao.split('-');
+      dataBr = `${d}/${m}/${y}`;
+    }
     tr.innerHTML =
       '<td><strong>' + r.cc + '</strong></td>' +
       '<td>' + (r.placa || '—') + '</td>' +
       '<td>' + badge + '</td>' +
       '<td class="num">' + fmtH(r.horimetro_atual) + '</td>' +
-      '<td class="num">' + (r.ultima_manutencao || '—') + '</td>' +
+      '<td class="num">' + dataBr + '</td>' +
       '<td class="num">' + fmtKm(r.hodometro_atual) + '</td>' +
       '<td>' + statusHtml + '</td>' +
       '<td>' + srvTxt + '</td>';
