@@ -3050,20 +3050,21 @@ def gerar_dashboard_html(
         _st_info = calcular_status_manutencao(_rec, _horimetro_atual, _hodometro_atual)
 
         raw_manutencoes.append({
-            "cc":              _cc,
-            "placa":           _vei.get("placa", ""),
-            "horimetro_atual": _horimetro_atual,
-            "horimetro_fonte": _horo_fonte,
-            "hodometro_atual": _hodometro_atual,
-            "ignicao":         _vei.get("ignicao", 0),
-            "data_evento":     _vei.get("data_evento", ""),
-            "status_geral":    _st_info["status_geral"],
-            "criterio_urgente": _st_info["criterio_urgente"],
-            "status_horas":    _st_info["status_horas"],
-            "status_km":       _st_info["status_km"],
-            "status_dias":     _st_info["status_dias"],
-            "email":           _email,
-            "tipo_servico":    _tipo_srv,
+          "cc":              _cc,
+          "placa":           _vei.get("placa", ""),
+          "horimetro_atual": _horimetro_atual,
+          "horimetro_fonte": _horo_fonte,
+          "hodometro_atual": _hodometro_atual,
+          "ignicao":         _vei.get("ignicao", 0),
+          "data_evento":     _vei.get("data_evento", ""),
+          "ultima_manutencao": _ultima_manutencao,
+          "status_geral":    _st_info["status_geral"],
+          "criterio_urgente": _st_info["criterio_urgente"],
+          "status_horas":    _st_info["status_horas"],
+          "status_km":       _st_info["status_km"],
+          "status_dias":     _st_info["status_dias"],
+          "email":           _email,
+          "tipo_servico":    _tipo_srv,
         })
 
     def _clean_surrogates(o):
@@ -3861,6 +3862,7 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
               <th>Placa</th>
               <th>Status Geral</th>
               <th class="num">Hor. Atual</th>
+              <th class="num">Data Últ. Manut.</th>
               <th class="num">Hod. Atual</th>
               <th>Status por Critério</th>
               <th>Tipo de Serviço</th>
@@ -5089,32 +5091,33 @@ function mkPagarCentroCusto() {{
   }});
 }}
 
-function mkPagarMensal() {{
-  destroyChart('chartPagarMensal');
-  const canvas = document.getElementById('chartPagarMensal');
-  if (!canvas) return;
-  const hoje = new Date();
-  const meses = [];
-  for (let i = -12; i <= 12; i++) {{
-    const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
-    meses.push({{ key: d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'),
-                  label: d.toLocaleDateString('pt-BR',{{month:'short',year:'2-digit'}}) }});
-  }}
-  const pago    = {{}};
-  const aVencer = {{}};
-  const vencido = {{}};
-  const hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
-  meses.forEach(m => {{ pago[m.key]=0; aVencer[m.key]=0; vencido[m.key]=0; }});
-  pagarFiltFin.forEach(r => {{
-    if (!r.venc) return;
-    const mk = r.venc.slice(0,7);
-    if (!Object.prototype.hasOwnProperty.call(pago, mk)) return;
-    if (r.status === 'PAGO') {{
-      pago[mk] += r.valor;
-    }} else if (mk < hojeStr) {{
-      vencido[mk] += r.valor;
-    }} else {{
-      aVencer[mk] += r.valor;
+function mkManutencao() {
+  const arr = MANUTENCAO;
+  let html = '';
+  arr.forEach((r, i) => {
+    html += `<tr>
+      <td>${r.cc || '\u2014'}</td>
+      <td>${r.placa || '\u2014'}</td>
+      <td>${statusBadge(r.status_geral)}</td>
+      <td class="num">${r.horimetro_atual != null ? NUM(r.horimetro_atual) + ' h' : '—'}</td>
+      <td class="num">${r.ultima_manutencao || '—'}</td>
+      <td class="num">${r.hodometro_atual != null ? NUM(r.hodometro_atual) + ' km' : '—'}</td>
+      <td>${renderStatusCrit(r)}</td>
+      <td>${r.tipo_servico || '\u2014'}</td>
+    </tr>`;
+  });
+  document.getElementById('tblManutencaoBdy').innerHTML = html;
+  // Atualiza KPIs
+  let v=0,p=0,o=0;
+  arr.forEach(r=>{
+    if(r.status_geral==='vencida')v++;
+    else if(r.status_geral==='proxima')p++;
+    else o++;
+  });
+  document.getElementById('kManutVencidas').textContent = NUM(v);
+  document.getElementById('kManutProximas').textContent = NUM(p);
+  document.getElementById('kManutOk').textContent = NUM(o);
+}
     }}
   }});
   const labels  = meses.map(m=>m.label);
