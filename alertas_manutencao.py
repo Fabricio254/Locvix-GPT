@@ -106,7 +106,7 @@ def buscar_manutencoes() -> list:
         f"{SUPABASE_URL}/rest/v1/manutencoes_equipamentos",
         headers=headers,
         params={
-            "select": "equipamento,ultima_manutencao,responsavel_email,intervalo_meses,tipo_servico,horimetro_ultima_manutencao,intervalo_horas",
+            "select": "equipamento,ultima_manutencao,responsavel_email,tipo_servico,horimetro_ultima_manutencao,intervalo_horas,hodometro_ultima_manutencao,intervalo_km,periodo_dias",
             "order": "equipamento.asc",
         },
         timeout=15,
@@ -198,21 +198,10 @@ def enviar_email(destinatarios: list, equipamentos: list) -> None:
         cor = "#dc2626" if equipamento["status"] == "vencida" else "#d97706"
         badge = "🔴 VENCIDA" if equipamento["status"] == "vencida" else "⚠️ PRÓXIMA"
 
-        if equipamento["modo"] == "horimetro":
-            ref_lbl = "⏱ Horímetro"
-            ref_val = (
-                f"{equipamento['horo_atual']:.1f} h".replace(".", ",")
-                if equipamento["horo_atual"] is not None else "—"
-            )
-            prox_val = (
-                f"{equipamento['horo_proxima']:.1f} h".replace(".", ",")
-                if equipamento["horo_proxima"] is not None else "—"
-            )
-        else:
-            ref_lbl = "📅 Última Manut."
-            partes = (equipamento.get("ultima") or "").split("-")
-            ref_val = f"{partes[2]}/{partes[1]}/{partes[0]}" if len(partes) == 3 else "Não registrada"
-            prox_val = equipamento["dt_proxima"].strftime("%d/%m/%Y") if equipamento.get("dt_proxima") else "—"
+        # Monta critérios como HTML
+        criterios_html = ""
+        for c in equipamento.get("criterios", []):
+            criterios_html += f"<div style='font-size:11px;margin:4px 0;color:#374151'>{c['tipo']}: {c['situacao']}</div>"
 
         rows_html += f"""
         <tr>
@@ -220,9 +209,9 @@ def enviar_email(destinatarios: list, equipamentos: list) -> None:
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">
             <span style="background:{cor};color:#fff;padding:2px 8px;border-radius:10px;font-size:12px">{badge}</span>
           </td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#64748b">{ref_lbl}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">{ref_val}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">{prox_val}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#64748b">
+            {criterios_html}
+          </td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:{cor};font-weight:600">{equipamento['situacao']}</td>
         </tr>"""
 
@@ -249,9 +238,7 @@ def enviar_email(destinatarios: list, equipamentos: list) -> None:
         <tr style="background:#1e3a5f;color:#fff">
           <th style="padding:10px 12px;text-align:left;font-size:13px">Equipamento</th>
           <th style="padding:10px 12px;text-align:left;font-size:13px">Status</th>
-          <th style="padding:10px 12px;text-align:left;font-size:13px">Métrica</th>
-          <th style="padding:10px 12px;text-align:left;font-size:13px">Atual</th>
-          <th style="padding:10px 12px;text-align:left;font-size:13px">Próxima Manutenção</th>
+          <th style="padding:10px 12px;text-align:left;font-size:13px">Critérios (Horímetro | Período)</th>
           <th style="padding:10px 12px;text-align:left;font-size:13px">Situação</th>
         </tr>
       </thead>
@@ -326,13 +313,9 @@ def main() -> int:
 
         entry = {
             "cc": nome,
-            "status": calc["status"],
-            "modo": calc["modo"],
-            "ultima": (registro.get("ultima_manutencao") or "")[:10],
-            "dt_proxima": calc["dt_proxima"],
+            "status": calc["status_geral"],
+            "criterios": calc["criterios"],
             "horo_atual": calc["horo_atual"],
-            "horo_proxima": calc["horo_proxima"],
-            "horas_rest": calc["horas_rest"],
             "situacao": calc["situacao"],
         }
         todos_alertas.append(entry)
