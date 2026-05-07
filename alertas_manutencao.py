@@ -24,6 +24,10 @@ from email.mime.text import MIMEText
 
 import requests
 
+import json
+import hashlib
+import tempfile
+
 
 # ── Configuração via variáveis de ambiente ─────────────────────────
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
@@ -46,6 +50,131 @@ AVISO_DIAS = 5
 INTERVALO_HORAS_PADRAO = 600
 
 
+
+
+# ══════════════════════════════════════════════════════════════════
+#  CACHE EM DISCO
+# ══════════════════════════════════════════════════════════════════
+_CACHE_SCHEMA = "4"
+_CACHE_DIR = os.path.join(tempfile.gettempdir(), "_cache_alertas")
+os.makedirs(_CACHE_DIR, exist_ok=True)
+
+def _cache_path(chave: str) -> str:
+    h = hashlib.md5(f"{_CACHE_SCHEMA}|{chave}".encode()).hexdigest()
+    return os.path.join(_CACHE_DIR, f"{h}.json")
+
+def _cache_load(chave: str, ttl: int) -> list | dict | None:
+    """Carrega cache se ainda válido (TTL em segundos)."""
+    import time
+    p = _cache_path(chave)
+    if not os.path.exists(p):
+        return None
+    if time.time() - os.path.getmtime(p) > ttl:
+        return None
+    try:
+        with open(p, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+def _cache_save(chave: str, data) -> None:
+    """Salva dados em cache."""
+    try:
+        with open(_cache_path(chave), "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, default=str)
+    except Exception as e:
+        print(f"  [AVISO] Cache não salvo: {e}")
+
+
+# ══════════════════════════════════════════════════════════════════
+#  FULLTRACK — CÁLCULO DE HORAS DE IGNIÇÃO ACUMULADA
+# ══════════════════════════════════════════════════════════════════
+
+def _ft_parse_dt(s: str | None):
+    """Converte data/hora FullTrack (dd/mm/YYYY HH:MM:SS) em datetime."""
+    if not s:
+        return None
+    try:
+        return __import__("datetime").datetime.strptime(str(s), "%d/%m/%Y %H:%M:%S")
+    except Exception:
+        return None
+
+
+def _ft_horas_ignicao_intervalo(veiculo_id: str, dt_ini, dt_fim) -> float:
+    """
+    Soma horas de ignição ligada no intervalo via /events/interval.
+    dt_ini, dt_fim: datetime objects
+    Retorna: float com total de horas
+    """
+    from datetime import timedelta
+    
+    if not veiculo_id or dt_fim <= dt_ini:
+        return 0.0
+
+    hdrs = {"apikey": FULLTRACK_API_KEY, "secretkey": FULLTRACK_SECRET_KEY}
+    passo = timedelta(days=7)
+    cur = dt_ini
+    eventos = []
+
+    while cur < dt_fim:
+        nxt = min(cur + passo, dt_fim)
+        bts = int(cur.timestamp())
+        ets = int(nxt.timestamp())
+        ck = f"ft_ignicao|{veiculo_id}|{bts}|{ets}"
+        cached = _cache_load(ck, 900)
+
+        rows = []
+        if isinstance(cached, list):
+            for it in cached:
+                if isinstance(it, list) and len(it) == 2:
+                    d = _ft_parse_dt(it[0])
+                    if d is None:
+                        continue
+                    try:
+                        ig = int(it[1])
+                    except Exception:
+                        continue
+                    rows.append((d, 1 if ig == 1 else 0))
+        else:
+            try:
+                url = f"{FULLTRACK_BASE}/events/interval/id/{veiculo_id}/begin/{bts}/end/{ets}"
+                resp = requests.get(url, headers=hdrs, timeout=20)
+                data = resp.json()
+                for ev in (data.get("data") or []):
+                    d = _ft_parse_dt(ev.get("ras_eve_data_gps"))
+                    if d is None:
+                        continue
+                    try:
+                        ig = int(ev.get("ras_eve_ignicao") or 0)
+                    except Exception:
+                        ig = 0
+                    rows.append((d, 1 if ig == 1 else 0))
+                _cache_save(ck, [[d.strftime("%d/%m/%Y %H:%M:%S"), ig] for d, ig in rows])
+            except Exception:
+                pass
+
+        eventos.extend(rows)
+        cur = nxt
+
+    if not eventos:
+        return 0.0
+
+    eventos.sort(key=lambda x: x[0])
+
+    total_seg = 0.0
+    for i in range(len(eventos) - 1):
+        t0, ig = eventos[i]
+        t1, _ = eventos[i + 1]
+        if ig == 1 and t1 > t0:
+            total_seg += (t1 - t0).total_seconds()
+
+    if eventos[-1][1] == 1 and dt_fim > eventos[-1][0]:
+        total_seg += (dt_fim - eventos[-1][0]).total_seconds()
+
+    return round(total_seg / 3600.0, 1)
+
+
+
 def _split_emails(raw_value: str) -> list:
     """Converte lista de e-mails separada por vírgula/quebra de linha em lista sem duplicidade."""
     emails = []
@@ -63,34 +192,55 @@ def _split_emails(raw_value: str) -> list:
 
 
 # ── Busca horímetro atual de todos os veículos no FullTrack ────────
-def buscar_horimetros_fulltrack() -> dict:
+def buscar_horimetros_fulltrack(manutencoes: list) -> dict:
     """
-    Retorna dict {nome_veiculo: horimetro_atual} via /events/all.
-    Usado para calcular horas restantes até a próxima manutenção.
+    Retorna dict {equipamento: horas_acumuladas_desde_ultima_manutencao}.
+    
+    IMPORTANTE: Em vez de usar o horímetro da máquina (não confiável),
+    calcula as HORAS DE IGNIÇÃO LIGADA desde a última manutenção registrada.
+    
+    Entrada: lista de manutencões (do Supabase)
+    Saída: {equipamento: horas_acumuladas}
     """
-    try:
-        response = requests.get(
-            f"{FULLTRACK_BASE}/events/all",
-            headers={"apikey": FULLTRACK_API_KEY, "secretkey": FULLTRACK_SECRET_KEY},
-            timeout=15,
-        )
-        response.raise_for_status()
-        dados = response.json().get("data") or []
-        resultado = {}
-        for evento in dados:
-            nome = (evento.get("ras_vei_veiculo") or "").strip()
-            placa = (evento.get("ras_vei_placa") or "").strip()
-            horimetro = evento.get("ras_eve_horimetro")
-            horimetro_horas = round(float(horimetro or 0) / 3600, 1)
-            if nome:
-                resultado[nome] = horimetro_horas
-            if placa:
-                resultado[placa] = horimetro_horas
-        print(f"  ✔ FullTrack: horímetro de {len(dados)} veículos obtido")
-        return resultado
-    except Exception as exc:
-        print(f"  [AVISO] buscar_horimetros_fulltrack: {exc} — usando fallback por data")
+    from datetime import datetime
+    
+    if not manutencoes:
         return {}
+    
+    resultado = {}
+    agora = datetime.now()
+    
+    for rec in manutencoes:
+        nome = (rec.get("equipamento") or "").strip()
+        if not nome:
+            continue
+        
+        # Busca data da última manutenção
+        ultima_manutencao = rec.get("ultima_manutencao")
+        if not ultima_manutencao:
+            # Se não tem registro de manutenção, não conseguimos calcular
+            resultado[nome] = 0.0
+            continue
+        
+        try:
+            # Converte data (formato: YYYY-MM-DD ou YYYY-MM-DDTHH:MM:SS)
+            data_str = ultima_manutencao[:10]  # pega só YYYY-MM-DD
+            dt_ultima = datetime.strptime(data_str, "%Y-%m-%d")
+            
+            # Busca ID do veículo no FullTrack
+            # Para simplificar, usamos 'nome' como ID (pode precisar ajuste)
+            veiculo_id = nome
+            
+            # Calcula horas de ignição desde última manutenção até agora
+            horas_acumuladas = _ft_horas_ignicao_intervalo(veiculo_id, dt_ultima, agora)
+            resultado[nome] = horas_acumuladas
+            
+        except Exception as exc:
+            print(f"  [AVISO] Cálculo de horas para {nome}: {exc}")
+            resultado[nome] = 0.0
+    
+    print(f"  ✔ FullTrack: horímetro acumulado de {len(resultado)} equipamentos calculado")
+    return resultado
 
 
 # ── Busca registros do Supabase ────────────────────────────────────
@@ -119,17 +269,32 @@ def buscar_manutencoes() -> list:
 def calcular_status(registro: dict, horimetros_ft: dict) -> dict:
     """
     Retorna dict com: status, modo, horo_atual, horo_proxima, horas_rest, situacao, dt_proxima.
-    Prioridade: horímetro FullTrack → fallback por data.
+    
+    Lógica:
+    - Usa horímetro acumulado (horas de ignição desde última manutenção)
+    - Compara com intervalo_horas (que o usuário digita)
+    - Se passou do limite: "vencida"
+    - Se faltam ≤20h: "proxima" (aviso antecipado)
+    - Senão: "ok"
     """
     nome = (registro.get("equipamento") or "").strip()
     horimetro_ultima = registro.get("horimetro_ultima_manutencao")
     intervalo_horas = float(registro.get("intervalo_horas") or INTERVALO_HORAS_PADRAO)
-    horimetro_atual = horimetros_ft.get(nome)
+    horas_acumuladas = horimetros_ft.get(nome)
 
-    if horimetro_ultima is not None and horimetro_atual is not None:
+    if horimetro_ultima is not None and horas_acumuladas is not None:
         horimetro_ultima = float(horimetro_ultima)
+        horas_acumuladas = float(horas_acumuladas)
+        
+        # Horímetro esperado na próxima manutenção
         horimetro_proxima = round(horimetro_ultima + intervalo_horas, 1)
+        
+        # Horímetro ATUAL = última manutenção + horas acumuladas desde então
+        horimetro_atual = round(horimetro_ultima + horas_acumuladas, 1)
+        
+        # Quantas horas faltam até a próxima manutenção
         horas_restantes = round(horimetro_proxima - horimetro_atual, 1)
+        
         if horas_restantes < 0:
             status = "vencida"
             situacao = f"{abs(horas_restantes):.1f} h em atraso"
@@ -139,9 +304,10 @@ def calcular_status(registro: dict, horimetros_ft: dict) -> dict:
         else:
             status = "ok"
             situacao = f"Faltam {horas_restantes:.1f} h"
+        
         return {
             "status": status,
-            "modo": "horimetro",
+            "modo": "horimetro_acumulado",
             "horo_atual": horimetro_atual,
             "horo_proxima": horimetro_proxima,
             "horas_rest": horas_restantes,
@@ -275,7 +441,7 @@ def main() -> int:
     print(f"  Data: {date.today().strftime('%d/%m/%Y')}")
     print("=" * 55)
 
-    horimetros_ft = buscar_horimetros_fulltrack()
+    horimetros_ft = buscar_horimetros_fulltrack(manutencoes)
 
     try:
         registros = buscar_manutencoes()
