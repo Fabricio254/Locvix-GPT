@@ -2407,7 +2407,6 @@ def buscar_manutencoes() -> list[dict]:
 def salvar_manutencao(equipamento: str, data_str: str = "",
                       email: str = "", intervalo_meses: int = 2,
                       tipo_servico: str = "",
-                      horimetro_ultima: float | None = None,
                       intervalo_horas: float | None = None,
                       hodometro_ultima: float | None = None,
                       intervalo_km: float | None = None,
@@ -2415,7 +2414,7 @@ def salvar_manutencao(equipamento: str, data_str: str = "",
     """
     Salva ou atualiza um registro de manutenção no Supabase.
     Suporta 3 critérios:
-    - Por horímetro: data_str, horimetro_ultima, intervalo_horas
+    - Por horímetro: intervalo_horas (o último valor de horimetro_ultima fica guardado na DB)
     - Por hodômetro: hodometro_ultima, intervalo_km
     - Por período: data_str, periodo_dias
     Retorna True em caso de sucesso.
@@ -2448,8 +2447,6 @@ def salvar_manutencao(equipamento: str, data_str: str = "",
         }
         if data_str:
             payload["ultima_manutencao"] = data_str
-        if horimetro_ultima is not None:
-            payload["horimetro_ultima_manutencao"] = float(horimetro_ultima)
         if intervalo_horas is not None:
             payload["intervalo_horas"] = float(intervalo_horas)
         if hodometro_ultima is not None:
@@ -3063,6 +3060,8 @@ def gerar_dashboard_html(
             "cc":              _cc,
             "placa":           _vei.get("placa", ""),
             "horimetro_atual": _horimetro_atual,
+            "horimetro_ultima_manutencao": _rec.get("horimetro_ultima_manutencao"),
+            "intervalo_horas": _rec.get("intervalo_horas"),
             "horimetro_fonte": _horo_fonte,
             "hodometro_atual": _hodometro_atual,
             "ignicao":         _vei.get("ignicao", 0),
@@ -3785,12 +3784,6 @@ html,body{{overflow-x:hidden;max-width:100%;box-sizing:border-box;}}
             style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff;cursor:pointer;">
             <option value="">— Selecione o equipamento —</option>
           </select>
-        </div>
-        <!-- Horímetro (horas) -->
-        <div style="flex:1;min-width:120px;">
-          <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">⏱ Hor. Últ. Manut. (h)</label>
-          <input id="mFormHoroUlt" type="number" min="0" step="0.1" placeholder="Ex: 1250.5"
-            style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;box-sizing:border-box;">
         </div>
         <!-- Intervalo em horas -->
         <div style="flex:1;min-width:110px;">
@@ -4979,7 +4972,6 @@ function mkManutencao() {{
 // Suporta 3 critérios: horímetro (h), hodômetro (km), período (dias)
 async function salvarManutencao() {{
   const equip      = (document.getElementById('mFormEquip').value || '').trim();
-  const horoUlt    = document.getElementById('mFormHoroUlt').value.trim();
   const intHoras   = document.getElementById('mFormIntHoras').value.trim() || '600';
   const hodoUlt    = document.getElementById('mFormHodoUlt').value.trim();
   const intKm      = document.getElementById('mFormIntKm').value.trim() || '5000';
@@ -4988,7 +4980,7 @@ async function salvarManutencao() {{
   const msg        = document.getElementById('mFormMsg');
 
   if (!equip) {{ _mMsg(msg, '\u274c Selecione o equipamento.', '#dc2626'); return; }}
-  if (!horoUlt && !hodoUlt && !periodo) {{ _mMsg(msg, '\u274c Informe pelo menos uma métrica: horímetro, hodômetro ou período.', '#dc2626'); return; }}
+  if (!intHoras && !hodoUlt && !periodo) {{ _mMsg(msg, '\u274c Informe pelo menos uma métrica: intervalo de horas, hodômetro ou período.', '#dc2626'); return; }}
 
   const sbUrl  = _SB_URL;
   const sbAnon = _SB_ANON;
@@ -5003,8 +4995,7 @@ async function salvarManutencao() {{
   }};
   const payload = JSON.stringify({{
     equipamento: equip,
-    horimetro_ultima_manutencao: horoUlt ? parseFloat(horoUlt) : null,
-    intervalo_horas: horoUlt ? (parseFloat(intHoras) || null) : null,
+    intervalo_horas: intHoras ? (parseFloat(intHoras) || null) : null,
     hodometro_ultima_manutencao: hodoUlt ? parseFloat(hodoUlt) : null,
     intervalo_km: hodoUlt ? (parseFloat(intKm) || null) : null,
     periodo_dias: periodo ? parseInt(periodo) : null,
@@ -5025,7 +5016,6 @@ async function salvarManutencao() {{
     _mMsg(msg, '\u2705 ' + equip + ' — ' + saved.join(' + ') + ' registrado.', '#059669');
     // Limpa formulário
     document.getElementById('mFormEquip').value = '';
-    document.getElementById('mFormHoroUlt').value = '';
     document.getElementById('mFormIntHoras').value = '600';
     document.getElementById('mFormHodoUlt').value = '';
     document.getElementById('mFormIntKm').value = '5000';
@@ -5066,7 +5056,6 @@ async function deletarManutencao() {{
     }}
     mkManutencao();
     sel.value = '';
-    document.getElementById('mFormHoroUlt').value = '';
     document.getElementById('mFormIntHoras').value = '600';
     document.getElementById('mFormHodoUlt').value = '';
     document.getElementById('mFormIntKm').value = '5000';
@@ -6111,8 +6100,6 @@ document.addEventListener('DOMContentLoaded', () => {{
     if (equipList.length) {{
       mSel.addEventListener('change', () => {{
         const rec = MANUTENCAO.find(r => r.cc === mSel.value);
-        const horoEl = document.getElementById('mFormHoroUlt');
-        if (horoEl) horoEl.value = (rec && rec.horimetro_ultima_manutencao != null) ? rec.horimetro_ultima_manutencao : '';
         const intEl = document.getElementById('mFormIntHoras');
         if (intEl) intEl.value = (rec && rec.intervalo_horas) ? rec.intervalo_horas : '600';
         const hodoEl = document.getElementById('mFormHodoUlt');
