@@ -4920,9 +4920,12 @@ function mkManutencao() {{
     if (st_h.status) {{
       const col = st_h.status === 'vencida' ? '#dc2626' : (st_h.status === 'proxima' ? '#d97706' : '#059669');
       const icon = st_h.status === 'vencida' ? '🔴' : (st_h.status === 'proxima' ? '⚠️' : '✅');
+      const horaAtual = (r.horimetro_atual !== null) ? Number(r.horimetro_atual).toFixed(1) : '—';
+      const intervalo = (st_h.proxima !== null && r.horimetro_ultima_manutencao !== null) ? 
+        Number(st_h.proxima - r.horimetro_ultima_manutencao).toFixed(1) : '—';
       const rest = (st_h.restantes !== null) ? fmtH(st_h.restantes) : '—';
       statusHtml += '<div style="font-size:11px;padding:5px;border-left:3px solid ' + col + ';margin-bottom:4px;background:rgba(0,0,0,.02)">' +
-        icon + ' Horas: ' + rest + '</div>';
+        icon + ' Horas: ' + horaAtual + 'h / ' + intervalo + 'h (faltam ' + rest + ')</div>';
     }}
     
     // Status hodômetro
